@@ -47,6 +47,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.CameraCompatibilityInfo;
 import android.content.res.CompatibilityInfo;
+import android.hardware.Camera;
 import android.hardware.CameraExtensionSessionStats;
 import android.hardware.CameraStatus;
 import android.hardware.ICameraService;
@@ -2516,7 +2517,8 @@ public final class CameraManager {
                 for (int i = 0; i < mDeviceStatus.size(); i++) {
                     int status = mDeviceStatus.valueAt(i);
                     DeviceCameraInfo info = mDeviceStatus.keyAt(i);
-                    if (status == ICameraServiceListener.STATUS_NOT_PRESENT
+                    if (shouldHideAuxCamera(info.mCameraId)
+                            || status == ICameraServiceListener.STATUS_NOT_PRESENT
                             || status == ICameraServiceListener.STATUS_ENUMERATING
                             || shouldHideCamera(deviceId, devicePolicy, info)) {
                         continue;
@@ -2529,6 +2531,17 @@ public final class CameraManager {
                 String messageWithHistory = message + ": {"
                         + String.join(" -> ", mDeviceStatusHistory) + "}";
                 throw new ArrayIndexOutOfBoundsException(messageWithHistory);
+            }
+        }
+
+        private static boolean shouldHideAuxCamera(String cameraId) {
+            if (Camera.shouldExposeAuxCamera()) {
+                return false;
+            }
+            try {
+                return Integer.parseInt(cameraId) >= 2;
+            } catch (NumberFormatException e) {
+                return false;
             }
         }
 
@@ -3115,6 +3128,12 @@ public final class CameraManager {
         }
 
         private void onStatusChangedLocked(int status, DeviceCameraInfo info) {
+            if (shouldHideAuxCamera(info.mCameraId)) {
+                Log.w(TAG, String.format("Ignoring status update of camera %s for device %d",
+                        info.mCameraId, info.mDeviceId));
+                return;
+            }
+
             if (DEBUG) {
                 Log.v(TAG,
                         String.format("Camera id %s has status changed to 0x%x for device %d",
