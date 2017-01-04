@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-     Copyright (C) 2022 The Android Open Source Project
+     Copyright (C) 2023 the RisingOS Android Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -14,19 +14,7 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-
 <resources>
-    <declare-styleable name="ButtonPreference">
-        <attr name="android:gravity" />
-        <attr name="buttonPreferenceType" format="enum">
-            <enum name="filled" value="0"/>
-            <enum name="tonal" value="1"/>
-            <enum name="outline" value="2"/>
-        </attr>
-        <attr name="buttonPreferenceSize" format="enum">
-            <enum name="normal" value="0"/>
-            <enum name="large" value="1"/>
-            <enum name="extra" value="2"/>
-        </attr>
-    </declare-styleable>
+    <!-- Network traffic -->
+    <dimen name="network_traffic_width">25sp</dimen>
 </resources>
