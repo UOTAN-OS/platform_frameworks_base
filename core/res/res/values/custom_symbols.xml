@@ -117,4 +117,7 @@
 
    <!-- Defines the actions shown in advanced reboot submenu -->
    <java-symbol type="array" name="config_restartActionsList" />
+
+   <!-- Configuration for detecting whether an oem fast charger is active -->
+   <java-symbol type="array" name="config_oemFastChargerStatusPaths" />
 </resources>
