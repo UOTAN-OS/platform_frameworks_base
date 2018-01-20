@@ -13415,6 +13415,12 @@ public final class Settings {
         public static final String FEATURE_TOUCH_HOVERING = "feature_touch_hovering";
 
         /**
+         * Whether to include options in power menu for rebooting into recovery or bootloader
+         * @hide
+         */
+        public static final String ADVANCED_REBOOT = "advanced_reboot";
+
+        /**
          * Whether or not secure windows should be disabled. This only works on debuggable builds.
          *
          * <p>When this setting is set to a non-zero value, all windows are treated as non-secure.
