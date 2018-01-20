@@ -147,4 +147,12 @@
 
    <!-- API URL to fetch PIF from -->
    <string name="config_pifUpdateUrl" translatable="false">https://raw.githubusercontent.com/PixelOS-AOSP/official_devices/refs/heads/sixteen/API/updater/CertifiedProps/certified_build_props.json</string>
+
+   <!-- Defines the actions shown in advanced reboot submenu -->
+   <string-array name="config_restartActionsList">
+       <item>restart</item>
+       <item>restart_recovery</item>
+       <item>restart_bootloader</item>
+       <item>restart_fastboot</item>
+   </string-array>
 </resources>
