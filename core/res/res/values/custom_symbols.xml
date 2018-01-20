@@ -109,4 +109,7 @@
 
    <!-- API URL to fetch PIF from -->
    <java-symbol type="string" name="config_pifUpdateUrl" />
+
+   <!-- Defines the actions shown in advanced reboot submenu -->
+   <java-symbol type="array" name="config_restartActionsList" />
 </resources>
