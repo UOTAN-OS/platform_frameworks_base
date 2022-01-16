@@ -73,6 +73,7 @@ import java.util.function.Consumer;
  */
 @SystemService(Context.CARRIER_CONFIG_SERVICE)
 @RequiresFeature(PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)
+@SuppressLint("UnflaggedApi")
 public class CarrierConfigManager {
     private static final String TAG = "CarrierConfigManager";
 
@@ -11011,6 +11012,7 @@ public class CarrierConfigManager {
      *
      * @hide
      */
+    @SuppressLint("UnflaggedApi")
     public static final String KEY_NR_ULTRA_WIDEBAND_ICON_SIB2_VALUE =
             "5g_ultra_wideband_icon_sib2_value";
 

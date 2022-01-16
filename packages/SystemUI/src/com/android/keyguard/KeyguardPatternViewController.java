@@ -112,7 +112,7 @@ public class KeyguardPatternViewController
         }
 
         @Override
-        public void onPatternDetected(final List<LockPatternView.Cell> pattern, byte patternSize) {
+        public void onPatternDetected(final List<LockPatternView.Cell> pattern) {
             mKeyguardUpdateMonitor.setCredentialAttempted();
             mLockPatternView.disableInput();
             if (mPendingLockCheck != null) {
@@ -135,7 +135,8 @@ public class KeyguardPatternViewController
             mLatencyTracker.onActionStart(ACTION_CHECK_CREDENTIAL_UNLOCKED);
             mPendingLockCheck = LockPatternChecker.checkCredential(
                     mLockPatternUtils,
-                    LockscreenCredential.createPattern(pattern, patternSize),
+                    LockscreenCredential.createPattern(
+        pattern, mLockPatternUtils.getLockPatternSize(userId)), // <-- FIXED LINE
                     userId,
                     new LockPatternChecker.OnCheckCallback() {
 

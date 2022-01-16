@@ -722,7 +722,8 @@ public class RotationButtonController {
         }
         // Only override user prefs when returning to the natural rotation (normally portrait).
         // Don't let apps that force landscape or 180 alter user lock.
-        return rotation == RotationPolicy.getNaturalRotation();
+        //return rotation == RotationPolicy.getNaturalRotation();
+         return false;
     }
 
     private void rescheduleRotationTimeout(final boolean reasonHover) {

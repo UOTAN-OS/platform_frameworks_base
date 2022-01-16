@@ -11886,6 +11886,7 @@ package android.content {
     field public static final String ACTION_REBOOT = "android.intent.action.REBOOT";
     field public static final String ACTION_RUN = "android.intent.action.RUN";
     field public static final String ACTION_SAFETY_CENTER = "android.intent.action.SAFETY_CENTER";
+    field public static final String ACTION_SCREEN_CAMERA_GESTURE = "android.intent.action.SCREEN_CAMERA_GESTURE";
     field public static final String ACTION_SCREEN_OFF = "android.intent.action.SCREEN_OFF";
     field public static final String ACTION_SCREEN_ON = "android.intent.action.SCREEN_ON";
     field public static final String ACTION_SEARCH = "android.intent.action.SEARCH";
@@ -45691,6 +45692,7 @@ package android.telephony {
     field public static final String KEY_MMS_UA_PROF_URL_STRING = "uaProfUrl";
     field public static final String KEY_MMS_USER_AGENT_STRING = "userAgent";
     field public static final String KEY_MONTHLY_DATA_CYCLE_DAY_INT = "monthly_data_cycle_day_int";
+    field public static final String KEY_NR_ULTRA_WIDEBAND_ICON_SIB2_VALUE = "5g_ultra_wideband_icon_sib2_value";
     field public static final String KEY_NTN_LTE_RSRP_THRESHOLDS_INT_ARRAY = "ntn_lte_rsrp_thresholds_int_array";
     field public static final String KEY_NTN_LTE_RSRQ_THRESHOLDS_INT_ARRAY = "ntn_lte_rsrq_thresholds_int_array";
     field public static final String KEY_NTN_LTE_RSSNR_THRESHOLDS_INT_ARRAY = "ntn_lte_rssnr_thresholds_int_array";

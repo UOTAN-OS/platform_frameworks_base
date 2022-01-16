@@ -35,16 +35,16 @@ object CredentialPatternViewBinder {
                 launch {
                     viewModel.header.collect { header ->
                         lockPatternView.setOnPatternListener(
-                            OnPatternDetectedListener { pattern, patternSize ->
-                                if (pattern.isPatternTooShort()) {
-                                    // Pattern size is less than the minimum
-                                    // do not count it as a failed attempt
+                           OnPatternDetectedListener { pattern, inputMode, patternSize -> 
+        if (pattern.isPatternTooShort()) {
+                                   
                                     viewModel.showPatternTooShortError()
                                 } else {
-                                    lockPatternView.isEnabled = false
-                                    launch {
+                                   
+               launch {
                                         viewModel.checkCredential(pattern, patternSize, header)
                                     }
+                                    
                                 }
                             }
                         )
@@ -84,7 +84,12 @@ object CredentialPatternViewBinder {
 }
 
 private class OnPatternDetectedListener(
-    private val onDetected: (pattern: List<LockPatternView.Cell>, patternSize: Byte) -> Unit
+    private val onDetected: (
+        pattern: List<LockPatternView.Cell>, 
+        inputMode: LockPatternView.InputMode,
+        patternSize: Byte
+    ) -> Unit
+    
 ) : LockPatternView.OnPatternListener {
     override fun onPatternCellAdded(pattern: List<LockPatternView.Cell>) {}
 
@@ -92,8 +97,14 @@ private class OnPatternDetectedListener(
 
     override fun onPatternStart() {}
 
-    override fun onPatternDetected(pattern: List<LockPatternView.Cell>, patternSize: Byte) {
-        onDetected(pattern, patternSize)
+   
+    override fun onPatternDetected(
+        pattern: List<LockPatternView.Cell>, 
+        inputMode: LockPatternView.InputMode, 
+        patternSize: Byte
+    ) {
+
+        onDetected(pattern, inputMode, patternSize) 
     }
 }
 

@@ -680,6 +680,7 @@ import java.util.function.Consumer;
  * of all possible flags.
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
+@SuppressLint("UnflaggedApi") // Added to suppress the UnflaggedApi error for custom ROM builds
 public class Intent implements Parcelable, Cloneable {
     private static final String TAG = "Intent";
     private static final String ATTR_ACTION = "action";
@@ -7172,6 +7173,7 @@ public class Intent implements Parcelable, Cloneable {
      * {@link Manifest.permission#STATUS_BAR_SERVICE} permission.
      * @hide
      */
+    @SuppressLint("UnflaggedApi")
     public static final String ACTION_SCREEN_CAMERA_GESTURE =
             "android.intent.action.SCREEN_CAMERA_GESTURE";
 

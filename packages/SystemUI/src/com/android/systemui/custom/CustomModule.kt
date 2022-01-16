@@ -69,12 +69,6 @@ interface CustomModule {
     @StringKey(CaffeineTile.TILE_SPEC)
     fun bindCaffeineTile(caffeineTile: CaffeineTile): QSTileImpl<*>
 
-    /** Inject CellularTile into tileMap in QSModule */
-    @Binds
-    @IntoMap
-    @StringKey(CellularTile.TILE_SPEC)
-    fun bindCellularTile(cellularTile: CellularTile): QSTileImpl<*>
-
     /** Inject DataSwitchTile into tileMap in QSModule */
     @Binds
     @IntoMap
@@ -116,12 +110,6 @@ interface CustomModule {
     @IntoMap
     @StringKey(VpnTile.TILE_SPEC)
     fun bindVpnTile(vpnTile: VpnTile): QSTileImpl<*>
-
-    /** Inject WifiTile into tileMap in QSModule */
-    @Binds
-    @IntoMap
-    @StringKey(WifiTile.TILE_SPEC)
-    fun bindWifiTile(wifiTile: WifiTile): QSTileImpl<*>
 
     companion object {
         const val AMBIENT_DISPLAY_TILE_SPEC = "ambient_display"
@@ -197,20 +185,6 @@ interface CustomModule {
                 category = TileCategory.DISPLAY,
             )
 
-        @Provides
-        @IntoMap
-        @StringKey(CELLULAR_TILE_SPEC)
-        fun provideCellularTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =
-            QSTileConfig(
-                tileSpec = TileSpec.create(CELLULAR_TILE_SPEC),
-                uiConfig =
-                    QSTileUIConfig.Resource(
-                        iconRes = R.drawable.ic_swap_vert,
-                        labelRes = R.string.quick_settings_cellular_detail_title
-                    ),
-                instanceId = uiEventLogger.getNewInstanceId(),
-                category = TileCategory.CONNECTIVITY,
-            )
 
         @Provides
         @IntoMap
@@ -302,6 +276,7 @@ interface CustomModule {
                 category = TileCategory.CONNECTIVITY,
             )
 
+     /* REMOVED: Handled by ConnectivityModule
         @Provides
         @IntoMap
         @StringKey(WIFI_TILE_SPEC)
@@ -316,5 +291,6 @@ interface CustomModule {
                 instanceId = uiEventLogger.getNewInstanceId(),
                 category = TileCategory.CONNECTIVITY,
             )
+        */
     }
 }

@@ -35,7 +35,6 @@ import com.android.systemui.keyguard.ui.binder.KeyguardSliceViewBinder
 import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
-import com.android.systemui.plugins.clocks.ClockViewIds
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.res.R
 import com.android.systemui.settings.DisplayTracker

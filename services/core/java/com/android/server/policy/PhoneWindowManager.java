@@ -2425,7 +2425,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 "PhoneWindowManager.mBroadcastWakeLock");
         mPowerKeyWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "PhoneWindowManager.mPowerKeyWakeLock");
-        mEnableBugReportKeyboardShortcut = "1".equals(SystemProperties.get("ro.debuggable"));
+
         mLidKeyboardAccessibility = mContext.getResources().getInteger(
                 com.android.internal.R.integer.config_lidKeyboardAccessibility);
         mLidNavigationAccessibility = mContext.getResources().getInteger(
