@@ -22,6 +22,7 @@ import com.android.systemui.qs.shared.model.TileCategory
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.AmbientDisplayTile
 import com.android.systemui.qs.tiles.AODTile
+import com.android.systemui.qs.tiles.AutoBrightnessTile
 import com.android.systemui.qs.tiles.CaffeineTile
 import com.android.systemui.qs.tiles.CellularTile
 import com.android.systemui.qs.tiles.HeadsUpTile
@@ -54,6 +55,12 @@ interface CustomModule {
     @IntoMap
     @StringKey(AODTile.TILE_SPEC)
     fun bindAODTile(aodTile: AODTile): QSTileImpl<*>
+
+    /** Inject AutoBrightnessTile into tileMap in QSModule */
+    @Binds
+    @IntoMap
+    @StringKey(AutoBrightnessTile.TILE_SPEC)
+    fun bindAutoBrightnessTile(autobrightnessTile: AutoBrightnessTile): QSTileImpl<*>
 
     /** Inject CaffeineTile into tileMap in QSModule */
     @Binds
@@ -112,6 +119,7 @@ interface CustomModule {
     companion object {
         const val AMBIENT_DISPLAY_TILE_SPEC = "ambient_display"
         const val AOD_TILE_SPEC = "aod"
+        const val AUTO_BRIGHTNESS_TILE_SPEC = "auto_brightness"
         const val CAFFEINE_TILE_SPEC = "caffeine"
         const val CELLULAR_TILE_SPEC = "cell"
         const val HEADS_UP_TILE_SPEC = "heads_up"
@@ -147,6 +155,21 @@ interface CustomModule {
                     QSTileUIConfig.Resource(
                         iconRes = R.drawable.ic_qs_aod,
                         labelRes = R.string.quick_settings_aod_label
+                    ),
+                instanceId = uiEventLogger.getNewInstanceId(),
+                category = TileCategory.DISPLAY,
+            )
+
+        @Provides
+        @IntoMap
+        @StringKey(AUTO_BRIGHTNESS_TILE_SPEC)
+        fun provideAutoBrightnessTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =
+            QSTileConfig(
+                tileSpec = TileSpec.create(AUTO_BRIGHTNESS_TILE_SPEC),
+                uiConfig =
+                    QSTileUIConfig.Resource(
+                        iconRes = R.drawable.ic_qs_autobrightness,
+                        labelRes = R.string.quick_settings_autobrightness_label
                     ),
                 instanceId = uiEventLogger.getNewInstanceId(),
                 category = TileCategory.DISPLAY,
