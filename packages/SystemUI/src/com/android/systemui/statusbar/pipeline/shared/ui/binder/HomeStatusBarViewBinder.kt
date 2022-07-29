@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.pipeline.shared.ui.binder
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import android.content.Context
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
@@ -41,6 +42,7 @@ import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationSt
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.RunningChipAnim
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.ConnectedDisplaysStatusBarNotificationIconViewStore
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
+import com.android.systemui.statusbar.phone.LyricViewController
 import com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.statusbar.pipeline.shared.ui.model.VisibilityModel
@@ -94,6 +96,8 @@ constructor(
         val notificationIconsArea = view.requireViewById<View>(R.id.notificationIcons)
         val networkTrafficView = view.requireViewById<View>(R.id.network_traffic_holder)
 
+        val lyricController = LyricController(view)
+
         // CollapsedStatusBarFragment doesn't need this
         if (StatusBarRootModernization.isEnabled) {
             // GONE because this shouldn't take space in the layout
@@ -101,6 +105,7 @@ constructor(
             systemInfoView.hideInitially()
             clockView.hideInitially()
             notificationIconsArea.hideInitially()
+            lyricController.hideInitially()
         }
 
         view.repeatWhenAttached {
@@ -287,6 +292,18 @@ constructor(
                     launch {
                         viewModel.isNotificationIconContainerVisible.collect {
                             notificationIconsArea.adjustVisibility(it)
+                        }
+                    }
+
+                    launch {
+                        viewModel.isLyricEnabled.collect {
+                            lyricController.isEnabled = it
+                        }
+                    }
+
+                    launch {
+                        viewModel.isLyricVisible.collect {
+                            lyricController.adjustVisibility(it)
                         }
                     }
 
@@ -479,6 +496,38 @@ constructor(
             .withEndAction(null)
 
         // TODO(b/364360986): Synchronize the motion with the Keyguard fading if necessary.
+    }
+
+    inner class LyricController(val statusBar: View) : LyricViewController(statusBar.context, statusBar) {
+        private val leftSide: View by lazy {
+            statusBar.findViewById(R.id.status_bar_start_side_except_heads_up)
+        }
+
+        fun hideInitially() {
+            // GONE because this shouldn't take space in the layout
+            view.hideInitially(state = View.GONE)
+        }
+
+        fun adjustVisibility(model: VisibilityModel) {
+            if (model.visibility == View.VISIBLE) {
+                showLyricView(model.shouldAnimateChange)
+            } else {
+                hideLyricView(model.shouldAnimateChange)
+            }
+        }
+
+        override fun showLyricView(animate: Boolean) {
+            if (isLyricStarted) {
+                leftSide.hide(shouldAnimateChange = animate)
+                view.show(animate)
+            }
+        }
+
+        override fun hideLyricView(animate: Boolean) {
+            view.hide(shouldAnimateChange = animate)
+            leftSide.show(animate)
+        }
+
     }
 }
 
