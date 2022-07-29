@@ -482,7 +482,7 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
      * @return Drawable for this item, or null if the package or item could not
      *         be found
      */
-    private Drawable getIcon(Context sysuiContext,
+    public static Drawable getIcon(Context sysuiContext,
             Context context, StatusBarIcon statusBarIcon) {
         Drawable icon = loadDrawable(context, statusBarIcon);
 
@@ -510,11 +510,11 @@ public class StatusBarIconView extends AnimatedImageView implements StatusIconDi
     }
 
     @Nullable
-    private Drawable loadDrawable(Context context, StatusBarIcon statusBarIcon) {
+    private static Drawable loadDrawable(Context context, StatusBarIcon statusBarIcon) {
         if (statusBarIcon.preloadedIcon != null) {
             Drawable.ConstantState cached = statusBarIcon.preloadedIcon.getConstantState();
             if (cached != null) {
-                return cached.newDrawable(mContext.getResources()).mutate();
+                return cached.newDrawable(context.getResources()).mutate();
             } else {
                 return statusBarIcon.preloadedIcon.mutate();
             }

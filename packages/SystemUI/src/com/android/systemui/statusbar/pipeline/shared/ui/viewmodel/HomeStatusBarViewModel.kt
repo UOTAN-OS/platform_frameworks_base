@@ -20,6 +20,7 @@ import android.annotation.ColorInt
 import android.content.res.Resources
 import android.graphics.Rect
 import android.graphics.RectF
+import android.provider.Settings
 import android.view.View
 import androidx.compose.runtime.getValue
 import com.android.app.tracing.FlowTracing.traceEach
@@ -55,6 +56,7 @@ import com.android.systemui.shade.domain.interactor.DisplayAwareShadeElementTogg
 import com.android.systemui.shade.domain.interactor.NotificationShadeElement
 import com.android.systemui.shade.domain.interactor.QSShadeElement
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
 import com.android.systemui.statusbar.chips.mediaprojection.domain.model.MediaProjectionStopDialogModel
 import com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel.ShareToAppChipViewModel
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModel
@@ -206,6 +208,9 @@ interface HomeStatusBarViewModel : Activatable {
     val shouldShowOperatorNameView: Flow<Boolean>
     val isClockVisible: Flow<VisibilityModel>
     val isNotificationIconContainerVisible: Flow<VisibilityModel>
+    val isLyricVisible: Flow<VisibilityModel>
+
+    val isLyricEnabled: Flow<Boolean>
 
     /**
      * Pair of (system info visibility, event animation state). The animation state can be used to
@@ -307,6 +312,7 @@ constructor(
     deviceProvisioningInteractor: DeviceProvisioningInteractor,
     private val userLogoutInteractor: UserLogoutInteractor,
     private val scrollToTopInteractor: ScrollToTopInteractor,
+    private val secureSettingsRepository: SecureSettingsRepository,
 ) : HomeStatusBarViewModel, HydratedActivatable(enableEnqueuedActivations = true) {
 
     val logger = loggerFactory.getOrCreate(logBufferName(thisDisplayId), 60)
@@ -596,6 +602,26 @@ constructor(
                 columnPrefix = COL_PREFIX_NOTIF_CONTAINER,
                 initialValue = VisibilityModel(false.toVisibleOrInvisible(), false),
             )
+            .flowOn(bgDispatcher)
+
+    override val isLyricVisible: Flow<VisibilityModel> =
+        combine(
+                isNotificationIconContainerVisible,
+                hideStartSideContentForHeadsUp,
+                hasOngoingActivityChips,
+            ) {
+                isNotificationIconContainerVisible, hideStartSideContentForHeadsUp, hasOngoingActivityChips ->
+                val showLyric =
+                    (isNotificationIconContainerVisible.visibility == View.VISIBLE) &&
+                        !hideStartSideContentForHeadsUp && !hasOngoingActivityChips
+                VisibilityModel(showLyric.toVisibleOrGone(), false)
+            }
+            .distinctUntilChanged()
+            .flowOn(bgDispatcher)
+
+    override val isLyricEnabled: Flow<Boolean> =
+        secureSettingsRepository
+            .boolSetting(Settings.Secure.STATUS_BAR_SHOW_LYRIC, false)
             .flowOn(bgDispatcher)
 
     private val isSystemInfoVisible =

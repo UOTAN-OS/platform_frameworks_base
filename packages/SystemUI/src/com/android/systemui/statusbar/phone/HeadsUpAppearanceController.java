@@ -36,18 +36,10 @@ import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarScope;
 import com.android.systemui.util.ViewController;
 
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
-/**
- * Controls items related to heads up notifications. Mostly, controls the roundness of the heads up
- * notifications and the pulsing notifications.
- *
- * Now that this controller isn't tied to HeadsUpStatusBarView and doesn't control any
- * status-bar-related behavior, we should likely make it not a ViewController and move it somewhere
- * else.
- */
+/** Controls the roundness of heads-up and pulsing notifications. */
 @HomeStatusBarScope
 public class HeadsUpAppearanceController extends ViewController<PhoneStatusBarView>
         implements OnHeadsUpChangedListener,
@@ -56,7 +48,6 @@ public class HeadsUpAppearanceController extends ViewController<PhoneStatusBarVi
     private static final SourceType PULSING = SourceType.from("Pulsing");
     private final HeadsUpManager mHeadsUpManager;
     private final NotificationStackScrollLayoutController mStackScrollerController;
-
     private final ShadeViewController mShadeViewController;
     private final NotificationRoundnessManager mNotificationRoundnessManager;
     private final BiConsumer<ExpandableNotificationRow, String>
@@ -82,16 +73,10 @@ public class HeadsUpAppearanceController extends ViewController<PhoneStatusBarVi
         super(phoneStatusBarView);
         mNotificationRoundnessManager = notificationRoundnessManager;
         mHeadsUpManager = headsUpManager;
-
-        // We may be mid-HUN-expansion when this controller is re-created (for example, if the user
-        // has started pulling down the notification shade from the HUN and then the font size
-        // changes). We need to re-fetch these values since they're used to correctly display the
-        // HUN during this shade expansion.
         mTrackedChild = shadeViewController.getShadeHeadsUpTracker()
                 .getTrackedHeadsUpNotification();
         mAppearFraction = stackScrollerController.getAppearFraction();
         mExpandedHeight = stackScrollerController.getExpandedHeight();
-
         mStackScrollerController = stackScrollerController;
         mShadeViewController = shadeViewController;
         mStackScrollerController.setHeadsUpAppearanceController(this);
@@ -138,24 +123,13 @@ public class HeadsUpAppearanceController extends ViewController<PhoneStatusBarVi
 
     public void setAppearFraction(float expandedHeight, float appearFraction) {
         boolean changed = expandedHeight != mExpandedHeight;
-
         mExpandedHeight = expandedHeight;
         mAppearFraction = appearFraction;
-        // We only notify if the expandedHeight changed and not on the appearFraction, since
-        // otherwise we may run into an infinite loop where the panel and this are constantly
-        // updating themselves over just a small fraction
         if (changed) {
             updateHeadsUpHeaders();
         }
     }
 
-    /**
-     * Set a headsUp to be tracked, meaning that it is currently being pulled down after being
-     * in a pinned state on the top. The expand animation is different in that case and we need
-     * to update the header constantly afterwards.
-     *
-     * @param trackedChild the tracked headsUp or null if it's not tracking anymore.
-     */
     public void setTrackingHeadsUp(ExpandableNotificationRow trackedChild, String reason) {
         ExpandableNotificationRow previousTracked = mTrackedChild;
         mTrackedChild = trackedChild;
@@ -177,10 +151,6 @@ public class HeadsUpAppearanceController extends ViewController<PhoneStatusBarVi
         row.setHeaderVisibleAmount(headerVisibleAmount);
     }
 
-    /**
-     * Update the HeadsUp and the Pulsing roundness based on current state
-     * @param row target notification row
-     */
     public void updateHeadsUpAndPulsingRoundness(ExpandableNotificationRow row) {
         boolean isTrackedChild = row == mTrackedChild;
         if (row.isPinned() || row.isHeadsUpAnimatingAway() || isTrackedChild) {
@@ -190,7 +160,7 @@ public class HeadsUpAppearanceController extends ViewController<PhoneStatusBarVi
         }
         if (mNotificationRoundnessManager.shouldRoundNotificationPulsing()) {
             if (row.showingPulsing()) {
-                row.requestRoundness(/* top = */ 1f, /* bottom = */ 1f, PULSING);
+                row.requestRoundness(1f, 1f, PULSING);
             } else {
                 row.requestRoundnessReset(PULSING);
             }
