@@ -97,7 +97,12 @@
     <java-symbol type="string" name="volume_dialog_ringer_guidance_normal" />
 
     <!-- App error dialog -->
-     <java-symbol type="id" name="aerr_copy" />
-     <java-symbol type="string" name="url_copy_success" />
-     <java-symbol type="string" name="url_copy_failed" />
+    <java-symbol type="id" name="aerr_copy" />
+    <java-symbol type="string" name="url_copy_success" />
+    <java-symbol type="string" name="url_copy_failed" />
+
+    <!-- PropImitationHooks -->
+    <java-symbol type="array" name="config_certifiedBuildProperties" />
+    <java-symbol type="string" name="config_stockFingerprint" />
+    <java-symbol type="string" name="config_netflixSpoofModel" />
 </resources>
