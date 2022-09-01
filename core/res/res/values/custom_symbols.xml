@@ -95,4 +95,9 @@
 
     <!-- Cycle through ringer modes -->
     <java-symbol type="string" name="volume_dialog_ringer_guidance_normal" />
+
+    <!-- PropImitationHooks -->
+    <java-symbol type="raw" name="certified_build_props" />
+    <java-symbol type="string" name="config_stockFingerprint" />
+    <java-symbol type="string" name="config_netflixSpoofModel" />
 </resources>
