@@ -323,6 +323,7 @@ public class SecureSettings {
         Settings.Secure.HDR_BRIGHTNESS_ENABLED,
         Settings.Secure.HDR_BRIGHTNESS_BOOST_LEVEL,
         Settings.Secure.DOZE_PICK_UP_GESTURE_AMBIENT,
-        Settings.Secure.DOZE_TAP_GESTURE_AMBIENT
+        Settings.Secure.DOZE_TAP_GESTURE_AMBIENT,
+        Settings.Secure.DOZE_FOR_NOTIFICATIONS
     };
 }
