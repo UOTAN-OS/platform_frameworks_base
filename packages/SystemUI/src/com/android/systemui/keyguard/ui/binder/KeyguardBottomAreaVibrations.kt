@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.ui.binder
 
 import android.os.VibrationEffect
 import com.android.systemui.Flags
+import com.android.systemui.statusbar.VibratorHelper
 import kotlin.time.Duration.Companion.milliseconds
 
 object KeyguardBottomAreaVibrations {
@@ -38,6 +39,23 @@ object KeyguardBottomAreaVibrations {
     private const val SmallVibrationScale = 0.3f
     private const val BigVibrationScale = 0.6f
 
+    private fun areAllPrimitivesSupported(vibratorHelper: VibratorHelper?): Boolean =
+        vibratorHelper?.areAllPrimitivesSupported(
+            VibrationEffect.Composition.PRIMITIVE_TICK,
+            VibrationEffect.Composition.PRIMITIVE_QUICK_RISE,
+            VibrationEffect.Composition.PRIMITIVE_QUICK_FALL,
+        ) ?: false
+
+    fun shake(vibratorHelper: VibratorHelper?): VibrationEffect =
+        if (areAllPrimitivesSupported(vibratorHelper)) Shake else ShakeAlt
+
+    fun activated(vibratorHelper: VibratorHelper?): VibrationEffect =
+        if (areAllPrimitivesSupported(vibratorHelper)) Activated else ActivatedAlt
+
+    fun deactivated(vibratorHelper: VibratorHelper?): VibrationEffect =
+        if (areAllPrimitivesSupported(vibratorHelper)) Deactivated else DeactivatedAlt
+
+    val ShakeAlt = VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK)
     val Shake =
         VibrationEffect.startComposition()
             .apply {
@@ -56,12 +74,14 @@ object KeyguardBottomAreaVibrations {
             }
             .compose()
 
+    val ActivatedAlt = VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
     val Activated =
         VibrationEffect.startComposition()
             .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, BigVibrationScale, 0)
             .addPrimitive(VibrationEffect.Composition.PRIMITIVE_QUICK_RISE, 0.1f, 0)
             .compose()
 
+    val DeactivatedAlt = VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
     val Deactivated =
         VibrationEffect.startComposition()
             .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, BigVibrationScale, 0)

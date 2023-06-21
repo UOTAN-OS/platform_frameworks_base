@@ -119,9 +119,9 @@ class KeyguardQuickAffordanceOnTouchListener(
             }
             vibratorHelper?.vibrate(
                 if (viewModel.isActivated) {
-                    KeyguardBottomAreaVibrations.Activated
+                    KeyguardBottomAreaVibrations.activated(vibratorHelper)
                 } else {
-                    KeyguardBottomAreaVibrations.Deactivated
+                    KeyguardBottomAreaVibrations.deactivated(vibratorHelper)
                 }
             )
             viewModel.onClicked(
