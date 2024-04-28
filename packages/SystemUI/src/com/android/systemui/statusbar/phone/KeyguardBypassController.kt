@@ -166,22 +166,7 @@ constructor(
                         pendingUnlock = null
                     }
                 }
-<<<<<<< HEAD
             )
-=======
-            })
-            val dismissByDefault = if (resources.getBoolean(
-                            com.android.internal.R.bool.config_faceAuthDismissesKeyguard)) 1 else 0
-            tunerService.addTunable({ key, _ ->
-                bypassEnabledBiometric = tunerService.getValue(key, dismissByDefault) != 0
-            }, Settings.Secure.FACE_UNLOCK_DISMISSES_KEYGUARD)
-            lockscreenUserManager.addUserChangedListener(
-                    object : NotificationLockscreenUserManager.UserChangedListener {
-                        override fun onUserChanged(userId: Int) {
-                            pendingUnlock = null
-                        }
-                    })
->>>>>>> 50a77adb7131 (base: Initial SenseProvider for FaceSense service)
         }
     }
 
