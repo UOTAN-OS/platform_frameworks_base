@@ -47,6 +47,8 @@ import com.android.wm.shell.sysui.ShellInterface;
 import com.android.wm.shell.taskview.TaskViewFactory;
 import com.android.wm.shell.windowdecor.viewholder.AppHandles;
 
+import com.android.systemui.keyguard.CustomKeyguardSliceProvider;
+
 import dagger.BindsInstance;
 import dagger.Subcomponent;
 
@@ -197,4 +199,9 @@ public interface SysUIComponent {
      * Member injection into the supplied argument.
      */
     void inject(PeopleProvider peopleProvider);
+
+    /**
+     * Member injection into the supplied argument.
+     */
+    void inject(CustomKeyguardSliceProvider keyguardSliceProvider);
 }
