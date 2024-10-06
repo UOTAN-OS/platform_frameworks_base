@@ -5,15 +5,13 @@
 
 package com.android.internal.util;
 
-import android.app.ActivityTaskManager;
 import android.app.Application;
-import android.app.TaskStackListener;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.Binder;
 import android.os.Process;
+import android.os.ServiceManager;
 import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.util.Log;
@@ -35,6 +33,7 @@ public class PropImitationHooks {
 
     private static final String TAG = "PropImitationHooks";
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String PIH_SERVICE_NAME = "pih_manager";
 
     private static final int FEATURE_GMS_PROP_IMITATION = 1 << 0;
     private static final int FEATURE_GMS_BLOCK_KEY_ATTESTATION = 1 << 1;
@@ -45,16 +44,13 @@ public class PropImitationHooks {
 
     private static final String PACKAGE_ARCORE = "com.google.ar.core";
     private static final String PACKAGE_FINSKY = "com.android.vending";
-    private static final String PACKAGE_GMS = "com.google.android.gms";
-    private static final String PROCESS_GMS_UNSTABLE = PACKAGE_GMS + ".unstable";
+    public static final String PACKAGE_GMS = "com.google.android.gms";
+    public static final String PROCESS_GMS_UNSTABLE = PACKAGE_GMS + ".unstable";
     private static final String PACKAGE_NETFLIX = "com.netflix.mediaclient";
     private static final String PACKAGE_GPHOTOS = "com.google.android.apps.photos";
 
     private static final String PROP_SECURITY_PATCH = "persist.sys.pihooks.security_patch";
     private static final String PROP_FIRST_API_LEVEL = "persist.sys.pihooks.first_api_level";
-
-    private static final ComponentName GMS_ADD_ACCOUNT_ACTIVITY = ComponentName.unflattenFromString(
-            "com.google.android.gms/.auth.uiflows.minutemaid.MinuteMaidActivity");
 
     private static final Set<String> sPixelFeatures = Set.of(
         "PIXEL_2017_PRELOAD",
@@ -69,7 +65,7 @@ public class PropImitationHooks {
     private static final int sEnabledFeatures = SystemProperties.getInt(
             "persist.sys.pihooks.enabled_features", FEATURE_ALL);
 
-    private static final Boolean sEnableGmsProps =
+    public static final Boolean sEnableGmsProps =
             (sEnabledFeatures & FEATURE_GMS_PROP_IMITATION) != 0;
     private static final Boolean sEnableKeyAttestationBlock =
             (sEnabledFeatures & FEATURE_GMS_BLOCK_KEY_ATTESTATION) != 0;
@@ -82,6 +78,7 @@ public class PropImitationHooks {
     private static volatile String sProcessName;
     private static volatile boolean sIsPixelDevice, sIsGms, sIsFinsky, sIsPhotos;
     private static volatile Context sContext;
+    private static volatile IPihManager sPihManager;
 
     public static void setProps(Context context) {
         final String packageName = context.getPackageName();
@@ -144,26 +141,24 @@ public class PropImitationHooks {
         setPropValue(key, value, false);
     }
 
+    public static IPihManager getPihManager() {
+        if (sPihManager == null) {
+            sPihManager = IPihManager.Stub.asInterface(ServiceManager.getService(PIH_SERVICE_NAME));
+        }
+        return sPihManager;
+    }
+
     private static void loadCertifiedProps() {
-        byte[] jsonBytes;
-        try {
-            jsonBytes = sContext.getResources().openRawResource(
-                    R.raw.certified_build_props).readAllBytes();
-        } catch (IOException e) {
-            Log.e(TAG, "loadCertifiedProps: failed to read json!", e);
-            return;
-        }
-
-        String jsonString = new String(jsonBytes, StandardCharsets.UTF_8);
-        if (TextUtils.isEmpty(jsonString)) {
-            dlog("loadCertifiedProps: json is empty, bailing");
+        IPihManager pihManager = getPihManager();
+        if (pihManager == null) {
+            dlog("Failed to get pih manager service.");
             return;
         }
 
         try {
-            sCertifiedProps = new JSONObject(jsonString);
-        } catch (JSONException e) {
-            Log.e(TAG, "loadCertifiedProps: failed to parse json!", e);
+            sCertifiedProps = new JSONObject(pihManager.getCertifiedPropertiesJson());
+        } catch (Exception e) {
+            Log.e(TAG, "loadCertifiedProps failed!", e);
         }
     }
 
@@ -180,29 +175,8 @@ public class PropImitationHooks {
             return;
         }
 
-        final boolean was = isGmsAddAccountActivityOnTop();
-        final TaskStackListener taskStackListener = new TaskStackListener() {
-            @Override
-            public void onTaskStackChanged() {
-                final boolean is = isGmsAddAccountActivityOnTop();
-                if (is ^ was) {
-                    dlog("GmsAddAccountActivityOnTop is:" + is + " was:" + was +
-                            ", killing myself!"); // process will restart automatically later
-                    Process.killProcess(Process.myPid());
-                }
-            }
-        };
-        if (!was) {
-            dlog("Spoofing build for GMS");
-            setCertifiedProps();
-        } else {
-            dlog("Skip spoofing build for GMS, because GmsAddAccountActivityOnTop");
-        }
-        try {
-            ActivityTaskManager.getService().registerTaskStackListener(taskStackListener);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to register task stack listener!", e);
-        }
+        dlog("Spoofing build for GMS");
+        setCertifiedProps();
     }
 
     private static void setCertifiedProps() {
@@ -237,36 +211,6 @@ public class PropImitationHooks {
         } catch (Exception e) {
             Log.e(TAG, "Failed to set system prop " + name + "=" + value, e);
         }
-    }
-
-    private static boolean isGmsAddAccountActivityOnTop() {
-        try {
-            final ActivityTaskManager.RootTaskInfo focusedTask =
-                    ActivityTaskManager.getService().getFocusedRootTaskInfo();
-            return focusedTask != null && focusedTask.topActivity != null
-                    && focusedTask.topActivity.equals(GMS_ADD_ACCOUNT_ACTIVITY);
-        } catch (Exception e) {
-            Log.e(TAG, "Unable to get top activity!", e);
-        }
-        return false;
-    }
-
-    public static boolean shouldBypassTaskPermission(Context context) {
-        if (!sEnableGmsProps) {
-            return false;
-        }
-
-        // GMS doesn't have MANAGE_ACTIVITY_TASKS permission
-        final int callingUid = Binder.getCallingUid();
-        final int gmsUid;
-        try {
-            gmsUid = context.getPackageManager().getApplicationInfo(PACKAGE_GMS, 0).uid;
-            // dlog("shouldBypassTaskPermission: gmsUid:" + gmsUid + " callingUid:" + callingUid);
-        } catch (Exception e) {
-            Log.e(TAG, "shouldBypassTaskPermission: unable to get gms uid", e);
-            return false;
-        }
-        return gmsUid == callingUid;
     }
 
     private static boolean isCallerSafetyNet() {
