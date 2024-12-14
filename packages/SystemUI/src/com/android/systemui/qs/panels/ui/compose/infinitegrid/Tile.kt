@@ -179,6 +179,7 @@ fun ContentScope.Tile(
         val tileShape by TileDefaults.animateTileShapeAsState(uiState)
         val animatedColor by animateColorAsState(colors.background, label = "QSTileBackgroundColor")
         val isDualTarget = uiState.handlesToggleClick
+        val hasLongClickEffect = uiState.hasLongClickEffect
         val interactionSource = remember { MutableInteractionSource() }
 
         val surfaceRevealModifier: Modifier
@@ -223,7 +224,7 @@ fun ContentScope.Tile(
                 color = { animatedColor },
                 shape = tileShape,
                 squishiness = squishiness,
-                hapticsViewModel = hapticsViewModel,
+                hapticsViewModel = hapticsViewModel.takeIf { hasLongClickEffect },
                 modifier =
                     modifier
                         .then(surfaceRevealModifier)
@@ -247,9 +248,11 @@ fun ContentScope.Tile(
                 val useLongClickToSettings = !(iconOnly && isDualTarget && isClickable)
                 val longClick: (() -> Unit)? =
                     {
-                            hapticsViewModel.setTileInteractionState(
-                                TileHapticsViewModel.TileInteractionState.LONG_CLICKED
-                            )
+                            if (hasLongClickEffect) {
+                                hapticsViewModel.setTileInteractionState(
+                                    TileHapticsViewModel.TileInteractionState.LONG_CLICKED
+                                )
+                            }
 
                             if (useLongClickToSettings) {
                                 tile.settingsClick(expandable)

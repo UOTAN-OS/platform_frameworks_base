@@ -62,6 +62,12 @@ data class TileUiState(
      */
     val handlesSettingsClick: Boolean,
     /**
+     * Indicates that the tile should show the long press visual/haptic effect.
+     *
+     * @see TileViewModel
+     */
+    val hasLongClickEffect: Boolean,
+    /**
      * Indicates that the tile supports toggle click (tile is dual target).
      *
      * @see TileViewModel
@@ -128,6 +134,7 @@ fun QSTile.State.toUiState(resources: Resources): TileUiState {
         // This is used for the colors, [disabledByPolicy] needs to look UNAVAILABLE
         visualState = if (disabledByPolicy) Tile.STATE_UNAVAILABLE else state,
         handlesSettingsClick = handlesLongClick,
+        hasLongClickEffect = handlesLongClick && this.hasLongClickEffect,
         handlesToggleClick = handlesSecondaryClick,
         sideDrawable = sideViewCustomDrawable,
         // disable by policy is STATE_INACTIVE that looks like STATE_UNAVAILABLE
