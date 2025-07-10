@@ -13131,6 +13131,13 @@ public final class Settings {
         public static final String BERRY_BLACK_THEME = "berry_black_theme";
 
         /**
+         * List of packages that should be spoofed with a certified keybox.
+         * @hide
+         */
+        @Readable
+        public static final String KEYBOX_TARGET_PACKAGES = "keybox_target_packages";
+
+        /**
          * Keys we no longer back up under the current schema, but want to continue to
          * process when restoring historical backup datasets.
          *
