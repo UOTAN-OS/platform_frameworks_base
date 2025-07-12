@@ -69,6 +69,7 @@ object MobileIconBinder {
         val activityOut = view.requireViewById<ImageView>(R.id.mobile_out)
         val networkTypeView = view.requireViewById<ImageView>(R.id.mobile_type)
         val networkTypeContainer = view.requireViewById<FrameLayout>(R.id.mobile_type_container)
+        val networkTypeSpace = view.requireViewById<Space>(R.id.mobile_type_space)
         val iconView = view.requireViewById<ImageView>(R.id.mobile_signal)
         val mobileDrawable = SignalDrawable(view.context)
         val roamingView = view.requireViewById<ImageView>(R.id.mobile_roaming)
@@ -186,6 +187,7 @@ object MobileIconBinder {
                             val prevVis = networkTypeContainer.visibility
                             networkTypeContainer.visibility =
                                 if (dataTypeId != null) VISIBLE else GONE
+                            networkTypeSpace.visibility = networkTypeContainer.visibility
 
                             if (prevVis != networkTypeContainer.visibility) {
                                 view.requestLayout()
