@@ -467,6 +467,9 @@ public final class LineageHardwareManager {
                     case FEATURE_READING_ENHANCEMENT:
                         IReadingEnhancement readingEnhancement = (IReadingEnhancement) obj;
                         return readingEnhancement.setEnabled(enable);
+                    case FEATURE_SUNLIGHT_ENHANCEMENT:
+                        ISunlightEnhancement sunlightEnhancement = (ISunlightEnhancement) obj;
+                        return sunlightEnhancement.setEnabled(enable);
                 }
             } else if (checkService()) {
                 return sService.set(feature, enable);
