@@ -1,20 +1,9 @@
 /*
- * Copyright (C) 2015-2016 The CyanogenMod Project
- *               2017-2021 The LineageOS Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2015-2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2017-2025 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
-package com.android.internal.lineage.hardware;
+package lineageos.hardware;
 
 import android.content.Context;
 import android.os.IBinder;
@@ -26,9 +15,7 @@ import android.util.Range;
 
 import com.android.internal.annotations.VisibleForTesting;
 
-import com.android.internal.lineage.app.LineageContextConstants;
-import com.android.internal.lineage.hardware.DisplayMode;
-import com.android.internal.lineage.hardware.HSIC;
+import lineageos.app.LineageContextConstants;
 
 import vendor.lineage.livedisplay.IAdaptiveBacklight;
 import vendor.lineage.livedisplay.IAntiFlicker;
@@ -47,10 +34,7 @@ import vendor.lineage.touch.IKeySwapper;
 import vendor.lineage.touch.IStylusMode;
 import vendor.lineage.touch.ITouchscreenGesture;
 
-import java.io.UnsupportedEncodingException;
-import java.lang.IllegalArgumentException;
 import java.lang.reflect.Field;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -72,36 +56,6 @@ public final class LineageHardwareManager {
     // the support library is properly handled in the platform, we should change this.
 
     /**
-     * High Touch Polling Rate
-     */
-    @VisibleForTesting
-    public static final int FEATURE_HIGH_TOUCH_POLLING_RATE = 0x8;
-
-    /**
-     * High touch sensitivity for touch panels
-     */
-    @VisibleForTesting
-    public static final int FEATURE_HIGH_TOUCH_SENSITIVITY = 0x10;
-
-    /**
-     * Hardware navigation key disablement
-     */
-    @VisibleForTesting
-    public static final int FEATURE_KEY_DISABLE = 0x20;
-
-    /**
-     * Touchscreen hovering
-     */
-    @VisibleForTesting
-    public static final int FEATURE_TOUCH_HOVERING = 0x800;
-
-    /**
-     * Touchscreen gesture
-     */
-    @VisibleForTesting
-    public static final int FEATURE_TOUCHSCREEN_GESTURES = 0x80000;
-
-    /**
      * Adaptive backlight support (this refers to technologies like NVIDIA SmartDimmer,
      * QCOM CABL or Samsung CABC)
      */
@@ -121,10 +75,46 @@ public final class LineageHardwareManager {
     public static final int FEATURE_DISPLAY_COLOR_CALIBRATION = 0x4;
 
     /**
+     * High Touch Polling Rate
+     */
+    @VisibleForTesting
+    public static final int FEATURE_HIGH_TOUCH_POLLING_RATE = 0x8;
+
+    /**
+     * High touch sensitivity for touch panels
+     */
+    @VisibleForTesting
+    public static final int FEATURE_HIGH_TOUCH_SENSITIVITY = 0x10;
+
+    /**
+     * Hardware navigation key disablement
+     */
+    @VisibleForTesting
+    public static final int FEATURE_KEY_DISABLE = 0x20;
+
+    /**
+     * Hardware navigation key swapping
+     */
+    @VisibleForTesting
+    public static final int FEATURE_KEY_SWAP = 0x40;
+
+    /**
      * Increased display readability in bright light
      */
     @VisibleForTesting
     public static final int FEATURE_SUNLIGHT_ENHANCEMENT = 0x100;
+
+    /**
+     * Variable vibrator intensity
+     */
+    @VisibleForTesting
+    public static final int FEATURE_VIBRATOR = 0x400;
+
+    /**
+     * Touchscreen hovering
+     */
+    @VisibleForTesting
+    public static final int FEATURE_TOUCH_HOVERING = 0x800;
 
     /**
      * Auto contrast
@@ -157,21 +147,28 @@ public final class LineageHardwareManager {
     public static final int FEATURE_PICTURE_ADJUSTMENT = 0x40000;
 
     /**
+     * Touchscreen gesture
+     */
+    @VisibleForTesting
+    public static final int FEATURE_TOUCHSCREEN_GESTURES = 0x80000;
+
+    /**
      * Anti flicker mode
      */
     @VisibleForTesting
     public static final int FEATURE_ANTI_FLICKER = 0x200000;
 
     private static final List<Integer> BOOLEAN_FEATURES = Arrays.asList(
-        FEATURE_HIGH_TOUCH_POLLING_RATE,
-        FEATURE_HIGH_TOUCH_SENSITIVITY,
-        FEATURE_KEY_DISABLE,
-        FEATURE_TOUCH_HOVERING,
         FEATURE_ADAPTIVE_BACKLIGHT,
         FEATURE_ANTI_FLICKER,
         FEATURE_AUTO_CONTRAST,
         FEATURE_COLOR_ENHANCEMENT,
+        FEATURE_HIGH_TOUCH_POLLING_RATE,
+        FEATURE_HIGH_TOUCH_SENSITIVITY,
+        FEATURE_KEY_DISABLE,
+        FEATURE_KEY_SWAP,
         FEATURE_SUNLIGHT_ENHANCEMENT,
+        FEATURE_TOUCH_HOVERING,
         FEATURE_READING_ENHANCEMENT
     );
 
@@ -197,14 +194,15 @@ public final class LineageHardwareManager {
         }
         sService = getService();
 
-        if (!checkService()) {
+        if (context.getPackageManager().hasSystemFeature(
+                LineageContextConstants.Features.HARDWARE_ABSTRACTION) && !checkService()) {
             Log.wtf(TAG, "Unable to get LineageHardwareService. The service either" +
                     " crashed, was not started, or the interface has been called to early in" +
                     " SystemServer init");
         }
 
         final String[] mappings = mContext.getResources().getStringArray(
-                com.android.internal.R.array.config_displayModeMappings);
+                org.lineageos.platform.internal.R.array.config_displayModeMappings);
         if (mappings != null && mappings.length > 0) {
             for (String mapping : mappings) {
                 String[] split = mapping.split(":");
@@ -214,11 +212,11 @@ public final class LineageHardwareManager {
             }
         }
         mFilterDisplayModes = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_filterDisplayModes);
+                org.lineageos.platform.internal.R.bool.config_filterDisplayModes);
     }
 
     /**
-     * Get or create an instance of the {@link com.android.internal.lineage.hardware.LineageHardwareManager}
+     * Get or create an instance of the {@link lineageos.hardware.LineageHardwareManager}
      * @param context
      * @return {@link LineageHardwareManager}
      */
@@ -250,9 +248,8 @@ public final class LineageHardwareManager {
      * @return true if the feature is supported, false otherwise.
      */
     public boolean isSupported(int feature) {
-        return isSupportedAIDL(feature) || isSupportedLegacy(feature);
+        return isSupportedAIDL(feature) || isSupportedHWC2(feature);
     }
-
 
     private boolean isSupportedAIDL(int feature) {
         if (!mAIDLMap.containsKey(feature)) {
@@ -261,7 +258,7 @@ public final class LineageHardwareManager {
         return mAIDLMap.get(feature) != null;
     }
 
-    private boolean isSupportedLegacy(int feature) {
+    private boolean isSupportedHWC2(int feature) {
         try {
             if (checkService()) {
                 return feature == (sService.getSupportedFeatures() & feature);
@@ -303,6 +300,9 @@ public final class LineageHardwareManager {
             case FEATURE_KEY_DISABLE:
                 return ServiceManager.waitForDeclaredService(
                         IKeyDisabler.DESCRIPTOR + "/default");
+            case FEATURE_KEY_SWAP:
+                return ServiceManager.waitForDeclaredService(
+                        IKeySwapper.DESCRIPTOR + "/default");
             case FEATURE_PICTURE_ADJUSTMENT:
                 return ServiceManager.waitForDeclaredService(
                         IPictureAdjustment.DESCRIPTOR + "/default");
@@ -374,6 +374,8 @@ public final class LineageHardwareManager {
                         return IGloveMode.Stub.asInterface(b).getEnabled();
                     case FEATURE_KEY_DISABLE:
                         return IKeyDisabler.Stub.asInterface(b).getEnabled();
+                    case FEATURE_KEY_SWAP:
+                        return IKeySwapper.Stub.asInterface(b).getEnabled();
                     case FEATURE_READING_ENHANCEMENT:
                         return IReadingEnhancement.Stub.asInterface(b).getEnabled();
                     case FEATURE_SUNLIGHT_ENHANCEMENT:
@@ -429,6 +431,9 @@ public final class LineageHardwareManager {
                     case FEATURE_KEY_DISABLE:
                         IKeyDisabler.Stub.asInterface(b).setEnabled(enable);
                         break;
+                    case FEATURE_KEY_SWAP:
+                        IKeySwapper.Stub.asInterface(b).setEnabled(enable);
+                        break;
                     case FEATURE_READING_ENHANCEMENT:
                         IReadingEnhancement.Stub.asInterface(b).setEnabled(enable);
                         break;
@@ -442,38 +447,6 @@ public final class LineageHardwareManager {
                 return enable;
             } else if (checkService()) {
                 return sService.set(feature, enable);
-            }
-        } catch (Exception e) {
-        }
-        return false;
-    }
-
-    /**
-     * @return a list of available touchscreen gestures on the devices
-     */
-    public TouchscreenGesture[] getTouchscreenGestures() {
-        try {
-            if (isSupportedAIDL(FEATURE_TOUCHSCREEN_GESTURES)) {
-                ITouchscreenGesture touchscreenGesture = ITouchscreenGesture.Stub.asInterface(
-                        mAIDLMap.get(FEATURE_TOUCHSCREEN_GESTURES));
-                return AIDLHelper.fromAIDLGestures(touchscreenGesture.getSupportedGestures());
-            }
-        } catch (Exception e) {
-        }
-        return null;
-    }
-
-    /**
-     * @return true if setting the activation status was successful
-     */
-    public boolean setTouchscreenGestureEnabled(
-            TouchscreenGesture gesture, boolean state) {
-        try {
-            if (isSupportedAIDL(FEATURE_TOUCHSCREEN_GESTURES)) {
-                ITouchscreenGesture touchscreenGesture = ITouchscreenGesture.Stub.asInterface(
-                        mAIDLMap.get(FEATURE_TOUCHSCREEN_GESTURES));
-                touchscreenGesture.setGestureEnabled(AIDLHelper.toAIDLGesture(gesture), state);
-                return true;
             }
         } catch (Exception e) {
         }
@@ -592,33 +565,6 @@ public final class LineageHardwareManager {
             }
             if (checkService()) {
                 return sService.setDisplayColorCalibration(rgb);
-            }
-        } catch (RemoteException e) {
-        }
-        return false;
-    }
-
-    /**
-     * @return true if adaptive backlight should be enabled when sunlight enhancement
-     * is enabled.
-     */
-    public boolean requireAdaptiveBacklightForSunlightEnhancement() {
-        try {
-            if (checkService()) {
-                return sService.requireAdaptiveBacklightForSunlightEnhancement();
-            }
-        } catch (RemoteException e) {
-        }
-        return false;
-    }
-
-    /**
-     * @return true if this implementation does it's own lux metering
-     */
-    public boolean isSunlightEnhancementSelfManaged() {
-        try {
-            if (checkService()) {
-                return sService.isSunlightEnhancementSelfManaged();
             }
         } catch (RemoteException e) {
         }
@@ -838,6 +784,38 @@ public final class LineageHardwareManager {
         } catch (RemoteException e) {
         }
         return null;
+    }
+
+    /**
+     * @return a list of available touchscreen gestures on the devices
+     */
+    public TouchscreenGesture[] getTouchscreenGestures() {
+        try {
+            if (isSupportedAIDL(FEATURE_TOUCHSCREEN_GESTURES)) {
+                ITouchscreenGesture touchscreenGesture = ITouchscreenGesture.Stub.asInterface(
+                        mAIDLMap.get(FEATURE_TOUCHSCREEN_GESTURES));
+                return AIDLHelper.fromAIDLGestures(touchscreenGesture.getSupportedGestures());
+            }
+        } catch (Exception e) {
+        }
+        return null;
+    }
+
+    /**
+     * @return true if setting the activation status was successful
+     */
+    public boolean setTouchscreenGestureEnabled(
+            TouchscreenGesture gesture, boolean state) {
+        try {
+            if (isSupportedAIDL(FEATURE_TOUCHSCREEN_GESTURES)) {
+                ITouchscreenGesture touchscreenGesture = ITouchscreenGesture.Stub.asInterface(
+                        mAIDLMap.get(FEATURE_TOUCHSCREEN_GESTURES));
+                touchscreenGesture.setGestureEnabled(AIDLHelper.toAIDLGesture(gesture), state);
+                return true;
+            }
+        } catch (Exception e) {
+        }
+        return false;
     }
 
     /**

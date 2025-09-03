@@ -1,33 +1,17 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *               2018-2021 The LineageOS Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2018-2021 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
-package com.android.internal.lineage.hardware;
+package lineageos.hardware;
 
 import android.content.Context;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.util.Log;
-import android.util.Range;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-
-import com.android.internal.lineage.app.LineageContextConstants;
+import lineageos.app.LineageContextConstants;
 
 /**
  * LiveDisplay is an advanced set of features for improving
@@ -161,7 +145,8 @@ public class LiveDisplayManager {
         }
         sService = getService();
 
-        if (!checkService()) {
+        if (!context.getPackageManager().hasSystemFeature(
+                LineageContextConstants.Features.LIVEDISPLAY) || !checkService()) {
             Log.wtf(TAG, "Unable to get LiveDisplayService. The service either" +
                     " crashed, was not started, or the interface has been called to early in" +
                     " SystemServer init");
@@ -169,7 +154,7 @@ public class LiveDisplayManager {
     }
 
     /**
-     * Get or create an instance of the {@link com.android.internal.lineage.hardware.LiveDisplayManager}
+     * Get or create an instance of the {@link lineageos.hardware.LiveDisplayManager}
      * @param context
      * @return {@link LiveDisplayManager}
      */
