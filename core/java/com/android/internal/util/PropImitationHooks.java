@@ -149,7 +149,11 @@ public class PropImitationHooks {
          * Set Pixel XL for Google Photos
          */
         if (sIsGms || sIsFinsky) {
-            setPlayIntegrityProps(context);
+            if (!android.os.Process.isIsolated()) {
+                setPlayIntegrityProps(context);
+            } else {
+                dlog("Not setting Play Integrity props in isolated process");
+            }
         } else if (!sStockFp.isEmpty() && packageName.equals(PACKAGE_ARCORE)) {
             dlog("Setting stock fingerprint for: " + packageName);
             setPropValue("FINGERPRINT", sStockFp);
@@ -186,6 +190,12 @@ public class PropImitationHooks {
             setSystemProperty(PROP_SECURITY_PATCH, Build.VERSION.SECURITY_PATCH);
             setSystemProperty(PROP_FIRST_API_LEVEL,
                     Integer.toString(Build.VERSION.DEVICE_INITIAL_SDK_INT));
+            return;
+        }
+
+        // Guard: isolated processes cannot access content providers (Settings.*).
+        if (android.os.Process.isIsolated()) {
+            dlog("Skipping setPlayIntegrityProps in isolated process");
             return;
         }
 
