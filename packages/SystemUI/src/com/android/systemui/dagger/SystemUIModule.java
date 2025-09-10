@@ -16,10 +16,13 @@
 
 package com.android.systemui.dagger;
 
+import android.app.AlarmManager;
 import android.app.INotificationManager;
 import android.app.Service;
 import android.app.backup.BackupManager;
+import android.content.ComponentName;
 import android.content.Context;
+import android.os.Handler;
 import android.service.dreams.IDreamManager;
 import android.view.Display;
 
@@ -61,6 +64,7 @@ import com.android.systemui.compose.ComposeModule;
 import com.android.systemui.controls.dagger.ControlsModule;
 import com.android.systemui.custom.CustomModule;
 import com.android.systemui.dagger.qualifiers.Application;
+import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dagger.qualifiers.SystemUser;
 import com.android.systemui.dagger.qualifiers.UiBackground;
@@ -88,6 +92,7 @@ import com.android.systemui.log.dagger.MonitorLog;
 import com.android.systemui.log.table.TableLogBuffer;
 import com.android.systemui.lowlight.dagger.LowLightModule;
 import com.android.systemui.lowlightclock.dagger.LowLightClockModule;
+import com.android.systemui.media.NotificationMediaManager;
 import com.android.systemui.mediaprojection.MediaProjectionModule;
 import com.android.systemui.mediaprojection.appselector.MediaProjectionActivitiesModule;
 import com.android.systemui.mediaprojection.taskswitcher.MediaProjectionTaskSwitcherModule;
@@ -108,6 +113,7 @@ import com.android.systemui.qs.footer.dagger.FooterActionsModule;
 import com.android.systemui.qs.tiles.impl.qr.ui.model.QRCodeScannerModule;
 import com.android.systemui.recents.Recents;
 import com.android.systemui.recordissue.RecordIssueModule;
+import com.android.systemui.res.R;
 import com.android.systemui.retail.RetailModeModule;
 import com.android.systemui.rotationlock.DeviceStateAutoRotateModule.BoundsDeviceStateAutoRotateModule;
 import com.android.systemui.scene.shared.model.SceneContainerConfig;
@@ -123,6 +129,7 @@ import com.android.systemui.shade.ShadeDisplayAwareModule;
 import com.android.systemui.shade.transition.LargeScreenShadeInterpolator;
 import com.android.systemui.shade.transition.LargeScreenShadeInterpolatorImpl;
 import com.android.systemui.shared.condition.Monitor;
+import com.android.systemui.smartspace.config.BcSmartspaceConfigProvider;
 import com.android.systemui.smartspace.dagger.SmartspaceModule;
 import com.android.systemui.startable.Dependencies;
 import com.android.systemui.statusbar.CommandQueue;
@@ -153,11 +160,13 @@ import com.android.systemui.statusbar.phone.LetterboxModule;
 import com.android.systemui.statusbar.pipeline.dagger.StatusBarPipelineModule;
 import com.android.systemui.statusbar.policy.DeviceStateRotationLockSettingController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
+import com.android.systemui.statusbar.policy.NextAlarmControllerImpl;
 import com.android.systemui.statusbar.policy.PolicyModule;
 import com.android.systemui.statusbar.policy.SensitiveNotificationProtectionController;
 import com.android.systemui.statusbar.policy.ZenModeController;
 import com.android.systemui.statusbar.policy.dagger.SmartRepliesInflationModule;
 import com.android.systemui.statusbar.policy.dagger.StatusBarPolicyModule;
+import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor;
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsModule;
 import com.android.systemui.statusbar.ui.binder.StatusBarViewBinderModule;
 import com.android.systemui.statusbar.window.StatusBarWindowModule;
@@ -170,6 +179,7 @@ import com.android.systemui.tuner.dagger.TunerModule;
 import com.android.systemui.user.UserModule;
 import com.android.systemui.user.domain.UserDomainLayerModule;
 import com.android.systemui.util.EventLogModule;
+import com.android.systemui.util.concurrency.DelayableExecutor;
 import com.android.systemui.util.concurrency.SysUIConcurrencyModule;
 import com.android.systemui.util.dagger.UtilModule;
 import com.android.systemui.util.kotlin.SysUICoroutinesModule;
@@ -183,6 +193,14 @@ import com.android.systemui.wallet.dagger.WalletModule;
 import com.android.systemui.wmshell.BubblesManager;
 import com.android.wm.shell.bubbles.Bubbles;
 
+import com.google.android.systemui.smartspace.BcSmartspaceDataProvider;
+import com.google.android.systemui.smartspace.DateSmartspaceDataProvider;
+import com.google.android.systemui.smartspace.KeyguardMediaViewController;
+import com.google.android.systemui.smartspace.KeyguardZenAlarmViewController;
+import com.google.android.systemui.smartspace.WeatherSmartspaceDataProvider;
+import com.google.android.systemui.smartspace.dagger.SmartspaceGoogleModule;
+import com.google.android.systemui.smartspace.dagger.SmartspaceStartableModule;
+
 import dagger.Binds;
 import dagger.BindsOptionalOf;
 import dagger.Module;
@@ -191,6 +209,7 @@ import dagger.multibindings.ClassKey;
 import dagger.multibindings.IntoMap;
 import dagger.multibindings.Multibinds;
 
+import kotlinx.coroutines.CoroutineDispatcher;
 import kotlinx.coroutines.CoroutineScope;
 
 import java.util.Collections;
@@ -204,118 +223,121 @@ import javax.inject.Named;
 /**
  * A dagger module for injecting components of System UI that are required by System UI.
  *
- * If your feature can be excluded, subclassed, or re-implemented by a variant of SystemUI, put
- * your Dagger Module in {@link ReferenceSystemUIModule} and/or any variant modules that
- * rely on the feature.
+ * <p>If your feature can be excluded, subclassed, or re-implemented by a variant of SystemUI, put
+ * your Dagger Module in {@link ReferenceSystemUIModule} and/or any variant modules that rely on the
+ * feature.
  *
- * Adding an entry in this file means that _all_ variants of SystemUI will receive that code. They
- * may not appreciate that.
+ * <p>Adding an entry in this file means that _all_ variants of SystemUI will receive that code.
+ * They may not appreciate that.
  */
-@Module(includes = {
-        ActivityManagerModule.class,
-        AmbientModule.class,
-        AvControlsChipModule.class,
-        AppOpsModule.class,
-        AssistModule.class,
-        AuthenticationModule.class,
-        BiometricsModule.class,
-        BiometricsDomainLayerModule.class,
-        BouncerInteractorModule.class,
-        BouncerRepositoryModule.class,
-        BouncerViewModule.class,
-        CameraProtectionModule.class,
-        ClipboardOverlayModule.class,
-        ClockRegistryModule.class,
-        CommunalModule.class,
-        CommonDataLayerModule.class,
-        ComposeModule.class,
-        ConfigurationModule.class,
-        ConfigurationRepositoryModule.class,
-        CommonUsageStatsDataLayerModule.class,
-        ConfigurationControllerModule.class,
-        ConnectivityModule.class,
-        ControlsModule.class,
-        CustomModule.class,
-        DemoModeModule.class,
-        DesktopModule.class,
-        DeviceEntryModule.class,
-        DisableFlagsModule.class,
-        DisplayModule.class,
-        DreamModule.class,
-        EventLogModule.class,
-        FalsingModule.class,
-        FlagsModule.class,
-        FlagDependenciesModule.class,
-        FooterActionsModule.class,
-        KairosCoreStartableModule.class,
-        GestureModule.class,
-        GrowthModule.class,
-        InputMethodModule.class,
-        KeyEventRepositoryModule.class,
-        KeyboardModule.class,
-        KeyguardDataQuickAffordanceModule.class,
-        LetterboxModule.class,
-        LogModule.class,
-        MediaProjectionActivitiesModule.class,
-        MediaProjectionModule.class,
-        MediaProjectionTaskSwitcherModule.class,
-        MediaRouterModule.class,
-        MotionToolModule.class,
-        MSDLModule.class,
-        PeopleHubModule.class,
-        PeopleModule.class,
-        PluginModule.class,
-        PolicyModule.class,
-        PrivacyModule.class,
-        QRCodeScannerModule.class,
-        RecordIssueModule.class,
-        ReferenceModule.class,
-        RetailModeModule.class,
-        ScreenBrightnessModule.class,
-        ScreenshotModule.class,
-        SensorModule.class,
-        SecurityRepositoryModule.class,
-        ScreenRecordModule.class,
-        SettingsUtilModule.class,
-        SmartRepliesInflationModule.class,
-        SmartspaceModule.class,
-        StatusBarEventsModule.class,
-        StatusBarModule.class,
-        StatusBarChipsModule.class,
-        StatusBarPipelineModule.class,
-        StatusBarPolicyModule.class,
-        StatusBarViewBinderModule.class,
-        StatusBarWindowModule.class,
-        SystemPropertiesFlagsModule.class,
-        SystemStatusIconsModule.class,
-        SysUIConcurrencyModule.class,
-        SysUICoroutinesModule.class,
-        CommonSystemUIUnfoldModule.class,
-        TelephonyRepositoryModule.class,
-        TemporaryDisplayModule.class,
-        ShadeDisplayAwareModule.class,
-        TopUiModule.class,
-        TouchpadModule.class,
-        TunerModule.class,
-        UserDomainLayerModule.class,
-        UserModule.class,
-        UtilModule.class,
-        NoteTaskModule.class,
-        WalletModule.class,
-        LowLightModule.class,
-        LowLightClockModule.class,
-        PerDisplayRepositoriesModule.class,
-        InputDeviceModule.class,
-},
+@Module(
+        includes = {
+            ActivityManagerModule.class,
+            AmbientModule.class,
+            AvControlsChipModule.class,
+            AppOpsModule.class,
+            AssistModule.class,
+            AuthenticationModule.class,
+            BiometricsModule.class,
+            BiometricsDomainLayerModule.class,
+            BouncerInteractorModule.class,
+            BouncerRepositoryModule.class,
+            BouncerViewModule.class,
+            CameraProtectionModule.class,
+            ClipboardOverlayModule.class,
+            ClockRegistryModule.class,
+            CommunalModule.class,
+            CommonDataLayerModule.class,
+            ComposeModule.class,
+            ConfigurationModule.class,
+            ConfigurationRepositoryModule.class,
+            CommonUsageStatsDataLayerModule.class,
+            ConfigurationControllerModule.class,
+            ConnectivityModule.class,
+            ControlsModule.class,
+            CustomModule.class,
+            DemoModeModule.class,
+            DesktopModule.class,
+            DeviceEntryModule.class,
+            DisableFlagsModule.class,
+            DisplayModule.class,
+            DreamModule.class,
+            EventLogModule.class,
+            FalsingModule.class,
+            FlagsModule.class,
+            FlagDependenciesModule.class,
+            FooterActionsModule.class,
+            KairosCoreStartableModule.class,
+            GestureModule.class,
+            GrowthModule.class,
+            InputMethodModule.class,
+            KeyEventRepositoryModule.class,
+            KeyboardModule.class,
+            KeyguardDataQuickAffordanceModule.class,
+            LetterboxModule.class,
+            LogModule.class,
+            MediaProjectionActivitiesModule.class,
+            MediaProjectionModule.class,
+            MediaProjectionTaskSwitcherModule.class,
+            MediaRouterModule.class,
+            MotionToolModule.class,
+            MSDLModule.class,
+            PeopleHubModule.class,
+            PeopleModule.class,
+            PluginModule.class,
+            PolicyModule.class,
+            PrivacyModule.class,
+            QRCodeScannerModule.class,
+            RecordIssueModule.class,
+            ReferenceModule.class,
+            RetailModeModule.class,
+            ScreenBrightnessModule.class,
+            ScreenshotModule.class,
+            SensorModule.class,
+            SecurityRepositoryModule.class,
+            ScreenRecordModule.class,
+            SettingsUtilModule.class,
+            SmartRepliesInflationModule.class,
+            SmartspaceModule.class,
+            SmartspaceStartableModule.class,
+            SmartspaceGoogleModule.class,
+            StatusBarEventsModule.class,
+            StatusBarModule.class,
+            StatusBarChipsModule.class,
+            StatusBarPipelineModule.class,
+            StatusBarPolicyModule.class,
+            StatusBarViewBinderModule.class,
+            StatusBarWindowModule.class,
+            SystemPropertiesFlagsModule.class,
+            SystemStatusIconsModule.class,
+            SysUIConcurrencyModule.class,
+            SysUICoroutinesModule.class,
+            CommonSystemUIUnfoldModule.class,
+            TelephonyRepositoryModule.class,
+            TemporaryDisplayModule.class,
+            ShadeDisplayAwareModule.class,
+            TopUiModule.class,
+            TouchpadModule.class,
+            TunerModule.class,
+            UserDomainLayerModule.class,
+            UserModule.class,
+            UtilModule.class,
+            NoteTaskModule.class,
+            WalletModule.class,
+            LowLightModule.class,
+            LowLightClockModule.class,
+            PerDisplayRepositoriesModule.class,
+            InputDeviceModule.class,
+        },
         subcomponents = {
-                ComplicationComponent.class,
-                DozeComponent.class,
-                ExpandableNotificationRowComponent.class,
-                KeyguardBouncerComponent.class,
-                NavigationBarComponent.class,
-                NotificationRowComponent.class,
-                WindowRootViewComponent.class,
-                BundleRowComponent.class,
+            ComplicationComponent.class,
+            DozeComponent.class,
+            ExpandableNotificationRowComponent.class,
+            KeyguardBouncerComponent.class,
+            NavigationBarComponent.class,
+            NotificationRowComponent.class,
+            WindowRootViewComponent.class,
+            BundleRowComponent.class,
         })
 public abstract class SystemUIModule {
 
@@ -326,35 +348,30 @@ public abstract class SystemUIModule {
     @Binds
     abstract BootCompleteCache bindBootCompleteCache(BootCompleteCacheImpl bootCompleteCache);
 
-    /**
-     *
-     */
+    /** */
     @Binds
     public abstract ContextComponentHelper bindComponentHelper(
             ContextComponentResolver componentHelper);
 
-    /**
-     *
-     */
+    /** */
     @Binds
     public abstract NotificationRowBinder bindNotificationRowBinder(
             NotificationRowBinderImpl notificationRowBinder);
 
     @SysUISingleton
     @Provides
-    static SysUiState provideSysUiState(
-            PerDisplayRepository<SysUiState> repository) {
+    static SysUiState provideSysUiState(PerDisplayRepository<SysUiState> repository) {
         return repository.get(Display.DEFAULT_DISPLAY);
     }
 
-    /**
-     * Provides the monitor for SystemUI that requires the process running as the system user.
-     */
+    /** Provides the monitor for SystemUI that requires the process running as the system user. */
     @SysUISingleton
     @Provides
     @SystemUser
-    static Monitor provideSystemUserMonitor(@Main Executor executor,
-            SystemProcessCondition systemProcessCondition, @MonitorLog TableLogBuffer logBuffer) {
+    static Monitor provideSystemUserMonitor(
+            @Main Executor executor,
+            SystemProcessCondition systemProcessCondition,
+            @MonitorLog TableLogBuffer logBuffer) {
         return new Monitor(executor, Collections.singleton(systemProcessCondition), logBuffer);
     }
 
@@ -380,6 +397,10 @@ public abstract class SystemUIModule {
     @BindsOptionalOf
     @Named(SmartspaceModule.DATE_SMARTSPACE_DATA_PLUGIN)
     abstract BcSmartspaceDataPlugin optionalDateSmartspaceConfigPlugin();
+
+    @BindsOptionalOf
+    @Named(SmartspaceModule.GLANCEABLE_HUB_SMARTSPACE_DATA_PLUGIN)
+    abstract BcSmartspaceDataPlugin optionalGlanceableHubBcSmartspaceDataPlugin();
 
     @BindsOptionalOf
     @Named(SmartspaceModule.WEATHER_SMARTSPACE_DATA_PLUGIN)
@@ -420,7 +441,8 @@ public abstract class SystemUIModule {
     /** Provides Optional of BubbleManager */
     @SysUISingleton
     @Provides
-    static Optional<BubblesManager> provideBubblesManager(Context context,
+    static Optional<BubblesManager> provideBubblesManager(
+            Context context,
             Optional<Bubbles> bubblesOptional,
             NotificationShadeWindowController notificationShadeWindowController,
             TopUiController topUiController,
@@ -441,27 +463,29 @@ public abstract class SystemUIModule {
             NotifPipelineFlags notifPipelineFlags,
             @Main Executor sysuiMainExecutor,
             @UiBackground Executor sysuiUiBgExecutor) {
-        return Optional.ofNullable(BubblesManager.create(context,
-                bubblesOptional,
-                notificationShadeWindowController,
-                topUiController,
-                keyguardStateController,
-                shadeController,
-                statusBarService,
-                notificationManager,
-                dreamManager,
-                visibilityProvider,
-                visualInterruptionDecisionProvider,
-                zenModeController,
-                notifUserManager,
-                sensitiveNotificationProtectionController,
-                notifCollection,
-                notifPipeline,
-                sysUiState,
-                featureFlags,
-                notifPipelineFlags,
-                sysuiMainExecutor,
-                sysuiUiBgExecutor));
+        return Optional.ofNullable(
+                BubblesManager.create(
+                        context,
+                        bubblesOptional,
+                        notificationShadeWindowController,
+                        topUiController,
+                        keyguardStateController,
+                        shadeController,
+                        statusBarService,
+                        notificationManager,
+                        dreamManager,
+                        visibilityProvider,
+                        visualInterruptionDecisionProvider,
+                        zenModeController,
+                        notifUserManager,
+                        sensitiveNotificationProtectionController,
+                        notifCollection,
+                        notifPipeline,
+                        sysUiState,
+                        featureFlags,
+                        notifPipelineFlags,
+                        sysuiMainExecutor,
+                        sysuiUiBgExecutor));
     }
 
     @Provides
@@ -492,9 +516,9 @@ public abstract class SystemUIModule {
     @SysUISingleton
     static Optional<DeviceStateRotationLockSettingController>
             provideDeviceStateRotationLockSettingController(
-            @BoundsDeviceStateAutoRotateModule
-            Optional<Optional<DeviceStateRotationLockSettingController>> optionalOfOptional
-    ) {
+                    @BoundsDeviceStateAutoRotateModule
+                            Optional<Optional<DeviceStateRotationLockSettingController>>
+                                    optionalOfOptional) {
         return optionalOfOptional.orElseGet(Optional::empty);
     }
 
@@ -504,5 +528,81 @@ public abstract class SystemUIModule {
     @Provides
     static SettingsProxy.CurrentUserIdProvider provideCurrentUserId(UserTracker userTracker) {
         return userTracker::getUserId;
+    }
+
+    @Provides
+    @SysUISingleton
+    static KeyguardZenAlarmViewController provideKeyguardZenAlarmViewController(
+            Context context,
+            @Named(SmartspaceModule.DATE_SMARTSPACE_DATA_PLUGIN) BcSmartspaceDataPlugin datePlugin,
+            ZenModeController zenModeController,
+            ZenModeInteractor zenModeInteractor,
+            AlarmManager alarmManager,
+            NextAlarmControllerImpl nextAlarmController,
+            @Main Handler handler,
+            @Application CoroutineScope applicationScope,
+            @Background CoroutineDispatcher bgDispatcher) {
+        KeyguardZenAlarmViewController controller =
+                new KeyguardZenAlarmViewController(
+                        context,
+                        datePlugin,
+                        zenModeController,
+                        zenModeInteractor,
+                        alarmManager,
+                        nextAlarmController,
+                        handler,
+                        applicationScope,
+                        bgDispatcher);
+        controller.alarmImage =
+                context.getResources().getDrawable(R.drawable.ic_access_alarms_big, null);
+        return controller;
+    }
+
+    @Provides
+    @SysUISingleton
+    static KeyguardMediaViewController provideKeyguardMediaViewController(
+            Context context,
+            NotificationMediaManager mediaManager,
+            BcSmartspaceDataPlugin plugin,
+            UserTracker userTracker,
+            @Main DelayableExecutor uiExecutor) {
+        KeyguardMediaViewController controller =
+                new KeyguardMediaViewController(
+                        context, mediaManager, plugin, userTracker, uiExecutor);
+        controller.mediaComponent = new ComponentName(context, KeyguardMediaViewController.class);
+        return controller;
+    }
+
+    @Provides
+    @SysUISingleton
+    static BcSmartspaceConfigProvider provideBcSmartspaceConfigPlugin(FeatureFlags featureFlags) {
+        return new BcSmartspaceConfigProvider(featureFlags);
+    }
+
+    @Provides
+    @SysUISingleton
+    static BcSmartspaceDataPlugin provideBcSmartspaceDataPlugin() {
+        return new BcSmartspaceDataProvider();
+    }
+
+    @Provides
+    @SysUISingleton
+    @Named(SmartspaceModule.DATE_SMARTSPACE_DATA_PLUGIN)
+    static BcSmartspaceDataPlugin provideDateSmartspaceDataPlugin() {
+        return new DateSmartspaceDataProvider();
+    }
+
+    @Provides
+    @SysUISingleton
+    @Named(SmartspaceModule.GLANCEABLE_HUB_SMARTSPACE_DATA_PLUGIN)
+    static BcSmartspaceDataPlugin provideGlanceableHubBcSmartspaceDataPlugin() {
+        return new BcSmartspaceDataProvider();
+    }
+
+    @Provides
+    @SysUISingleton
+    @Named(SmartspaceModule.WEATHER_SMARTSPACE_DATA_PLUGIN)
+    static BcSmartspaceDataPlugin provideWeatherSmartspaceDataPlugin() {
+        return new WeatherSmartspaceDataProvider();
     }
 }
