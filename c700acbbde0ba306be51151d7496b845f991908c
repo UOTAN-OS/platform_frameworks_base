@@ -16,6 +16,24 @@
       "message": "Requires LineageHardwareManager",
       "revId": "c700acbbde0ba306be51151d7496b845f991908c",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "4282fcfa_218bf9aa",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-13T06:47:58Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "0b50c886_5d5cadf8",
+      "revId": "c700acbbde0ba306be51151d7496b845f991908c",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
