@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "312e3bc0_c0414dc3",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-15T04:17:42Z",
+      "side": 1,
+      "message": "If bank apps count here as third party apps, then this change should not be merged.",
+      "revId": "3013f887665b321006caf2422b5ebee873707318",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
