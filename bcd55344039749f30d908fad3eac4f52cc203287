@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "09d052f7_08c21605",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 9,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-17T13:35:12Z",
+      "side": 1,
+      "message": "Mention which prebuilt camera apps if possible.",
+      "range": {
+        "startLine": 9,
+        "startChar": 2,
+        "endLine": 9,
+        "endChar": 27
+      },
+      "revId": "bcd55344039749f30d908fad3eac4f52cc203287",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
