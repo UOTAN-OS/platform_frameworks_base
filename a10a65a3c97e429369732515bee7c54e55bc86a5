@@ -16,6 +16,24 @@
       "message": "Squash merge with parent change",
       "revId": "a10a65a3c97e429369732515bee7c54e55bc86a5",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "0d6a9c9c_c3209769",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-17T10:52:07Z",
+      "side": 1,
+      "message": "Meant for https://review.pixelos.net/c/PixelOS-AOSP/android_frameworks_base/+/1287/1",
+      "parentUuid": "1254d560_e2235983",
+      "revId": "a10a65a3c97e429369732515bee7c54e55bc86a5",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
