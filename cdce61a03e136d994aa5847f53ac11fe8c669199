@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "fede8fbe_f10b82e1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-18T08:17:57Z",
+      "side": 1,
+      "message": "Please maintain/add Change-Ids for those squashed changes",
+      "revId": "cdce61a03e136d994aa5847f53ac11fe8c669199",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
