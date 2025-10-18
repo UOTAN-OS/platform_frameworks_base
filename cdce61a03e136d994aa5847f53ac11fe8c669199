@@ -16,6 +16,24 @@
       "message": "Please maintain/add Change-Ids for those squashed changes",
       "revId": "cdce61a03e136d994aa5847f53ac11fe8c669199",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "bb0f6421_91c47981",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-18T08:18:33Z",
+      "side": 1,
+      "message": "Refer to https://review.pixelos.net/c/PixelOS-AOSP/android_frameworks_base/+/1014",
+      "parentUuid": "fede8fbe_f10b82e1",
+      "revId": "cdce61a03e136d994aa5847f53ac11fe8c669199",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
