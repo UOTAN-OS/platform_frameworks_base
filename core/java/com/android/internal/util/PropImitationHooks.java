@@ -26,9 +26,11 @@ import android.content.Context;
 import android.content.res.Resources;
 import android.os.Build;
 import android.os.Binder;
+import android.os.SystemProperties;
 import android.os.Environment;
 import android.os.Process;
 import android.provider.Settings;
+
 
 import android.text.TextUtils;
 import android.util.Log;
