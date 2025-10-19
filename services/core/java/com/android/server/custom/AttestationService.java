@@ -14,6 +14,7 @@ import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.os.Environment;
 import android.os.SystemProperties;
+import android.provider.Settings;
 import android.util.Log;
 
 import com.android.server.SystemService;
@@ -47,7 +48,6 @@ public final class AttestationService extends SystemService {
             "persist.sys.pihooks.disable.gms_props", false);
 
     private final Context mContext;
-    private final File mDataFile;
     private final ScheduledExecutorService mScheduler;
 
     public AttestationService(Context context) {
