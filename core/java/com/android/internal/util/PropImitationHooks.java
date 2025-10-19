@@ -28,6 +28,8 @@ import android.os.Build;
 import android.os.Binder;
 import android.os.Environment;
 import android.os.Process;
+import android.provider.Settings;
+
 import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.util.Log;
@@ -184,7 +186,7 @@ public class PropImitationHooks {
         }
     }
 
-    private static void setCertifiedPropsForGms(Context context) {
+    private static void setPlayIntegrityProps(Context context) {
         if (sDisableGmsProps) {
             dlog("GMS prop imitation is disabled by user");
             setSystemProperty(PROP_SECURITY_PATCH, Build.VERSION.SECURITY_PATCH);
