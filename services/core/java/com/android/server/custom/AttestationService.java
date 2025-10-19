@@ -53,7 +53,6 @@ public final class AttestationService extends SystemService {
     public AttestationService(Context context) {
         super(context);
         mContext = context;
-        mDataFile = new File(Environment.getDataSystemDirectory(), DATA_FILE);
         mScheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
@@ -68,33 +67,6 @@ public final class AttestationService extends SystemService {
             Log.i(TAG, "Scheduling the service");
             mScheduler.scheduleAtFixedRate(
                     new FetchGmsCertifiedProps(), INITIAL_DELAY, INTERVAL, TimeUnit.MINUTES);
-        }
-    }
-
-    private String readFromFile(File file) {
-        StringBuilder content = new StringBuilder();
-
-        if (file.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                String line;
-
-                while ((line = reader.readLine()) != null) {
-                    content.append(line);
-                }
-            } catch (IOException e) {
-                Log.e(TAG, "Error reading from file", e);
-            }
-        }
-        return content.toString();
-    }
-
-    private void writeToFile(File file, String data) {
-        try (FileWriter writer = new FileWriter(file)) {
-            writer.write(data);
-            // Set -rw-r--r-- (644) permission to make it readable by others.
-            file.setReadable(true, false);
-        } catch (IOException e) {
-            Log.e(TAG, "Error writing to file", e);
         }
     }
 
@@ -155,12 +127,12 @@ public final class AttestationService extends SystemService {
                     return;
                 }
 
-                String savedProps = readFromFile(mDataFile);
+                String savedProps = Settings.Secure.getString(mContext.getContentResolver(), Settings.Secure.FETCHED_PIF);
                 String props = fetchProps();
 
                 if (props != null && !savedProps.equals(props)) {
                     dlog("Found new props");
-                    writeToFile(mDataFile, props);
+                    Settings.Secure.putString(mContext.getContentResolver(), Settings.Secure.FETCHED_PIF, props);
                     dlog("FetchGmsCertifiedProps completed");
                 } else {
                     dlog("No change in props");
