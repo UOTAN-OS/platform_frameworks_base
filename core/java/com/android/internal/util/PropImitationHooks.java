@@ -28,6 +28,9 @@ import android.os.Build;
 import android.os.Binder;
 import android.os.Environment;
 import android.os.Process;
+import android.os.SystemProperties;
+import android.provider.Settings;
+
 import android.text.TextUtils;
 import android.util.Log;
 
