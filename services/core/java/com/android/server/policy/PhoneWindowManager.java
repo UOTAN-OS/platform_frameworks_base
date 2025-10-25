@@ -223,6 +223,10 @@ import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
 import android.view.autofill.AutofillManagerInternal;
 import android.widget.Toast;
+import android.graphics.PointF;
+import android.graphics.Point;
+import android.content.ComponentName;
+import android.app.PendingIntent;
 import android.window.DesktopExperienceFlags;
 
 import com.android.internal.R;
@@ -409,6 +413,29 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     private static final int POWER_BUTTON_SUPPRESSION_DELAY_DEFAULT_MILLIS = 800;
 
+    private static final String ACTION_TORCH_OFF =
+            "com.android.server.policy.PhoneWindowManager.ACTION_TORCH_OFF";
+
+    //Ext add
+    private static final String TAG_GESTURE = "AviumGesture";
+    private static final String ACTION_WINDOWMODE_LEFT = "org.avium.WINDOWMODE_LEFT";
+    private static final String ACTION_WINDOWMODE_RIGHT = "org.avium.WINDOWMODE_RIGHT";
+    private static final float GESTURE_AREA_HEIGHT_DP = 20.0f; 
+    private static final float GESTURE_AREA_WIDTH_DP = 30.0f; 
+
+    private static final boolean AVIUM_DEBUG = false;
+
+    private static final float TRIGGER_MIN_DISTANCE_DP = 30.0f; 
+    private static final float TRIGGER_MAX_ANGLE_RAD = (float) Math.toRadians(80.0); 
+
+    private boolean mIsTrackingSystemGesture = false; 
+    private boolean mIsTrackingSideGesture = false;
+    private boolean mGestureTriggered = false;
+    private final PointF mGestureStartPoint = new PointF();
+    private int mDisplayWidth, mDisplayHeight;
+    private float mMinGestureDistancePx;
+    private float mGestureAreaHeightPx;
+    private float mGestureAreaWidthPx;
     /**
      * Keyguard stuff
      */
@@ -6204,6 +6231,109 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         bindKeyguard();
     }
 
+    //Ext add
+    @Override
+    public void notifySystemGestureState(boolean down) {
+        if(AVIUM_DEBUG){
+            Slog.d("AviumGesture", "notifySystemGestureState called with: " + down);
+        }
+        mIsTrackingSystemGesture = down;
+        if (!down) {
+            mGestureTriggered = false;
+        }
+    }
+
+    @Override
+    public int interceptMotionBeforeQueueing(MotionEvent event) {
+        final int action = event.getActionMasked();
+        final float x = event.getRawX();
+        final float y = event.getRawY();
+        boolean gestureTriggered = false;
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                boolean inGestureArea = y > (mDisplayHeight - mGestureAreaHeightPx) &&
+                                        (x < mGestureAreaWidthPx || x > (mDisplayWidth - mGestureAreaWidthPx));
+                if (inGestureArea) {
+                    mIsTrackingSideGesture = true;
+                    mGestureStartPoint.set(x, y);
+                    if(AVIUM_DEBUG){
+                        Slog.d("AviumGesture", "interceptMotionBeforeQueueing ACTION_DOWN inGestureArea: " + inGestureArea);
+                    }
+                    return SYSTEM_GESTURE_DOWN;
+                }
+                break;
+
+            case MotionEvent.ACTION_MOVE:
+                if (mIsTrackingSideGesture) {
+                    final float dx = x - mGestureStartPoint.x;
+                    final float dy = y - mGestureStartPoint.y;
+                    final float distance = (float) Math.hypot(dx, dy);
+
+                    if (distance > mMinGestureDistancePx) {
+                        final float absDx = Math.abs(dx);
+                        final float absDy = Math.abs(dy);
+                        final float angle = (float) Math.atan2(absDy, absDx);
+
+                        if (dy < 0 && angle < TRIGGER_MAX_ANGLE_RAD) {
+                            boolean isLeftSwipe = mGestureStartPoint.x < mGestureAreaWidthPx && dx > 0;
+                            boolean isRightSwipe = mGestureStartPoint.x > (mDisplayWidth - mGestureAreaWidthPx) && dx < 0;
+
+                            if (isLeftSwipe || isRightSwipe) {
+                                onSideGestureDetected(isRightSwipe);
+                                mIsTrackingSideGesture = false; 
+                                gestureTriggered = true; 
+                            }
+                        }
+                        if (!gestureTriggered) {
+                            mIsTrackingSideGesture = false;
+                        }
+                    }
+                    if (gestureTriggered || !mIsTrackingSideGesture) {
+                        return SYSTEM_GESTURE_RESET;
+                    }
+                    return SYSTEM_GESTURE_MOVE;
+                }
+                break;
+
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (mIsTrackingSideGesture) {
+                    mIsTrackingSideGesture = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
+                break;
+        }
+
+        return SYSTEM_GESTURE_NONE;
+    }
+
+    private void onSideGestureDetected(boolean fromRight) { 
+        if(AVIUM_DEBUG){
+            Slog.d("AviumGesture", "onSideGestureDetected called with: " + fromRight);
+        }
+    
+        Intent intent = new Intent(); 
+        intent.setComponent(new ComponentName( 
+            "org.avium.systemuiex", 
+            "org.avium.systemuiex.service.GestureService" 
+        )); 
+        intent.putExtra("isLeft", !fromRight); 
+        
+        PendingIntent pendingIntent;
+        pendingIntent = PendingIntent.getForegroundService(
+            mContext, 0, intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        try {
+            pendingIntent.send();
+        } catch (Exception e) {
+            //do nothing
+        }
+    }
+
+
+
     /** {@inheritDoc} */
     @Override
     public void systemReady() {
@@ -6213,6 +6343,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         //Ext add
         updateGestureParams();
         mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
+        mModifierShortcutManager.onSystemReady();
 
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {
