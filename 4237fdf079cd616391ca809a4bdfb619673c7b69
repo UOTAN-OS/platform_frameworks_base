@@ -62,6 +62,30 @@
       },
       "revId": "4237fdf079cd616391ca809a4bdfb619673c7b69",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "bc1311e2_24674f15",
+        "filename": "core/java/com/android/internal/lineage/hardware/LiveDisplayManager.java",
+        "patchSetId": 4
+      },
+      "lineNbr": 157,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-31T22:01:46Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "dd8f5797_eb0bda68",
+      "range": {
+        "startLine": 157,
+        "startChar": 47,
+        "endLine": 157,
+        "endChar": 61
+      },
+      "revId": "4237fdf079cd616391ca809a4bdfb619673c7b69",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
