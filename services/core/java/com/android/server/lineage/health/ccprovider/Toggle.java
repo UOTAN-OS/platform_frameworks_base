@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.android.server.lineage.health.ccprovider;
+package org.lineageos.platform.internal.health.ccprovider;
 
-import static com.android.internal.lineage.health.HealthInterface.MODE_AUTO;
-import static com.android.internal.lineage.health.HealthInterface.MODE_LIMIT;
-import static com.android.internal.lineage.health.HealthInterface.MODE_MANUAL;
+import static lineageos.health.HealthInterface.MODE_AUTO;
+import static lineageos.health.HealthInterface.MODE_LIMIT;
+import static lineageos.health.HealthInterface.MODE_MANUAL;
 
-import static com.android.server.lineage.health.Util.msToString;
-import static com.android.server.lineage.health.Util.msToHMSString;
+import static org.lineageos.platform.internal.health.Util.msToHMSString;
+import static org.lineageos.platform.internal.health.Util.msToString;
 
 import android.content.Context;
 import android.content.Intent;
@@ -20,7 +20,7 @@ import android.os.BatteryStatsManager;
 import android.os.BatteryUsageStats;
 import android.util.Log;
 
-import com.android.internal.R;
+import org.lineageos.platform.internal.R;
 
 import vendor.lineage.health.ChargingControlSupportedMode;
 import vendor.lineage.health.IChargingControl;

@@ -1,18 +1,18 @@
 /*
-* SPDX-FileCopyrightText: 2024-2025 The LineageOS Project
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * SPDX-FileCopyrightText: 2024-2025 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-package com.android.server.lineage.health.ccprovider;
+package org.lineageos.platform.internal.health.ccprovider;
 
-import static com.android.internal.lineage.health.HealthInterface.MODE_AUTO;
-import static com.android.internal.lineage.health.HealthInterface.MODE_LIMIT;
-import static com.android.internal.lineage.health.HealthInterface.MODE_MANUAL;
+import static lineageos.health.HealthInterface.MODE_AUTO;
+import static lineageos.health.HealthInterface.MODE_LIMIT;
+import static lineageos.health.HealthInterface.MODE_MANUAL;
 
 import android.content.Context;
 import android.util.Log;
 
-import com.android.internal.R;
+import org.lineageos.platform.internal.R;
 
 import vendor.lineage.health.ChargingControlSupportedMode;
 import vendor.lineage.health.ChargingLimitInfo;
@@ -28,9 +28,8 @@ public class Limit extends ChargingControlProvider {
 
         boolean isBypassSupported = isHALModeSupported(ChargingControlSupportedMode.BYPASS);
         if (!isBypassSupported) {
-            mChargingLimitMargin =
-                    mContext.getResources()
-                            .getInteger(R.integer.config_chargingControlBatteryRechargeMargin);
+            mChargingLimitMargin = mContext.getResources().getInteger(
+                    R.integer.config_chargingControlBatteryRechargeMargin);
         } else {
             mChargingLimitMargin = 1;
         }
