@@ -24,6 +24,7 @@ public class ChargingControlNotification {
 
     private static final String INTENT_PARTS =
             "com.android.settings.lineage.health.CHARGING_CONTROL_SETTINGS";
+
     private static final int CHARGING_CONTROL_NOTIFICATION_ID = 1000;
     private static final String ACTION_CHARGING_CONTROL_CANCEL_ONCE =
             "lineageos.platform.intent.action.CHARGING_CONTROL_CANCEL_ONCE";

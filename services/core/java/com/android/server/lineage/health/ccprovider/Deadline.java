@@ -8,8 +8,6 @@ package com.android.server.lineage.health.ccprovider;
 import static com.android.internal.lineage.health.HealthInterface.MODE_AUTO;
 import static com.android.internal.lineage.health.HealthInterface.MODE_MANUAL;
 
-import static com.android.server.lineage.health.Util.msToString;
-
 import android.content.Context;
 import android.util.Log;
 
