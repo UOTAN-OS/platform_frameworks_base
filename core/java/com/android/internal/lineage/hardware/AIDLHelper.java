@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.android.internal.lineage.hardware;
+package lineageos.hardware;
 
 import android.util.Range;
 
