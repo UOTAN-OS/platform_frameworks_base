@@ -1,19 +1,9 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
-package com.android.server.lineage.display;
+package org.lineageos.platform.internal.display;
 
 import android.content.Context;
 import android.hardware.Sensor;
@@ -42,7 +32,7 @@ public class AmbientLuxObserver {
     private final int mThresholdDuration;
 
     private boolean mLightSensorEnabled = false;
-    private int mLightSensorRate;
+    private final int mLightSensorRate;
 
     private float mAmbientLux = 0.0f;
 
@@ -187,7 +177,7 @@ public class AmbientLuxObserver {
      */
     private static class TimedMovingAverageRingBuffer {
 
-        private final LinkedList<Sample> mRing = new LinkedList<Sample>();
+        private final LinkedList<Sample> mRing = new LinkedList<>();
 
         private final int mPeriod;
 
@@ -253,7 +243,7 @@ public class AmbientLuxObserver {
                 sb.append(i.next());
             }
             return "average=" + getAverage() + " length=" + mRing.size() +
-                   " mRing=[" + sb.toString() + "]";
+                   " mRing=[" + sb + "]";
         }
     }
 }

@@ -1,19 +1,9 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
-package com.android.server.lineage.display;
+package org.lineageos.platform.internal.display;
 
 import android.content.Context;
 import android.net.Uri;
@@ -22,18 +12,17 @@ import android.text.TextUtils;
 import android.util.Range;
 import android.util.Slog;
 import android.util.SparseArray;
-import android.view.Display;
+
+import lineageos.hardware.DisplayMode;
+import lineageos.hardware.HSIC;
+import lineageos.hardware.LineageHardwareManager;
+import lineageos.hardware.LiveDisplayManager;
+import lineageos.providers.LineageSettings;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.List;
-
-import com.android.internal.lineage.hardware.LineageHardwareManager;
-import com.android.internal.lineage.hardware.DisplayMode;
-import com.android.internal.lineage.hardware.HSIC;
-import com.android.internal.lineage.hardware.LiveDisplayManager;
-import android.provider.Settings;
 
 public class PictureAdjustmentController extends LiveDisplayFeature {
 
@@ -52,7 +41,10 @@ public class PictureAdjustmentController extends LiveDisplayFeature {
 
         boolean usePA = mHardware.isSupported(LineageHardwareManager.FEATURE_PICTURE_ADJUSTMENT);
         if (usePA) {
-            mRanges.addAll(mHardware.getPictureAdjustmentRanges());
+            final List<Range<Float>> r = mHardware.getPictureAdjustmentRanges();
+            if (r != null) {
+                mRanges.addAll(r);
+            }
             if (mRanges.size() < 4) {
                 usePA = false;
             } else {
@@ -77,7 +69,7 @@ public class PictureAdjustmentController extends LiveDisplayFeature {
         }
 
         registerSettings(
-                Settings.System.getUriFor(Settings.System.DISPLAY_PICTURE_ADJUSTMENT));
+                LineageSettings.System.getUriFor(LineageSettings.System.DISPLAY_PICTURE_ADJUSTMENT));
     }
 
     @Override
@@ -213,7 +205,7 @@ public class PictureAdjustmentController extends LiveDisplayFeature {
     private SparseArray<HSIC> unpackPreference() {
         final SparseArray<HSIC> ret = new SparseArray<HSIC>();
 
-        String pref = getString(Settings.System.DISPLAY_PICTURE_ADJUSTMENT);
+        String pref = getString(LineageSettings.System.DISPLAY_PICTURE_ADJUSTMENT);
         if (pref != null) {
             String[] byMode = TextUtils.split(pref, ",");
             for (String mode : byMode) {
@@ -236,7 +228,7 @@ public class PictureAdjustmentController extends LiveDisplayFeature {
             }
             sb.append(id).append(":").append(m.flatten());
         }
-        putString(Settings.System.DISPLAY_PICTURE_ADJUSTMENT, sb.toString());
+        putString(LineageSettings.System.DISPLAY_PICTURE_ADJUSTMENT, sb.toString());
     }
 
 }

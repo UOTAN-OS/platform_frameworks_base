@@ -1,20 +1,13 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *               2019-2021 The LineageOS Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2017-2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
-package com.android.server.lineage.display;
+package org.lineageos.platform.internal.display;
+
+import static lineageos.hardware.LiveDisplayManager.MODE_FIRST;
+import static lineageos.hardware.LiveDisplayManager.MODE_LAST;
+import static lineageos.hardware.LiveDisplayManager.MODE_OFF;
 
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -22,7 +15,6 @@ import android.app.PendingIntent;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.Resources;
 import android.hardware.display.DisplayManager;
 import android.net.Uri;
 import android.os.Handler;
@@ -36,11 +28,17 @@ import android.view.Display;
 
 import com.android.server.LocalServices;
 import com.android.server.ServiceThread;
-import com.android.server.SystemService;
 
-import com.android.server.lineage.common.UserContentObserver;
-import com.android.server.lineage.display.TwilightTracker.TwilightListener;
-import com.android.server.lineage.display.TwilightTracker.TwilightState;
+import lineageos.app.LineageContextConstants;
+import lineageos.hardware.HSIC;
+import lineageos.hardware.ILiveDisplayService;
+import lineageos.hardware.LiveDisplayConfig;
+import lineageos.providers.LineageSettings;
+
+import org.lineageos.platform.internal.LineageSystemService;
+import org.lineageos.platform.internal.common.UserContentObserver;
+import org.lineageos.platform.internal.display.TwilightTracker.TwilightListener;
+import org.lineageos.platform.internal.display.TwilightTracker.TwilightState;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -49,19 +47,6 @@ import java.util.BitSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
-
-import com.android.internal.lineage.app.LineageContextConstants;
-import com.android.internal.lineage.hardware.HSIC;
-import com.android.internal.lineage.hardware.ILiveDisplayService;
-import com.android.internal.lineage.hardware.LiveDisplayConfig;
-import android.provider.Settings;
-
-import static com.android.internal.lineage.hardware.LiveDisplayManager.FEATURE_MANAGED_OUTDOOR_MODE;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_DAY;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_FIRST;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_LAST;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_OFF;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_OUTDOOR;
 
 /**
  * LiveDisplay is an advanced set of features for improving
@@ -72,7 +57,7 @@ import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_OUTD
  * and calibration. It interacts with LineageHardwareService to relay
  * changes down to the lower layers.
  */
-public class LiveDisplayService extends SystemService {
+public class LiveDisplayService extends LineageSystemService {
 
     private static final String TAG = "LiveDisplay";
 
@@ -136,6 +121,16 @@ public class LiveDisplayService extends SystemService {
     }
 
     @Override
+    public String getFeatureDeclaration() {
+        return LineageContextConstants.Features.LIVEDISPLAY;
+    }
+
+    @Override
+    public boolean isCoreService() {
+        return false;
+    }
+
+    @Override
     public void onStart() {
         publishBinderService(LineageContextConstants.LINEAGE_LIVEDISPLAY_SERVICE, mBinder);
     }
@@ -169,7 +164,7 @@ public class LiveDisplayService extends SystemService {
 
             // static config
             int defaultMode = mContext.getResources().getInteger(
-                    com.android.internal.R.integer.config_defaultLiveDisplayMode);
+                    org.lineageos.platform.internal.R.integer.config_defaultLiveDisplayMode);
 
             mConfig = new LiveDisplayConfig(capabilities, defaultMode,
                     mCTC.getDefaultDayTemperature(), mCTC.getDefaultNightTemperature(),
@@ -208,19 +203,16 @@ public class LiveDisplayService extends SystemService {
 
             updateFeatures(ALL_CHANGED);
 
-            Intent intent = new Intent("lineageos.intent.action.INITIALIZE_LIVEDISPLAY");
+            Intent intent = new Intent(lineageos.content.Intent.ACTION_INITIALIZE_LIVEDISPLAY);
             intent.setPackage("com.android.systemui");
             mContext.sendBroadcastAsUser(intent, UserHandle.SYSTEM);
         }
     }
 
     private void updateFeatures(final int flags) {
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < mFeatures.size(); i++) {
-                    mFeatures.get(i).update(flags, mState);
-                }
+        mHandler.post(() -> {
+            for (int i = 0; i < mFeatures.size(); i++) {
+                mFeatures.get(i).update(flags, mState);
             }
         });
     }
@@ -244,7 +236,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setMode(int mode) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             if (!mConfig.hasModeSupport()) {
                 return false;
             }
@@ -259,7 +251,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setColorAdjustment(float[] adj) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             return mDHC.setColorAdjustment(adj);
         }
 
@@ -271,7 +263,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public  boolean setAutoContrastEnabled(boolean enabled) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             return mDHC.setAutoContrastEnabled(enabled);
         }
 
@@ -283,7 +275,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setCABCEnabled(boolean enabled) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             return mDHC.setCABCEnabled(enabled);
         }
 
@@ -295,7 +287,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setColorEnhancementEnabled(boolean enabled) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             return mDHC.setColorEnhancementEnabled(enabled);
         }
 
@@ -307,7 +299,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setAutomaticOutdoorModeEnabled(boolean enabled) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             return mOMC.setAutomaticOutdoorModeEnabled(enabled);
         }
 
@@ -319,7 +311,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setDayColorTemperature(int temperature) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             mCTC.setDayColorTemperature(temperature);
             return true;
         }
@@ -332,7 +324,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setNightColorTemperature(int temperature) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             mCTC.setNightColorTemperature(temperature);
             return true;
         }
@@ -380,7 +372,7 @@ public class LiveDisplayService extends SystemService {
         @Override
         public boolean setAntiFlickerEnabled(boolean enabled) {
             mContext.enforceCallingOrSelfPermission(
-                    "lineageos.permission.MANAGE_LIVEDISPLAY", null);
+                    lineageos.platform.Manifest.permission.MANAGE_LIVEDISPLAY, null);
             return mDHC.setAntiFlickerEnabled(enabled);
         }
     };
@@ -410,7 +402,7 @@ public class LiveDisplayService extends SystemService {
 
 
     // Display postprocessing can have power impact.
-    private PowerManagerInternal.LowPowerModeListener mLowPowerModeListener =
+    private final PowerManagerInternal.LowPowerModeListener mLowPowerModeListener =
             new PowerManagerInternal.LowPowerModeListener() {
         @Override
         public void onLowPowerModeChanged(PowerSaveState state) {
@@ -431,7 +423,7 @@ public class LiveDisplayService extends SystemService {
     private final class ModeObserver extends UserContentObserver {
 
         private final Uri MODE_SETTING =
-                Settings.System.getUriFor(Settings.System.DISPLAY_TEMPERATURE_MODE);
+                LineageSettings.System.getUriFor(LineageSettings.System.DISPLAY_TEMPERATURE_MODE);
 
         ModeObserver(Handler handler) {
             super(handler);
@@ -453,13 +445,13 @@ public class LiveDisplayService extends SystemService {
         }
 
         int getMode() {
-            return getInt(Settings.System.DISPLAY_TEMPERATURE_MODE,
+            return getInt(LineageSettings.System.DISPLAY_TEMPERATURE_MODE,
                     mConfig.getDefaultMode());
         }
 
         boolean setMode(int mode) {
             if (mConfig.hasFeature(mode) && mode >= MODE_FIRST && mode <= MODE_LAST) {
-                putInt(Settings.System.DISPLAY_TEMPERATURE_MODE, mode);
+                putInt(LineageSettings.System.DISPLAY_TEMPERATURE_MODE, mode);
                 if (mode != mConfig.getDefaultMode()) {
                     stopNudgingMe();
                 }
@@ -487,16 +479,16 @@ public class LiveDisplayService extends SystemService {
     private int getSunsetCounter() {
         // Counter used to determine when we should tell the user about this feature.
         // If it's not used after 3 sunsets, we'll show the hint once.
-        return Settings.System.getIntForUser(mContext.getContentResolver(),
-                Settings.System.LIVE_DISPLAY_HINTED,
+        return LineageSettings.System.getIntForUser(mContext.getContentResolver(),
+                LineageSettings.System.LIVE_DISPLAY_HINTED,
                 -3,
                 UserHandle.USER_CURRENT);
     }
 
 
     private void updateSunsetCounter(int count) {
-        Settings.System.putIntForUser(mContext.getContentResolver(),
-                Settings.System.LIVE_DISPLAY_HINTED,
+        LineageSettings.System.putIntForUser(mContext.getContentResolver(),
+                LineageSettings.System.LIVE_DISPLAY_HINTED,
                 count,
                 UserHandle.USER_CURRENT);
         mAwaitingNudge = count > 0;
@@ -538,20 +530,18 @@ public class LiveDisplayService extends SystemService {
         }
         if (counter == 0) {
             //show the notification and don't come back here
-            final Intent intent = new Intent("com.android.settings.LIVEDISPLAY_SETTINGS");
-            PendingIntent result = PendingIntent.getActivity(
-                    mContext, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT |
-                    PendingIntent.FLAG_IMMUTABLE);
+            final Intent intent = new Intent(LineageSettings.ACTION_LIVEDISPLAY_SETTINGS);
+            PendingIntent result = PendingIntent.getActivity(mContext, 0, intent,
+                    PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
             Notification.Builder builder = new Notification.Builder(mContext)
                     .setContentTitle(mContext.getResources().getString(
-                            com.android.internal.R.string.live_display_title))
+                            org.lineageos.platform.internal.R.string.live_display_title))
                     .setContentText(mContext.getResources().getString(
-                            com.android.internal.R.string.live_display_hint))
-                    .setSmallIcon(com.android.internal.R.drawable.ic_livedisplay_notif)
+                            org.lineageos.platform.internal.R.string.live_display_hint))
+                    .setSmallIcon(org.lineageos.platform.internal.R.drawable.ic_livedisplay_notif)
                     .setStyle(new Notification.BigTextStyle().bigText(mContext.getResources()
                              .getString(
-                                     com.android.internal.R.string.live_display_hint)))
+                                     org.lineageos.platform.internal.R.string.live_display_hint)))
                     .setContentIntent(result)
                     .setAutoCancel(true);
 
@@ -564,12 +554,12 @@ public class LiveDisplayService extends SystemService {
     }
 
     private int getInt(String setting, int defValue) {
-        return Settings.System.getIntForUser(mContext.getContentResolver(),
+        return LineageSettings.System.getIntForUser(mContext.getContentResolver(),
                 setting, defValue, UserHandle.USER_CURRENT);
     }
 
     private void putInt(String setting, int value) {
-        Settings.System.putIntForUser(mContext.getContentResolver(),
+        LineageSettings.System.putIntForUser(mContext.getContentResolver(),
                 setting, value, UserHandle.USER_CURRENT);
     }
 }
