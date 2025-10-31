@@ -3,12 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.android.server.lineage.health.ccprovider;
+package org.lineageos.platform.internal.health.ccprovider;
 
-import static com.android.internal.lineage.health.HealthInterface.MODE_AUTO;
-import static com.android.internal.lineage.health.HealthInterface.MODE_MANUAL;
-
-import static com.android.server.lineage.health.Util.msToString;
+import static lineageos.health.HealthInterface.MODE_AUTO;
+import static lineageos.health.HealthInterface.MODE_MANUAL;
 
 import android.content.Context;
 import android.util.Log;
