@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "e6debb09_f00534c7",
+        "filename": "services/core/java/com/android/server/lineage/health/HealthInterfaceService.java",
+        "patchSetId": 15
+      },
+      "lineNbr": 20,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-10-31T22:00:39Z",
+      "side": 1,
+      "message": "import?",
+      "range": {
+        "startLine": 20,
+        "startChar": 0,
+        "endLine": 20,
+        "endChar": 2
+      },
+      "revId": "0862c5b218c96b48aa63f2fe9358f6283aa79d04",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
