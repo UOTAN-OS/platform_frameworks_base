@@ -1,23 +1,16 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *               2018-2019 The LineageOS Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2018-2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.server.lineage.display;
 
+import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_AUTO;
+import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_DAY;
+import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_NIGHT;
+import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_OFF;
+
 import android.animation.ValueAnimator;
-import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
@@ -27,20 +20,15 @@ import android.util.Range;
 import android.util.Slog;
 import android.view.animation.AccelerateDecelerateInterpolator;
 
-import com.android.server.lineage.display.TwilightTracker.TwilightState;
-
-import java.io.PrintWriter;
-import java.util.BitSet;
-
 import com.android.internal.lineage.hardware.LineageHardwareManager;
 import com.android.internal.lineage.hardware.LiveDisplayManager;
 import android.provider.Settings;
 import com.android.internal.lineage.util.ColorUtils;
 
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_AUTO;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_DAY;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_NIGHT;
-import static com.android.internal.lineage.hardware.LiveDisplayManager.MODE_OFF;
+import com.android.server.lineage.display.TwilightTracker.TwilightState;
+
+import java.io.PrintWriter;
+import java.util.BitSet;
 
 public class ColorTemperatureController extends LiveDisplayFeature {
 
@@ -59,7 +47,7 @@ public class ColorTemperatureController extends LiveDisplayFeature {
     private int mDayTemperature;
     private int mNightTemperature;
 
-    private AccelerateDecelerateInterpolator mInterpolator;
+    private final AccelerateDecelerateInterpolator mInterpolator;
     private ValueAnimator mAnimator;
 
     private final LineageHardwareManager mHardware;
@@ -170,12 +158,7 @@ public class ColorTemperatureController extends LiveDisplayFeature {
         pw.println("    isTransitioning=" + isTransitioning());
     }
 
-    private final Runnable mTransitionRunnable = new Runnable() {
-        @Override
-        public void run() {
-            updateColorTemperature();
-        }
-    };
+    private final Runnable mTransitionRunnable = this::updateColorTemperature;
 
     private boolean isTransitioning() {
         return getMode() == MODE_AUTO &&
@@ -223,7 +206,7 @@ public class ColorTemperatureController extends LiveDisplayFeature {
             return;
         }
 
-        long duration = (long)(5 * Math.abs(current - balance));
+        long duration = 5L * Math.abs(current - balance);
 
 
         if (DEBUG) {
@@ -239,14 +222,11 @@ public class ColorTemperatureController extends LiveDisplayFeature {
         mAnimator = ValueAnimator.ofInt(current, balance);
         mAnimator.setDuration(duration);
         mAnimator.setInterpolator(mInterpolator);
-        mAnimator.addUpdateListener(new AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(final ValueAnimator animation) {
-                synchronized (ColorTemperatureController.this) {
-                    if (isScreenOn()) {
-                        int value = (int) animation.getAnimatedValue();
-                        mHardware.setColorBalance(value);
-                    }
+        mAnimator.addUpdateListener(animation -> {
+            synchronized (ColorTemperatureController.this) {
+                if (isScreenOn()) {
+                    int value = (int) animation.getAnimatedValue();
+                    mHardware.setColorBalance(value);
                 }
             }
         });
@@ -258,7 +238,8 @@ public class ColorTemperatureController extends LiveDisplayFeature {
      * correct configuration at the device level!
      */
     private int mapColorTemperatureToBalance(int temperature) {
-        double z = com.android.internal.lineage.util.MathUtils.powerCurveToLinear(mColorBalanceCurve, temperature);
+        double z = com.android.internal.lineage.util.MathUtils.powerCurveToLinear(mColorBalanceCurve,
+                temperature);
         return Math.round(MathUtils.lerp((float)mColorBalanceRange.getLower(),
                 (float)mColorBalanceRange.getUpper(), (float)z));
     }
@@ -305,12 +286,14 @@ public class ColorTemperatureController extends LiveDisplayFeature {
 
         // Scale the transition into night mode in 0.5hr before civil sunset
         if (now <= sunset) {
-            return mInterpolator.getInterpolation((float) (sunset - now) / TWILIGHT_ADJUSTMENT_TIME);
+            return mInterpolator.getInterpolation((float) (sunset - now)
+                    / TWILIGHT_ADJUSTMENT_TIME);
         }
 
         // Scale the transition into day mode in 0.5hr after civil sunrise
         if (now >= sunrise) {
-            return mInterpolator.getInterpolation((float) (now - sunrise) / TWILIGHT_ADJUSTMENT_TIME);
+            return mInterpolator.getInterpolation((float) (now - sunrise)
+                    / TWILIGHT_ADJUSTMENT_TIME);
         }
 
         // More than 0.5hr past civil sunset

@@ -9,8 +9,8 @@ import static com.android.internal.lineage.health.HealthInterface.MODE_AUTO;
 import static com.android.internal.lineage.health.HealthInterface.MODE_LIMIT;
 import static com.android.internal.lineage.health.HealthInterface.MODE_MANUAL;
 
-import static com.android.server.lineage.health.Util.msToString;
 import static com.android.server.lineage.health.Util.msToHMSString;
+import static com.android.server.lineage.health.Util.msToString;
 
 import android.content.Context;
 import android.content.Intent;
