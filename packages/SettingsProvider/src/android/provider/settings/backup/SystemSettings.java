@@ -126,7 +126,7 @@ public class SystemSettings {
                 Settings.System.NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED,
                 Settings.System.PREFERRED_REGION,
                 Settings.System.CV_ENABLED,
-		Settings.System.ADVANCED_REBOOT
+                Settings.System.ADVANCED_REBOOT
         ));
         if (Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
             settings.add(Settings.System.PEAK_REFRESH_RATE);
