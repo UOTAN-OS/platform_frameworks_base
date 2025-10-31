@@ -1,7 +1,7 @@
 /*
-* SPDX-FileCopyrightText: 2024-2025 The LineageOS Project
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * SPDX-FileCopyrightText: 2024-2025 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 package com.android.server.lineage.health.ccprovider;
 
@@ -28,9 +28,8 @@ public class Limit extends ChargingControlProvider {
 
         boolean isBypassSupported = isHALModeSupported(ChargingControlSupportedMode.BYPASS);
         if (!isBypassSupported) {
-            mChargingLimitMargin =
-                    mContext.getResources()
-                            .getInteger(R.integer.config_chargingControlBatteryRechargeMargin);
+            mChargingLimitMargin = mContext.getResources().getInteger(
+                    R.integer.config_chargingControlBatteryRechargeMargin);
         } else {
             mChargingLimitMargin = 1;
         }
