@@ -78,7 +78,7 @@ public abstract class ChargingControlProvider {
     }
 
     /**
-     * Called when the mode is {@link com.android.internal.lineage.health.HealthInterface#MODE_LIMIT} and
+     * Called when the mode is {@link com.android.internal.lineageos.health.HealthInterface#MODE_LIMIT} and
      * the {@link android.content.Intent#ACTION_BATTERY_CHANGED} is received.
      *
      * @param currentPct Current battery percentage
@@ -90,16 +90,16 @@ public abstract class ChargingControlProvider {
     }
 
     /**
-     * Called when the mode is {@link com.android.internal.lineage.health.HealthInterface#MODE_AUTO} or
-     * {@link com.android.internal.lineage.health.HealthInterface#MODE_MANUAL} and the
+     * Called when the mode is {@link com.android.internal.lineageos.health.HealthInterface#MODE_AUTO} or
+     * {@link com.android.internal.lineageos.health.HealthInterface#MODE_MANUAL} and the
      * {@link android.content.Intent#ACTION_BATTERY_CHANGED} is received.
      *
      * @param batteryPct Current battery percentage
      * @param startTime  The time when the charging control should start
      * @param targetTime The expected time when the battery should be full
      * @param configMode The current charging control mode, either
-     *                   {@link com.android.internal.lineage.health.HealthInterface#MODE_AUTO} or
-     *                   {@link com.android.internal.lineage.health.HealthInterface#MODE_MANUAL}
+     *                   {@link com.android.internal.lineageos.health.HealthInterface#MODE_AUTO} or
+     *                   {@link com.android.internal.lineageos.health.HealthInterface#MODE_MANUAL}
      * @return Whether a notification should be posted
      */
     protected boolean onBatteryChanged(float batteryPct, long startTime, long targetTime,
@@ -142,9 +142,9 @@ public abstract class ChargingControlProvider {
     /**
      * Whether this provider supports the mode.
      * Available modes:
-     *     - ${@link com.android.internal.lineage.health.HealthInterface#MODE_AUTO}
-     *     - ${@link com.android.internal.lineage.health.HealthInterface#MODE_MANUAL}
-     *     - ${@link com.android.internal.lineage.health.HealthInterface#MODE_LIMIT}
+     *     - ${@link com.android.internal.lineageos.health.HealthInterface#MODE_AUTO}
+     *     - ${@link com.android.internal.lineageos.health.HealthInterface#MODE_MANUAL}
+     *     - ${@link com.android.internal.lineageos.health.HealthInterface#MODE_LIMIT}
      */
     public abstract boolean isChargingControlModeSupported(int mode);
 

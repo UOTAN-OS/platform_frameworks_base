@@ -3,10 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.android.server.lineage.health;
+package org.lineageos.platform.internal.health;
 
-import static com.android.server.lineage.health.Util.getTimeMillisFromSecondOfDay;
-import static com.android.server.lineage.health.Util.msToString;
+import static lineageos.health.HealthInterface.MODE_AUTO;
+import static lineageos.health.HealthInterface.MODE_LIMIT;
+import static lineageos.health.HealthInterface.MODE_MANUAL;
+import static lineageos.health.HealthInterface.MODE_NONE;
+
+import static org.lineageos.platform.internal.health.Util.getTimeMillisFromSecondOfDay;
+import static org.lineageos.platform.internal.health.Util.msToString;
 
 import android.app.AlarmManager;
 import android.content.BroadcastReceiver;
@@ -22,22 +27,17 @@ import android.os.ServiceManager;
 import android.text.format.DateUtils;
 import android.util.Log;
 
-import com.android.internal.R;
-import com.android.server.lineage.health.ccprovider.ChargingControlProvider;
-import com.android.server.lineage.health.ccprovider.Deadline;
-import com.android.server.lineage.health.ccprovider.Limit;
-import com.android.server.lineage.health.ccprovider.Toggle;
+import lineageos.providers.LineageSettings;
 
-import java.io.PrintWriter;
-
-import android.provider.Settings;
+import org.lineageos.platform.internal.R;
+import org.lineageos.platform.internal.health.ccprovider.ChargingControlProvider;
+import org.lineageos.platform.internal.health.ccprovider.Deadline;
+import org.lineageos.platform.internal.health.ccprovider.Limit;
+import org.lineageos.platform.internal.health.ccprovider.Toggle;
 
 import vendor.lineage.health.IChargingControl;
 
-import static com.android.internal.lineage.health.HealthInterface.MODE_NONE;
-import static com.android.internal.lineage.health.HealthInterface.MODE_AUTO;
-import static com.android.internal.lineage.health.HealthInterface.MODE_MANUAL;
-import static com.android.internal.lineage.health.HealthInterface.MODE_LIMIT;
+import java.io.PrintWriter;
 
 public class ChargingControlController extends LineageHealthFeature {
     private final IChargingControl mChargingControl;
@@ -55,16 +55,16 @@ public class ChargingControlController extends LineageHealthFeature {
     private int mDefaultTargetTime;
 
     // Settings uris
-    private final Uri MODE_URI = Settings.System.getUriFor(
-            Settings.System.CHARGING_CONTROL_MODE);
-    private final Uri LIMIT_URI = Settings.System.getUriFor(
-            Settings.System.CHARGING_CONTROL_LIMIT);
-    private final Uri ENABLED_URI = Settings.System.getUriFor(
-            Settings.System.CHARGING_CONTROL_ENABLED);
-    private final Uri START_TIME_URI = Settings.System.getUriFor(
-            Settings.System.CHARGING_CONTROL_START_TIME);
-    private final Uri TARGET_TIME_URI = Settings.System.getUriFor(
-            Settings.System.CHARGING_CONTROL_TARGET_TIME);
+    private final Uri MODE_URI = LineageSettings.System.getUriFor(
+            LineageSettings.System.CHARGING_CONTROL_MODE);
+    private final Uri LIMIT_URI = LineageSettings.System.getUriFor(
+            LineageSettings.System.CHARGING_CONTROL_LIMIT);
+    private final Uri ENABLED_URI = LineageSettings.System.getUriFor(
+            LineageSettings.System.CHARGING_CONTROL_ENABLED);
+    private final Uri START_TIME_URI = LineageSettings.System.getUriFor(
+            LineageSettings.System.CHARGING_CONTROL_START_TIME);
+    private final Uri TARGET_TIME_URI = LineageSettings.System.getUriFor(
+            LineageSettings.System.CHARGING_CONTROL_TARGET_TIME);
 
     // Internal state
     private float mBatteryPct;
@@ -128,18 +128,18 @@ public class ChargingControlController extends LineageHealthFeature {
     }
 
     public boolean isEnabled() {
-        return Settings.System.getInt(mContentResolver,
-                Settings.System.CHARGING_CONTROL_ENABLED, 0) != 0;
+        return LineageSettings.System.getInt(mContentResolver,
+                LineageSettings.System.CHARGING_CONTROL_ENABLED, 0) != 0;
     }
 
     public boolean setEnabled(boolean enabled) {
-        putBoolean(Settings.System.CHARGING_CONTROL_ENABLED, enabled);
+        putBoolean(LineageSettings.System.CHARGING_CONTROL_ENABLED, enabled);
         return true;
     }
 
     public int getMode() {
-        return Settings.System.getInt(mContentResolver,
-                Settings.System.CHARGING_CONTROL_MODE,
+        return LineageSettings.System.getInt(mContentResolver,
+                LineageSettings.System.CHARGING_CONTROL_MODE,
                 mDefaultMode);
     }
 
@@ -154,7 +154,7 @@ public class ChargingControlController extends LineageHealthFeature {
             return false;
         }
 
-        putInt(Settings.System.CHARGING_CONTROL_MODE, mode);
+        putInt(LineageSettings.System.CHARGING_CONTROL_MODE, mode);
         return true;
     }
 
@@ -186,8 +186,8 @@ public class ChargingControlController extends LineageHealthFeature {
     }
 
     public int getStartTime() {
-        return Settings.System.getInt(mContentResolver,
-                Settings.System.CHARGING_CONTROL_START_TIME,
+        return LineageSettings.System.getInt(mContentResolver,
+                LineageSettings.System.CHARGING_CONTROL_START_TIME,
                 mDefaultStartTime);
     }
 
@@ -196,13 +196,13 @@ public class ChargingControlController extends LineageHealthFeature {
             return false;
         }
 
-        putInt(Settings.System.CHARGING_CONTROL_START_TIME, time);
+        putInt(LineageSettings.System.CHARGING_CONTROL_START_TIME, time);
         return true;
     }
 
     public int getTargetTime() {
-        return Settings.System.getInt(mContentResolver,
-                Settings.System.CHARGING_CONTROL_TARGET_TIME,
+        return LineageSettings.System.getInt(mContentResolver,
+                LineageSettings.System.CHARGING_CONTROL_TARGET_TIME,
                 mDefaultTargetTime);
     }
 
@@ -211,13 +211,13 @@ public class ChargingControlController extends LineageHealthFeature {
             return false;
         }
 
-        putInt(Settings.System.CHARGING_CONTROL_TARGET_TIME, time);
+        putInt(LineageSettings.System.CHARGING_CONTROL_TARGET_TIME, time);
         return true;
     }
 
     public int getLimit() {
-        return Settings.System.getInt(mContentResolver,
-                Settings.System.CHARGING_CONTROL_LIMIT,
+        return LineageSettings.System.getInt(mContentResolver,
+                LineageSettings.System.CHARGING_CONTROL_LIMIT,
                 mDefaultLimit);
     }
 
@@ -226,7 +226,7 @@ public class ChargingControlController extends LineageHealthFeature {
             return false;
         }
 
-        putInt(Settings.System.CHARGING_CONTROL_LIMIT, limit);
+        putInt(LineageSettings.System.CHARGING_CONTROL_LIMIT, limit);
         return true;
     }
 
@@ -238,9 +238,11 @@ public class ChargingControlController extends LineageHealthFeature {
     private void updateBatteryInfo(Intent intent) {
         int battStatus = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
         int battPlugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+
         if (battStatus == BatteryManager.BATTERY_STATUS_FULL) {
             mIsControlCancelledOnce = false;
         }
+
         if (mCurrentProvider.requiresBatteryLevelMonitoring()) {
             mIsPowerConnected = true;
         } else {
@@ -248,14 +250,18 @@ public class ChargingControlController extends LineageHealthFeature {
                     battPlugged != 0 || (battStatus != BatteryManager.BATTERY_STATUS_DISCHARGING &&
                             battStatus != BatteryManager.BATTERY_STATUS_UNKNOWN);
         }
+
         int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
         if (level == -1 || scale == -1) {
             return;
         }
+
         mBatteryPct = level * 100 / (float) scale;
+
         Log.i(TAG, "mIsPowerConnected: " + mIsPowerConnected + ", mBatteryPct: " + mBatteryPct);
     }
+
     private void updateBatteryInfo() {
         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         Intent batteryStatus = mContext.registerReceiver(null, ifilter);
@@ -320,7 +326,7 @@ public class ChargingControlController extends LineageHealthFeature {
         if (mBattReceiver == null) {
             mBattReceiver = new LineageHealthBatteryBroadcastReceiver();
         } else {
-             mContext.unregisterReceiver(mBattReceiver);
+            mContext.unregisterReceiver(mBattReceiver);
         }
         IntentFilter battFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         mContext.registerReceiver(mBattReceiver, battFilter);
@@ -470,6 +476,7 @@ public class ChargingControlController extends LineageHealthFeature {
 
         if (mIsEnabled != isEnabled()) {
             mIsEnabled = isEnabled();
+
             if (mIsEnabled) {
                 if (mBattReceiver == null) {
                     mBattReceiver = new LineageHealthBatteryBroadcastReceiver();
@@ -534,7 +541,6 @@ public class ChargingControlController extends LineageHealthFeature {
     private class LineageHealthBatteryBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-
             updateBatteryInfo(intent);
             updateChargeControl();
         }

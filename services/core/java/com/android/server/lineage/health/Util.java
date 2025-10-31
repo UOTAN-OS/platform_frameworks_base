@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.android.server.lineage.health;
+package org.lineageos.platform.internal.health;
 
 import android.content.Context;
 import android.text.format.DateFormat;

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-package com.android.server.lineage.health;
+package org.lineageos.platform.internal.health;
 
-import static com.android.server.lineage.health.Util.msToString;
+import static org.lineageos.platform.internal.health.Util.msToString;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -16,14 +16,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 
-import com.android.internal.R;
+import org.lineageos.platform.internal.R;
 
 public class ChargingControlNotification {
     private final NotificationManager mNotificationManager;
     private final Context mContext;
 
     private static final String INTENT_PARTS =
-            "com.android.settings.lineage.health.CHARGING_CONTROL_SETTINGS";
+            "org.lineageos.lineageparts.CHARGING_CONTROL_SETTINGS";
+
     private static final int CHARGING_CONTROL_NOTIFICATION_ID = 1000;
     private static final String ACTION_CHARGING_CONTROL_CANCEL_ONCE =
             "lineageos.platform.intent.action.CHARGING_CONTROL_CANCEL_ONCE";
