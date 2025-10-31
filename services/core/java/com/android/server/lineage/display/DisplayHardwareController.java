@@ -1,24 +1,12 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *               2018-2021 The LineageOS Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2018-2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.server.lineage.display;
 
 import android.animation.FloatArrayEvaluator;
 import android.animation.ValueAnimator;
-import android.animation.ValueAnimator.AnimatorUpdateListener;
 import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
@@ -30,14 +18,14 @@ import android.util.MathUtils;
 import android.util.Slog;
 import android.view.animation.LinearInterpolator;
 
+import com.android.internal.lineage.hardware.LineageHardwareManager;
+import com.android.internal.lineage.hardware.LiveDisplayManager;
+import android.provider.Settings;
+
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
-
-import com.android.internal.lineage.hardware.LineageHardwareManager;
-import com.android.internal.lineage.hardware.LiveDisplayManager;
-import android.provider.Settings;
 
 public class DisplayHardwareController extends LiveDisplayFeature {
 
@@ -87,17 +75,17 @@ public class DisplayHardwareController extends LiveDisplayFeature {
         mUseCABC = mHardware
                 .isSupported(LineageHardwareManager.FEATURE_ADAPTIVE_BACKLIGHT);
         mDefaultCABC = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_defaultCABC);
+                org.lineageos.platform.internal.R.bool.config_defaultCABC);
 
         mUseColorEnhancement = mHardware
                 .isSupported(LineageHardwareManager.FEATURE_COLOR_ENHANCEMENT);
         mDefaultColorEnhancement = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_defaultColorEnhancement);
+                org.lineageos.platform.internal.R.bool.config_defaultColorEnhancement);
 
         mUseAutoContrast = mHardware
                 .isSupported(LineageHardwareManager.FEATURE_AUTO_CONTRAST);
         mDefaultAutoContrast = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_defaultAutoContrast);
+                org.lineageos.platform.internal.R.bool.config_defaultAutoContrast);
 
         mUseColorAdjustment = mHardware
                 .isSupported(LineageHardwareManager.FEATURE_DISPLAY_COLOR_CALIBRATION);
@@ -111,7 +99,7 @@ public class DisplayHardwareController extends LiveDisplayFeature {
         mUseAntiFlicker = mHardware
                 .isSupported(LineageHardwareManager.FEATURE_ANTI_FLICKER);
         mDefaultAntiFlicker = mContext.getResources().getBoolean(
-                com.android.internal.R.bool.config_defaultAntiFlicker);
+                org.lineageos.platform.internal.R.bool.config_defaultAntiFlicker);
 
         if (mUseColorAdjustment) {
             mMaxColor = mHardware.getDisplayColorCalibrationMax();
@@ -123,7 +111,7 @@ public class DisplayHardwareController extends LiveDisplayFeature {
 
     @Override
     public void onStart() {
-        final ArrayList<Uri> settings = new ArrayList<Uri>();
+        final ArrayList<Uri> settings = new ArrayList<>();
 
         if (mUseCABC) {
             settings.add(DISPLAY_CABC);
@@ -344,19 +332,16 @@ public class DisplayHardwareController extends LiveDisplayFeature {
                 new FloatArrayEvaluator(new float[3]), currentColors, targetColors);
         mAnimator.setDuration(duration);
         mAnimator.setInterpolator(new LinearInterpolator());
-        mAnimator.addUpdateListener(new AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(final ValueAnimator animation) {
-                synchronized (DisplayHardwareController.this) {
-                    if (isScreenOn()) {
-                        float[] value = (float[]) animation.getAnimatedValue();
-                        mHardware.setDisplayColorCalibration(new int[] {
-                                (int) (value[0] * mMaxColor),
-                                (int) (value[1] * mMaxColor),
-                                (int) (value[2] * mMaxColor)
-                        });
-                        screenRefresh();
-                    }
+        mAnimator.addUpdateListener(animation -> {
+            synchronized (DisplayHardwareController.this) {
+                if (isScreenOn()) {
+                    float[] value = (float[]) animation.getAnimatedValue();
+                    mHardware.setDisplayColorCalibration(new int[] {
+                            (int) (value[0] * mMaxColor),
+                            (int) (value[1] * mMaxColor),
+                            (int) (value[2] * mMaxColor)
+                    });
+                    screenRefresh();
                 }
             }
         });
