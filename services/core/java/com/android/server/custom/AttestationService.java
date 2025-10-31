@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 public final class AttestationService extends SystemService {
 
     private static final String TAG = AttestationService.class.getSimpleName();
-    private static final String API = "https://raw.githubusercontent.com/PixelOS-AOSP/official_devices/refs/heads/sixteen/API/updater/CertifiedProps/certified_build_props.json";
+    private static final String API = getContext().getResources().getString(com.android.internal.R.string.config_pifUpdateUrl);
 
     private static final String DATA_FILE = "gms_certified_props.json";
 
