@@ -1,18 +1,7 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *               2019 The LineageOS Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2019-2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.server.lineage.display;
 
@@ -24,12 +13,12 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Handler;
 
-import java.io.PrintWriter;
-import java.util.BitSet;
-
 import com.android.internal.lineage.hardware.LineageHardwareManager;
 import com.android.internal.lineage.hardware.LiveDisplayManager;
 import android.provider.Settings;
+
+import java.io.PrintWriter;
+import java.util.BitSet;
 
 public class OutdoorModeController extends LiveDisplayFeature {
 
@@ -43,7 +32,6 @@ public class OutdoorModeController extends LiveDisplayFeature {
     private final int mDefaultOutdoorLux;
     private final int mOutdoorLuxHysteresis;
     private final boolean mDefaultAutoOutdoorMode;
-    private final boolean mSelfManaged;
 
     // internal state
     private boolean mIsOutdoor;
@@ -57,7 +45,6 @@ public class OutdoorModeController extends LiveDisplayFeature {
 
         mHardware = LineageHardwareManager.getInstance(mContext);
         mUseOutdoorMode = mHardware.isSupported(LineageHardwareManager.FEATURE_SUNLIGHT_ENHANCEMENT);
-        mSelfManaged = mUseOutdoorMode && mHardware.isSunlightEnhancementSelfManaged();
 
         mDefaultOutdoorLux = mContext.getResources().getInteger(
                 com.android.internal.R.integer.config_outdoorAmbientLux);
@@ -73,10 +60,8 @@ public class OutdoorModeController extends LiveDisplayFeature {
             return;
         }
 
-        if (!mSelfManaged) {
-            mLuxObserver = new AmbientLuxObserver(mContext, mHandler.getLooper(),
-                    mDefaultOutdoorLux, mOutdoorLuxHysteresis, SENSOR_WINDOW_MS);
-        }
+        mLuxObserver = new AmbientLuxObserver(mContext, mHandler.getLooper(),
+                mDefaultOutdoorLux, mOutdoorLuxHysteresis, SENSOR_WINDOW_MS);
 
         registerSettings(
                 Settings.System.getUriFor(Settings.System.DISPLAY_AUTO_OUTDOOR_MODE));
@@ -87,9 +72,6 @@ public class OutdoorModeController extends LiveDisplayFeature {
         if (mUseOutdoorMode) {
             caps.set(LiveDisplayManager.MODE_AUTO);
             caps.set(LiveDisplayManager.MODE_OUTDOOR);
-            if (mSelfManaged) {
-                caps.set(LiveDisplayManager.FEATURE_MANAGED_OUTDOOR_MODE);
-            }
         }
         return mUseOutdoorMode;
     }
@@ -115,7 +97,7 @@ public class OutdoorModeController extends LiveDisplayFeature {
 
         // Disable outdoor mode on screen off so that we don't melt the users
         // face if they turn it back on in normal conditions
-        if (!isScreenOn() && !mSelfManaged && getMode() != MODE_OUTDOOR) {
+        if (!isScreenOn() && getMode() != MODE_OUTDOOR) {
             mIsOutdoor = false;
             mHardware.set(LineageHardwareManager.FEATURE_SUNLIGHT_ENHANCEMENT, false);
         }
@@ -130,23 +112,20 @@ public class OutdoorModeController extends LiveDisplayFeature {
     public void dump(PrintWriter pw) {
         pw.println();
         pw.println("OutdoorModeController Configuration:");
-        pw.println("  mSelfManaged=" + mSelfManaged);
-        if (!mSelfManaged) {
-            pw.println("  mDefaultOutdoorLux=" + mDefaultOutdoorLux);
-            pw.println("  mOutdoorLuxHysteresis=" + mOutdoorLuxHysteresis);
-            pw.println();
-            pw.println("  OutdoorModeController State:");
-            pw.println("    mAutoOutdoorMode=" + isAutomaticOutdoorModeEnabled());
-            pw.println("    mIsOutdoor=" + mIsOutdoor);
-            pw.println("    mIsNight=" + isNight());
-            pw.println("    hardware state=" +
-                    mHardware.get(LineageHardwareManager.FEATURE_SUNLIGHT_ENHANCEMENT));
-        }
+        pw.println("  mDefaultOutdoorLux=" + mDefaultOutdoorLux);
+        pw.println("  mOutdoorLuxHysteresis=" + mOutdoorLuxHysteresis);
+        pw.println();
+        pw.println("  OutdoorModeController State:");
+        pw.println("    mAutoOutdoorMode=" + isAutomaticOutdoorModeEnabled());
+        pw.println("    mIsOutdoor=" + mIsOutdoor);
+        pw.println("    mIsNight=" + isNight());
+        pw.println("    hardware state=" +
+                mHardware.get(LineageHardwareManager.FEATURE_SUNLIGHT_ENHANCEMENT));
         mLuxObserver.dump(pw);
     }
 
     private synchronized void updateSensorState() {
-        if (!mUseOutdoorMode || mLuxObserver == null || mSelfManaged) {
+        if (!mUseOutdoorMode || mLuxObserver == null) {
             return;
         }
 
@@ -203,9 +182,7 @@ public class OutdoorModeController extends LiveDisplayFeature {
                     // self-managed mode means we just flip a switch and an external
                     // implementation does all the sensing. this allows the user
                     // to turn on/off the feature.
-                    if (mSelfManaged) {
-                        enabled = true;
-                    } else if (mIsOutdoor) {
+                    if (mIsOutdoor) {
                         // if we're here, the sensor detects extremely bright light.
                         if (mode == MODE_DAY) {
                             // if the user manually selected day mode, go ahead and

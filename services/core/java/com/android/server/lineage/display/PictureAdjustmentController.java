@@ -1,17 +1,7 @@
 /*
- * Copyright (C) 2016 The CyanogenMod Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * SPDX-FileCopyrightText: 2016 The CyanogenMod Project
+ * SPDX-FileCopyrightText: 2024 The LineageOS Project
+ * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.server.lineage.display;
 
@@ -22,18 +12,17 @@ import android.text.TextUtils;
 import android.util.Range;
 import android.util.Slog;
 import android.util.SparseArray;
-import android.view.Display;
-
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
 
 import com.android.internal.lineage.hardware.LineageHardwareManager;
 import com.android.internal.lineage.hardware.DisplayMode;
 import com.android.internal.lineage.hardware.HSIC;
 import com.android.internal.lineage.hardware.LiveDisplayManager;
 import android.provider.Settings;
+
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.List;
 
 public class PictureAdjustmentController extends LiveDisplayFeature {
 
@@ -52,7 +41,10 @@ public class PictureAdjustmentController extends LiveDisplayFeature {
 
         boolean usePA = mHardware.isSupported(LineageHardwareManager.FEATURE_PICTURE_ADJUSTMENT);
         if (usePA) {
-            mRanges.addAll(mHardware.getPictureAdjustmentRanges());
+            final List<Range<Float>> r = mHardware.getPictureAdjustmentRanges();
+            if (r != null) {
+                mRanges.addAll(r);
+            }
             if (mRanges.size() < 4) {
                 usePA = false;
             } else {
