@@ -421,8 +421,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final String TAG_GESTURE = "AviumGesture";
     private static final String ACTION_WINDOWMODE_LEFT = "org.avium.WINDOWMODE_LEFT";
     private static final String ACTION_WINDOWMODE_RIGHT = "org.avium.WINDOWMODE_RIGHT";
-    private static final float GESTURE_AREA_HEIGHT_DP = 20.0f; 
-    private static final float GESTURE_AREA_WIDTH_DP = 30.0f; 
+    private static float GESTURE_AREA_HEIGHT_DP = 20.0f; 
+    private static float GESTURE_AREA_WIDTH_DP = 30.0f; 
 
     private static final boolean AVIUM_DEBUG = false;
 
@@ -6364,6 +6364,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mDisplayHeight = size.y;
         }
         float density = mContext.getResources().getDisplayMetrics().density;
+        GESTURE_AREA_HEIGHT_DP = Float.parseFloat(
+        SystemProperties.get("persist.avium.gesture_area_height_dp", String.valueOf(GESTURE_AREA_HEIGHT_DP)));
+        GESTURE_AREA_WIDTH_DP = Float.parseFloat(
+            SystemProperties.get("persist.avium.gesture_area_width_dp", String.valueOf(GESTURE_AREA_WIDTH_DP)));
         mMinGestureDistancePx = TRIGGER_MIN_DISTANCE_DP * density;
         mGestureAreaHeightPx  = GESTURE_AREA_HEIGHT_DP  * density;
         mGestureAreaWidthPx   = GESTURE_AREA_WIDTH_DP   * density;
