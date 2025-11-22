@@ -19,7 +19,6 @@
 package com.android.internal.util;
 
 import android.app.ActivityTaskManager;
-import android.app.ActivityThread;
 import android.app.Application;
 import android.app.TaskStackListener;
 import android.content.ComponentName;
@@ -324,15 +323,9 @@ public class PropImitationHooks {
             return;
         }
 
-        Context context = ActivityThread.currentApplication();
-        if (context == null) {
-            Log.e(TAG, "Context is null in onEngineGetCertificateChain");
-            return;
-        }
-    
-        if ((Settings.Secure.getInt(context.getContentResolver(), Settings.Secure.GMS_CERT_CHAIN, 0) == 1)
-                && KeyProviderManager.isKeyboxAvailable()) {
-            dlog("Allowing gms / finsky to get cert chain");
+        // If a keybox is found, don't block key attestation
+        if (KeyProviderManager.isKeyboxAvailable()) {
+            dlog("Key attestation blocking is disabled because a keybox is defined to spoof");
             return;
         }
 
