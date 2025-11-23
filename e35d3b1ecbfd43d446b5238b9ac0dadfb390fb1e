@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ebd43032_38f698e9",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-11-23T13:49:48Z",
+      "side": 1,
+      "message": "Update commit description on what this change intends to actually fix.",
+      "revId": "e35d3b1ecbfd43d446b5238b9ac0dadfb390fb1e",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
