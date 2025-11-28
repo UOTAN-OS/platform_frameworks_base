@@ -37,6 +37,8 @@ constructor(
     @Application scope: CoroutineScope,
 ) : NetworkSpeedInteractor {
 
+    private val systemClock: SystemClock
+
     override val isEnabled =
         combine(
                 repository.isSettingEnabled,
