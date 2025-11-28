@@ -12,6 +12,7 @@ import com.android.systemui.power.data.repository.PowerRepository
 import com.android.systemui.statusbar.pipeline.netspeed.data.repository.NetworkSpeedRepository
 import com.android.systemui.statusbar.pipeline.shared.data.repository.ConnectivityRepository
 import com.android.systemui.util.kotlin.throttle
+import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
@@ -36,6 +37,8 @@ constructor(
     powerRepository: PowerRepository,
     @Application scope: CoroutineScope,
 ) : NetworkSpeedInteractor {
+
+    private val systemClock: SystemClock
 
     override val isEnabled =
         combine(
@@ -77,7 +80,7 @@ constructor(
                     }
                 }
             }
-            .throttle(1500L) // refresh icon only every 1.5 sec
+            .throttle(1500L, systemClock) // refresh icon only every 1.5 sec
             .stateIn(
                 scope = scope,
                 started = SharingStarted.WhileSubscribed(),
