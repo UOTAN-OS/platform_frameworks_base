@@ -2135,7 +2135,7 @@ public class DisplayModeDirector {
                 mPeakRefreshRate = peakRefreshRate;
                 if (changeable) {
                     synchronized (mLock) {
-                        onBrightnessChangedLocked();
+                        updateFlickerRefreshRateVotes();
                     }
                 } else {
                     updateSensorStatus();
