@@ -213,7 +213,7 @@ interface CustomModule {
                 category = TileCategory.CONNECTIVITY,
             )
 
-	@Provides
+        @Provides
         @IntoMap
         @StringKey(DATA_SWITCH_TILE_SPEC)
         fun provideDataSwitchTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =

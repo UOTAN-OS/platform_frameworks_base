@@ -66,7 +66,7 @@ import javax.inject.Inject;
 /** Quick settings tile: AutoBrightness **/
 public class AutoBrightnessTile extends QSTileImpl<BooleanState> {
 
-    public static final String TILE_SPEC = "autobrightness";
+    public static final String TILE_SPEC = "auto_brightness";
 
     private static final Intent DISPLAY_SETTINGS = new Intent("android.settings.DISPLAY_SETTINGS");
 
