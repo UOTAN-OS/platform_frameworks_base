@@ -25,6 +25,8 @@ import android.view.View;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.statusbar.phone.BarTransitions;
 
+import com.android.internal.statusbar.NetworkTraffic;
+
 public final class PhoneStatusBarTransitions extends BarTransitions {
     private static final float ICON_ALPHA_WHEN_NOT_OPAQUE = 1;
     private static final float ICON_ALPHA_WHEN_LIGHTS_OUT_BATTERY_CLOCK = 0.5f;
@@ -35,6 +37,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
     private boolean mIsHeadsUp;
 
     private View mStartSide, mStatusIcons, mBattery;
+    private NetworkTraffic mNetworkTraffic;
     private Animator mCurrentAnimation;
 
     /**
@@ -46,6 +49,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
         mIconAlphaWhenOpaque = res.getFraction(R.dimen.status_bar_icon_drawing_alpha, 1, 1);
         mStartSide = statusBarView.findViewById(R.id.status_bar_start_side_except_heads_up);
         mStatusIcons = statusBarView.findViewById(R.id.statusIcons);
+        mNetworkTraffic = statusBarView.findViewById(R.id.network_traffic);
         mBattery = statusBarView.findViewById(R.id.battery);
         applyModeBackground(-1, getMode(), false /*animate*/);
         applyMode(getMode(), false /*animate*/);
@@ -115,6 +119,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
             anims.playTogether(
                     animateTransitionTo(mStartSide, newStartSideAlpha),
                     animateTransitionTo(mStatusIcons, newStatusIconsAlpha),
+                    animateTransitionTo(mNetworkTraffic, newStatusIconsAlpha),
                     animateTransitionTo(mBattery, newBatteryAlpha)
                     );
             if (isLightsOut(mode)) {
@@ -125,6 +130,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
         } else {
             mStartSide.setAlpha(newStartSideAlpha);
             mStatusIcons.setAlpha(newStatusIconsAlpha);
+            mNetworkTraffic.setAlpha(newStatusIconsAlpha);
             mBattery.setAlpha(newBatteryAlpha);
         }
     }
