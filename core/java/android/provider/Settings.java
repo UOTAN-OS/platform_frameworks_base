@@ -13840,6 +13840,42 @@ public final class Settings {
         public static final String FEATURE_TOUCH_HOVERING = "feature_touch_hovering";
 
         /**
+         * Network traffic indicator mode
+         * 0 = Don't show network traffic indicator
+         * 1 = Display up-stream traffic only
+         * 2 = Display down-stream traffic only
+         * 3 = Display both up- and down-stream traffic
+         * @hide
+         */
+	public static final String NETWORK_TRAFFIC_MODE = "network_traffic_mode";
+
+        /**
+         * Whether or not to hide the network traffic indicator when there is no activity
+         * @hide
+         */
+        public static final String NETWORK_TRAFFIC_AUTOHIDE = "network_traffic_autohide";
+
+        /**
+         * Measurement unit preference for network traffic
+         * 0 = kBit/s
+         * 1 = MBit/s
+         * 2 = kByte/s
+         * 3 = MByte/s
+         * 4 = automatic kByte/s or MByte/s
+         * @hide
+         */
+	public static final String NETWORK_TRAFFIC_UNITS = "network_traffic_units";
+
+        /**
+         * How to show measurement units in the network traffic indiciator
+         * 0 = off
+         * 1 = on
+         * 2 = compact
+         * @hide
+         */
+	public static final String NETWORK_TRAFFIC_SHOW_UNITS = "network_traffic_show_units";
+
+        /**
          * Whether or not secure windows should be disabled. This only works on debuggable builds.
          *
          * <p>When this setting is set to a non-zero value, all windows are treated as non-secure.
