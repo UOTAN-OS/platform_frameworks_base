@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.systemui.statusbar.phone;
+package com.android.internal.statusbar.phone;
 
 import android.animation.Animator;
 import android.animation.AnimatorSet;
@@ -24,6 +24,8 @@ import android.view.View;
 
 import com.android.systemui.res.R;
 import com.android.systemui.shared.statusbar.phone.BarTransitions;
+
+import com.android.internal.statusbar.NetworkTraffic;
 
 public final class PhoneStatusBarTransitions extends BarTransitions {
     private static final float ICON_ALPHA_WHEN_NOT_OPAQUE = 1;
@@ -35,6 +37,7 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
     private boolean mIsHeadsUp;
 
     private View mStartSide, mStatusIcons, mBattery;
+    private NetworkTraffic mNetworkTrafficStart, mNetworkTrafficCenter, mNetworkTrafficEnd;
     private Animator mCurrentAnimation;
 
     /**
@@ -46,7 +49,13 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
         mIconAlphaWhenOpaque = res.getFraction(R.dimen.status_bar_icon_drawing_alpha, 1, 1);
         mStartSide = statusBarView.findViewById(R.id.status_bar_start_side_except_heads_up);
         mStatusIcons = statusBarView.findViewById(R.id.statusIcons);
+        mNetworkTrafficStart = statusBarView.findViewById(R.id.network_traffic_start);
+        mNetworkTrafficCenter = statusBarView.findViewById(R.id.network_traffic_center);
+        mNetworkTrafficEnd = statusBarView.findViewById(R.id.network_traffic_end);
         mBattery = statusBarView.findViewById(R.id.battery);
+        mNetworkTrafficStart.setViewPosition(0);        /* start side display */
+        mNetworkTrafficCenter.setViewPosition(1);       /* center display */
+        mNetworkTrafficEnd.setViewPosition(2);          /* end side display */
         applyModeBackground(-1, getMode(), false /*animate*/);
         applyMode(getMode(), false /*animate*/);
     }
@@ -115,6 +124,9 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
             anims.playTogether(
                     animateTransitionTo(mStartSide, newStartSideAlpha),
                     animateTransitionTo(mStatusIcons, newStatusIconsAlpha),
+                    animateTransitionTo(mNetworkTrafficStart, newStatusIconsAlpha),
+                    animateTransitionTo(mNetworkTrafficCenter, newStatusIconsAlpha),
+                    animateTransitionTo(mNetworkTrafficEnd, newStatusIconsAlpha),
                     animateTransitionTo(mBattery, newBatteryAlpha)
                     );
             if (isLightsOut(mode)) {
@@ -125,6 +137,9 @@ public final class PhoneStatusBarTransitions extends BarTransitions {
         } else {
             mStartSide.setAlpha(newStartSideAlpha);
             mStatusIcons.setAlpha(newStatusIconsAlpha);
+            mNetworkTrafficStart.setAlpha(newStatusIconsAlpha);
+            mNetworkTrafficCenter.setAlpha(newStatusIconsAlpha);
+            mNetworkTrafficEnd.setAlpha(newStatusIconsAlpha);
             mBattery.setAlpha(newBatteryAlpha);
         }
     }
