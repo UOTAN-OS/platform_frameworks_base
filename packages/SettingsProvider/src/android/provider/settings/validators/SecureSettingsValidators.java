@@ -524,5 +524,9 @@ public class SecureSettingsValidators {
         VALIDATORS.put(Secure.KEYBOX_DATA, ANY_STRING_VALIDATOR);
         VALIDATORS.put(Secure.PIF_DATA, ANY_STRING_VALIDATOR);
         VALIDATORS.put(Secure.FETCHED_PIF, ANY_STRING_VALIDATOR);
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_MODE, new InclusiveIntegerRangeValidator(0, 3));
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_AUTOHIDE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_UNITS, new InclusiveIntegerRangeValidator(0, 4));
+        VALIDATORS.put(Secure.NETWORK_TRAFFIC_SHOW_UNITS, new InclusiveIntegerRangeValidator(0, 2));
     }
 }
