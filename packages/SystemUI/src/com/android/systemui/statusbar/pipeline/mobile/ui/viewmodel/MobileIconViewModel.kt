@@ -27,8 +27,6 @@ import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIc
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.model.MobileContentDescription
-import com.android.systemui.statusbar.pipeline.netspeed.ui.model.NetworkSpeedIcon
-import com.android.systemui.statusbar.pipeline.netspeed.ui.viewmodel.NetworkSpeedViewModel
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import kotlinx.coroutines.CoroutineScope
@@ -59,7 +57,6 @@ interface MobileIconViewModelCommon {
     val activityInVisible: Flow<Boolean>
     val activityOutVisible: Flow<Boolean>
     val activityContainerVisible: Flow<Boolean>
-    val networkSpeedIcon: Flow<NetworkSpeedIcon>
 }
 
 /**
@@ -79,7 +76,6 @@ class MobileIconViewModel(
     override val subscriptionId: Int,
     iconInteractor: MobileIconInteractor,
     airplaneModeInteractor: AirplaneModeInteractor,
-    networkSpeedViewModel: NetworkSpeedViewModel,
     constants: ConnectivityConstants,
     scope: CoroutineScope,
 ) : MobileIconViewModelCommon {
@@ -88,7 +84,6 @@ class MobileIconViewModel(
             subscriptionId,
             iconInteractor,
             airplaneModeInteractor,
-            networkSpeedViewModel,
             constants,
             scope,
         )
@@ -146,9 +141,6 @@ class MobileIconViewModel(
 
     override val activityContainerVisible: Flow<Boolean> =
         vmProvider.flatMapLatest { it.activityContainerVisible }
-
-    override val networkSpeedIcon: Flow<NetworkSpeedIcon> =
-        vmProvider.flatMapLatest { it.networkSpeedIcon }
 }
 
 /** Representation of this network when it is non-terrestrial (e.g., satellite) */
@@ -174,7 +166,6 @@ private class CarrierBasedSatelliteViewModelImpl(
     override val activityInVisible: Flow<Boolean> = flowOf(false)
     override val activityOutVisible: Flow<Boolean> = flowOf(false)
     override val activityContainerVisible: Flow<Boolean> = flowOf(false)
-    override val networkSpeedIcon: Flow<NetworkSpeedIcon> = flowOf(NetworkSpeedIcon.Disabled)
 }
 
 /** Terrestrial (cellular) icon. */
@@ -183,7 +174,6 @@ private class CellularIconViewModel(
     override val subscriptionId: Int,
     iconInteractor: MobileIconInteractor,
     airplaneModeInteractor: AirplaneModeInteractor,
-    networkSpeedViewModel: NetworkSpeedViewModel,
     constants: ConnectivityConstants,
     scope: CoroutineScope,
 ) : MobileIconViewModelCommon {
@@ -335,10 +325,4 @@ private class CellularIconViewModel(
                 activity.map { it != null && (it.hasActivityIn || it.hasActivityOut) }
             }
             .stateIn(scope, SharingStarted.WhileSubscribed(), false)
-
-    override val networkSpeedIcon: Flow<NetworkSpeedIcon> =
-        networkTypeIcon.flatMapLatest { typeIcon ->
-            // Show network speed only when mobile data is active (type icon is visible)
-            typeIcon?.let { networkSpeedViewModel.icon } ?: flowOf(NetworkSpeedIcon.Disabled)
-        }
 }
