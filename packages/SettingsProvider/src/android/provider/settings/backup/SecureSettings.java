@@ -326,7 +326,6 @@ public class SecureSettings {
         Settings.Secure.DOZE_TAP_GESTURE_AMBIENT,
         Settings.Secure.DOZE_FOR_NOTIFICATIONS,
         Settings.Secure.NETWORK_TRAFFIC_MODE,
-        Settings.Secure.NETWORK_TRAFFIC_AUTOHIDE,
-        Settings.Secure.NETWORK_TRAFFIC_UNITS
+        Settings.Secure.NETWORK_TRAFFIC_AUTOHIDE
     };
 }
