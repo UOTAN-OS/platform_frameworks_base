@@ -13530,17 +13530,6 @@ public final class Settings {
         public static final String NETWORK_TRAFFIC_AUTOHIDE = "network_traffic_autohide";
 
         /**
-         * Measurement unit preference for network traffic
-         * 0 = kBit/s
-         * 1 = MBit/s
-         * 2 = kByte/s
-         * 3 = MByte/s
-         * 4 = automatic kByte/s or MByte/s
-         * @hide
-         */
-        public static final String NETWORK_TRAFFIC_UNITS = "network_traffic_units";
-
-        /**
          * Keys we no longer back up under the current schema, but want to continue to
          * process when restoring historical backup datasets.
          *
