@@ -1,16 +1,15 @@
 package com.android.systemui.statusbar.policy;
 
-import java.text.DecimalFormat;
-
 import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Resources;
-import android.graphics.drawable.Drawable;
+import android.database.ContentObserver;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.Typeface;
-import android.view.Gravity;
+import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.TrafficStats;
@@ -18,31 +17,27 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
 import android.provider.Settings;
-import android.text.Spanned;
 import android.text.SpannableString;
-import android.text.style.RelativeSizeSpan;
+import android.text.Spanned;
 import android.text.TextUtils;
+import android.text.style.RelativeSizeSpan;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.TextView;
 
-import com.android.systemui.Dependency;
 import com.android.systemui.res.R;
-import com.android.systemui.tuner.TunerService;
+
+import java.text.DecimalFormat;
 
 /*
-*
-* Seeing how an Integer object in java requires at least 16 Bytes, it seemed awfully wasteful
-* to only use it for a single boolean. 32-bits is plenty of room for what we need it to do.
-*
-*/
-public class NetworkTraffic extends TextView implements TunerService.Tunable {
-
-    private static final String NETWORK_TRAFFIC_MODE = Settings.Secure.NETWORK_TRAFFIC_MODE;
-    private static final String NETWORK_TRAFFIC_AUTOHIDE = Settings.Secure.NETWORK_TRAFFIC_AUTOHIDE;
-    private static final String NETWORK_TRAFFIC_UNIT_TYPE = Settings.Secure.NETWORK_TRAFFIC_UNITS;
-
-    private static final int INTERVAL = 1500; //ms
+ *
+ * Seeing how an Integer object in java requires at least 16 Bytes, it seemed awfully wasteful
+ * to only use it for a single boolean. 32-bits is plenty of room for what we need it to do.
+ *
+ */
+public class NetworkTraffic extends TextView {
+    private static final int INTERVAL = 1500; // ms
     private static final int KB = 1024;
     private static final int MB = KB * KB;
     private static final int GB = MB * KB;
@@ -184,9 +179,8 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
         private boolean shouldHide(long rxData, long txData, long timeDelta) {
             long speedRxKB = (long) (rxData / (timeDelta / 1000f)) / KB;
             long speedTxKB = (long) (txData / (timeDelta / 1000f)) / KB;
-            return !getConnectAvailable() ||
-                    (speedRxKB < mAutoHideThreshold &&
-                            speedTxKB < mAutoHideThreshold);
+            return !getConnectAvailable()
+                    || (speedRxKB < mAutoHideThreshold && speedTxKB < mAutoHideThreshold);
         }
 
         private boolean shouldShowUpload(long rxData, long txData, long timeDelta) {
@@ -232,6 +226,8 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
         Handler mHandler = new Handler();
         mConnectivityManager =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        SettingsObserver settingsObserver = new SettingsObserver(mHandler);
+        settingsObserver.observe();
         update();
     }
 
@@ -240,10 +236,6 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
         super.onAttachedToWindow();
         if (!mAttached) {
             mAttached = true;
-            final TunerService tunerService = Dependency.get(TunerService.class);
-            tunerService.addTunable(this, NETWORK_TRAFFIC_MODE);
-            tunerService.addTunable(this, NETWORK_TRAFFIC_AUTOHIDE);
-            tunerService.addTunable(this, NETWORK_TRAFFIC_UNIT_TYPE);
             IntentFilter filter = new IntentFilter();
             filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
             filter.addAction(Intent.ACTION_SCREEN_OFF);
@@ -258,7 +250,6 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
         super.onDetachedFromWindow();
         if (mAttached) {
             mContext.unregisterReceiver(mIntentReceiver);
-            Dependency.get(TunerService.class).removeTunable(this);
             mAttached = false;
         }
     }
@@ -277,6 +268,34 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
             mTrafficHandler.sendEmptyMessage(0);
         }
     };
+
+    class SettingsObserver extends ContentObserver {
+        SettingsObserver(Handler handler) {
+            super(handler);
+        }
+
+        void observe() {
+            ContentResolver resolver = mContext.getContentResolver();
+            resolver.registerContentObserver(
+                    Settings.System.getUriFor(Settings.Secure.NETWORK_TRAFFIC_MODE), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(
+                    Settings.System.getUriFor(Settings.Secure.NETWORK_TRAFFIC_AUTOHIDE), false,
+                    this, UserHandle.USER_ALL);
+            resolver.registerContentObserver(
+                    Settings.System.getUriFor(Settings.Secure.NETWORK_TRAFFIC_UNIT_TYPE), false,
+                    this, UserHandle.USER_ALL);
+        }
+
+        /*
+         *  @hide
+         */
+        @Override
+        public void onChange(boolean selfChange) {
+            setMode();
+            update();
+        }
+    }
 
     @Override
     public void onTuningChanged(String key, String newValue) {
@@ -305,7 +324,8 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action == null) return;
+            if (action == null)
+                return;
             if (action.equals(ConnectivityManager.CONNECTIVITY_ACTION) && mScreenOn) {
                 update();
             } else if (action.equals(Intent.ACTION_SCREEN_ON)) {
@@ -319,7 +339,8 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
     };
 
     private boolean getConnectAvailable() {
-        NetworkInfo network = (mConnectivityManager != null) ? mConnectivityManager.getActiveNetworkInfo() : null;
+        NetworkInfo network =
+                (mConnectivityManager != null) ? mConnectivityManager.getActiveNetworkInfo() : null;
         return network != null;
     }
 
@@ -340,6 +361,14 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
     }
 
     protected void setMode() {
+        ContentResolver resolver = mContext.getContentResolver();
+        mIsEnabled = Settings.Secure.getIntForUser(resolver, Settings.Secure.NETWORK_TRAFFIC_MODE,
+                             0, UserHandle.USER_CURRENT)
+                == 1;
+        mAutoHideThreshold = Settings.Secure.getIntForUser(resolver,
+                Settings.Secure.NETWORK_TRAFFIC_AUTOHIDE_THRESHOLD, 1, UserHandle.USER_CURRENT);
+        mUnitType = Settings.Secure.getIntForUser(
+                resolver, Settings.Secure.NETWORK_TRAFFIC_UNIT_TYPE, 0, UserHandle.USER_CURRENT);
         setGravity(Gravity.CENTER);
         setMaxLines(2);
         setSpacingAndFonts();
@@ -359,8 +388,9 @@ public class NetworkTraffic extends TextView implements TunerService.Tunable {
     }
 
     protected void setSpacingAndFonts() {
-        setTypeface(Typeface.create(getResources().getString(
-                com.android.internal.R.string.config_headlineFontFamily), Typeface.BOLD));
+        setTypeface(Typeface.create(
+                getResources().getString(com.android.internal.R.string.config_headlineFontFamily),
+                Typeface.BOLD));
         setLineSpacing(0.88f, 0.88f);
     }
 
