@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "d96fad7c_8a708c5a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2025-12-23T18:10:23Z",
+      "side": 1,
+      "message": "Just use volume_dialog_gravity overlay instead.",
+      "revId": "9afbed3b165d88ee515a35ded7866233fd1c768c",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
