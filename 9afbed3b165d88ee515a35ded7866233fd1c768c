@@ -16,6 +16,24 @@
       "message": "Just use volume_dialog_gravity overlay instead.",
       "revId": "9afbed3b165d88ee515a35ded7866233fd1c768c",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "a8c3e47c_573c2324",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000058
+      },
+      "writtenOn": "2025-12-24T03:18:38Z",
+      "side": 1,
+      "message": "volume_dialog_gravity overlay has not been working since qpr1; that\u0027s why I added this. although I haven\u0027t checked lately if it was working or not",
+      "parentUuid": "d96fad7c_8a708c5a",
+      "revId": "9afbed3b165d88ee515a35ded7866233fd1c768c",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
