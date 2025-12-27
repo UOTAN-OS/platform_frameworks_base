@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f518d96c_4349934b",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000008
+      },
+      "writtenOn": "2025-12-27T07:23:48Z",
+      "side": 1,
+      "message": "If this works it should be arranged and squashed with the original change/change-id",
+      "revId": "032326f1c0e4586df86dcf6237dafcf2a279bf28",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
