@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
-package com.android.systemui.volume.dialog.domain.interactor
+package com.android.systemui.volume.dialog.captions.ui.viewmodel
 
-import android.content.Context
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.qs.flags.QsDetailedView
-import com.android.systemui.res.R
+import com.android.systemui.volume.dialog.captions.domain.VolumeDialogCaptionsButtonInteractor
 import javax.inject.Inject
+import kotlinx.coroutines.flow.StateFlow
 
-@SysUISingleton
-class DesktopAudioTileDetailsFeatureInteractor
+/** ViewModel for managing the captions button in the volume dialog. */
+class VolumeDialogCaptionsButtonViewModel
 @Inject
-constructor(@Application private val context: Context) {
-    private val isEnabled =
-        QsDetailedView.isEnabled &&
-            context.resources.getBoolean(R.bool.config_enableDesktopAudioTileDetailsView)
+constructor(private val interactor: VolumeDialogCaptionsButtonInteractor) {
+    val isVisible: StateFlow<Boolean> = interactor.isVisible
+    val isEnable: StateFlow<Boolean> = interactor.isEnabled
 
-    fun isEnabled(): Boolean {
-        return isEnabled
+    fun onButtonClicked() {
+        interactor.onButtonClicked()
     }
 }
