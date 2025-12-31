@@ -67,6 +67,7 @@ import android.graphics.drawable.LayerDrawable;
 import android.graphics.drawable.RotateDrawable;
 import android.graphics.drawable.ShapeDrawable;
 import android.graphics.drawable.shapes.RoundRectShape;
+import android.media.AppVolume;
 import android.media.AudioManager;
 import android.media.AudioSystem;
 import android.os.Debug;
@@ -75,6 +76,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 import android.os.Trace;
+import android.os.UserHandle;
 import android.os.VibrationEffect;
 import android.provider.Settings;
 import android.provider.Settings.Global;
@@ -99,6 +101,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.DecelerateInterpolator;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -126,7 +129,6 @@ import com.android.systemui.haptics.slider.HapticSliderPlugin;
 import com.android.systemui.haptics.slider.HapticSliderViewBinder;
 import com.android.systemui.haptics.slider.SeekableSliderTrackerConfig;
 import com.android.systemui.haptics.slider.SliderHapticFeedbackConfig;
-import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter;
 import com.android.systemui.media.dialog.MediaOutputDialogManager;
 import com.android.systemui.plugins.VolumeDialog;
 import com.android.systemui.plugins.VolumeDialogController;
@@ -147,12 +149,12 @@ import com.android.systemui.volume.panel.shared.flag.VolumePanelFlag;
 import com.android.systemui.volume.ui.navigation.VolumeNavigator;
 
 import com.google.android.msdl.domain.MSDLPlayer;
+import com.google.common.collect.ImmutableList;
 
 import dagger.Lazy;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -270,6 +272,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     private CaptionsToggleImageButton mODICaptionsIcon;
     private View mSettingsView;
     private ImageButton mSettingsIcon;
+    private View mAppVolumeView;
+    private ImageButton mAppVolumeIcon;
     private final List<VolumeRow> mRows = new ArrayList<>();
     private ConfigurableTexts mConfigurableTexts;
     private final SparseBooleanArray mDynamic = new SparseBooleanArray();
@@ -309,10 +313,12 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
 
     private int mWindowGravity;
 
+    private FrameLayout mRoundedBorderBottom;
+
     @VisibleForTesting
-    final int mVolumeRingerIconDrawableId = R.drawable.ic_legacy_speaker_on;
+    final int mVolumeRingerIconDrawableId = R.drawable.ic_speaker_on;
     @VisibleForTesting
-    final int mVolumeRingerMuteIconDrawableId = R.drawable.ic_legacy_speaker_mute;
+    final int mVolumeRingerMuteIconDrawableId = R.drawable.ic_speaker_mute;
 
     private int mOriginalGravity;
     private final DevicePostureController.Callback mDevicePostureControllerCallback;
@@ -327,8 +333,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     private final VolumePanelFlag mVolumePanelFlag;
     private final VolumeDialogInteractor mInteractor;
     // Optional actions for soundDose
-    private Optional<List<CsdWarningAction>>
-            mCsdWarningNotificationActions = Optional.of(Collections.emptyList());
+    private Optional<ImmutableList<CsdWarningAction>>
+            mCsdWarningNotificationActions = Optional.of(ImmutableList.of());
 
     public VolumeDialogImpl(
             Context context,
@@ -491,8 +497,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         final int[] locInWindow = new int[2];
         view.getLocationInWindow(locInWindow);
 
-        float x = locInWindow[0];
-        float y = locInWindow[1];
+        float xExtraSize = 0;
+        float yExtraSize = 0;
 
         // The ringer and rows container has extra height at the top to fit the expanded ringer
         // drawer. This area should not be touchable unless the ringer drawer is open.
@@ -500,18 +506,46 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         // are multiple rows they are touchable.
         if (view == mTopContainer && !mIsRingerDrawerOpen) {
             if (!isLandscape()) {
-                y += getRingerDrawerOpenExtraSize();
+                yExtraSize = getRingerDrawerOpenExtraSize();
             } else if (getRingerDrawerOpenExtraSize() > getVisibleRowsExtraSize()) {
-                x += (getRingerDrawerOpenExtraSize() - getVisibleRowsExtraSize());
+                xExtraSize = (getRingerDrawerOpenExtraSize() - getVisibleRowsExtraSize());
             }
         }
 
-        mTouchableRegion.op(
-                (int) x,
-                (int) y,
-                locInWindow[0] + view.getWidth(),
-                locInWindow[1] + view.getHeight(),
-                Region.Op.UNION);
+        if (isWindowGravityLeft()) {
+            mTouchableRegion.op(
+                    locInWindow[0],
+                    locInWindow[1] + (int) yExtraSize,
+                    locInWindow[0] + view.getWidth() - (int) xExtraSize,
+                    locInWindow[1] + view.getHeight(),
+                    Region.Op.UNION);
+        } else {
+            mTouchableRegion.op(
+                    locInWindow[0] + (int) xExtraSize,
+                    locInWindow[1] + (int) yExtraSize,
+                    locInWindow[0] + view.getWidth(),
+                    locInWindow[1] + view.getHeight(),
+                    Region.Op.UNION);
+        }
+    }
+
+    // Helper to set gravity.
+    private void setGravity(ViewGroup viewGroup, int gravity) {
+        if (viewGroup instanceof LinearLayout) {
+            ((LinearLayout) viewGroup).setGravity(gravity);
+        }
+    }
+
+    // Helper to set layout gravity.
+    private void setLayoutGravity(ViewGroup viewGroup, int gravity) {
+        if (viewGroup != null) {
+            Object obj = viewGroup.getLayoutParams();
+            if (obj instanceof FrameLayout.LayoutParams) {
+                ((FrameLayout.LayoutParams) obj).gravity = gravity;
+            } else if (obj instanceof LinearLayout.LayoutParams) {
+                ((LinearLayout.LayoutParams) obj).gravity = gravity;
+            }
+        }
     }
 
     private void initDialog(int lockTaskModeState) {
@@ -701,6 +735,30 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         mSettingsView = mDialog.findViewById(R.id.settings_container);
         mSettingsIcon = mDialog.findViewById(R.id.settings);
 
+        mRoundedBorderBottom = mDialog.findViewById(R.id.rounded_border_bottom);
+
+        mAppVolumeView = mDialog.findViewById(R.id.app_volume_container);
+        mAppVolumeIcon = mDialog.findViewById(R.id.app_volume);
+
+        if (isWindowGravityLeft()) {
+            ViewGroup container = mDialog.findViewById(R.id.volume_dialog_container);
+            setGravity(container, Gravity.LEFT);
+
+            setGravity(mDialogView, Gravity.LEFT);
+
+            setGravity((ViewGroup) mTopContainer, Gravity.LEFT);
+
+            setLayoutGravity(mRingerDrawerNewSelectionBg, Gravity.BOTTOM | Gravity.LEFT);
+
+            setLayoutGravity(mSelectedRingerContainer, Gravity.BOTTOM | Gravity.LEFT);
+
+            setGravity(mRinger, Gravity.LEFT);
+
+            setGravity(mDialogRowsViewContainer, Gravity.LEFT);
+
+            setGravity(mODICaptionsView, Gravity.LEFT);
+        }
+
         if (mRows.isEmpty()) {
             if (!AudioSystem.isSingleVolume(mContext)) {
                 addRow(STREAM_ACCESSIBILITY, R.drawable.ic_volume_accessibility,
@@ -728,6 +786,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         updateRowsH(getActiveRow());
         initRingerH();
         initSettingsH(lockTaskModeState);
+        initAppVolumeH();
         initODICaptionsH();
         mAccessibility.init();
     }
@@ -910,7 +969,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             if (row.stream != AudioSystem.STREAM_ACCESSIBILITY) {
                 row.icon.setOnClickListener(v -> {
                     Events.writeEvent(Events.EVENT_ICON_CLICK, row.stream, row.iconState);
-                    mController.setActiveStream(row.stream, false);
+                    mController.setActiveStream(row.stream);
                     if (row.stream == AudioManager.STREAM_RING) {
                         final boolean hasVibrator = mController.hasVibrator();
                         if (mState.ringerModeInternal == AudioManager.RINGER_MODE_NORMAL) {
@@ -919,19 +978,19 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                             } else {
                                 final boolean wasZero = row.ss.level == 0;
                                 mController.setStreamVolume(stream,
-                                        wasZero ? row.lastAudibleLevel : 0, false);
+                                        wasZero ? row.lastAudibleLevel : 0);
                             }
                         } else {
                             mController.setRingerMode(
                                     AudioManager.RINGER_MODE_NORMAL, false);
                             if (row.ss.level == 0) {
-                                mController.setStreamVolume(stream, 1, false);
+                                mController.setStreamVolume(stream, 1);
                             }
                         }
                     } else {
                         final boolean vmute = row.ss.level == row.ss.levelMin;
                         mController.setStreamVolume(stream,
-                                vmute ? row.lastAudibleLevel : row.ss.levelMin, false);
+                                vmute ? row.lastAudibleLevel : row.ss.levelMin);
                     }
                     row.userAttempt = 0;  // reset the grace period, slider updates immediately
                 });
@@ -984,6 +1043,12 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                     mDialogView.getPaddingTop(),
                     mDialogView.getPaddingRight(),
                     mDialogView.getPaddingBottom() + getRingerDrawerOpenExtraSize());
+        } else if (isWindowGravityLeft()) {
+            mDialogView.setPadding(
+                    mDialogView.getPaddingLeft(),
+                    mDialogView.getPaddingTop(),
+                    mDialogView.getPaddingRight() + getRingerDrawerOpenExtraSize(),
+                    mDialogView.getPaddingBottom());
         } else {
             mDialogView.setPadding(
                     mDialogView.getPaddingLeft() + getRingerDrawerOpenExtraSize(),
@@ -1054,15 +1119,16 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     }
 
     /**
-     * Translation to apply form the origin (either top or left) to overlap the selection background
-     * with the given mode in the drawer.
+     * Translation to apply form the origin (either top or left/right) to overlap the selection
+     * background with the given mode in the drawer.
      */
     private float getTranslationInDrawerForRingerMode(int mode) {
-        return mode == RINGER_MODE_VIBRATE
-                ? -mRingerDrawerItemSize * 2
-                : mode == RINGER_MODE_SILENT
-                        ? -mRingerDrawerItemSize
-                        : 0;
+        final int distantRinger = ((isLandscape() && isWindowGravityLeft()) ? RINGER_MODE_NORMAL
+                                                                            : RINGER_MODE_VIBRATE);
+        return (mode == distantRinger                       ? mRingerDrawerItemSize * 2
+                               : mode == RINGER_MODE_SILENT ? mRingerDrawerItemSize
+                                                            : 0)
+                * ((isLandscape() && isWindowGravityLeft()) ? 1 : -1);
     }
 
     @VisibleForTesting String getSelectedRingerContainerDescription() {
@@ -1106,12 +1172,13 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                     getTranslationInDrawerForRingerMode(mState.ringerModeInternal));
         }
 
-        // Move the drawer so that the top/rightmost ringer choice overlaps with the selected ringer
+        // Move the drawer so that the top/outmost ringer choice overlaps with the selected ringer
         // icon.
         if (!isLandscape()) {
             mRingerDrawerContainer.setTranslationY(mRingerDrawerItemSize * (mRingerCount - 1));
         } else {
-            mRingerDrawerContainer.setTranslationX(mRingerDrawerItemSize * (mRingerCount - 1));
+            mRingerDrawerContainer.setTranslationX(
+                    (isWindowGravityLeft() ? -1 : 1) * mRingerDrawerItemSize * (mRingerCount - 1));
         }
         mRingerDrawerContainer.setAlpha(0f);
         mRingerDrawerContainer.setVisibility(VISIBLE);
@@ -1190,7 +1257,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                     .start();
         } else {
             mRingerDrawerContainer.animate()
-                    .translationX(mRingerDrawerItemSize * 2)
+                    .translationX((isWindowGravityLeft() ? -1 : 1) * mRingerDrawerItemSize * 2)
                     .start();
         }
 
@@ -1237,10 +1304,13 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     }
 
     private void initSettingsH(int lockTaskModeState) {
+        final boolean showSettings = mDeviceProvisionedController.isCurrentUserSetup()
+                && lockTaskModeState == LOCK_TASK_MODE_NONE;
+        if (mRoundedBorderBottom != null) {
+            mRoundedBorderBottom.setVisibility(!showSettings ? VISIBLE : GONE);
+        }
         if (mSettingsView != null) {
-            mSettingsView.setVisibility(
-                    mDeviceProvisionedController.isCurrentUserSetup() &&
-                            lockTaskModeState == LOCK_TASK_MODE_NONE ? VISIBLE : GONE);
+            mSettingsView.setVisibility(showSettings ? VISIBLE : GONE);
         }
         if (mSettingsIcon != null) {
             mSettingsIcon.setOnClickListener(v -> {
@@ -1249,6 +1319,39 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 mMediaOutputDialogManager.dismiss();
                 mVolumeNavigator.openVolumePanel(
                         mVolumePanelNavigationInteractor.getVolumePanelRoute());
+            });
+        }
+    }
+
+    private boolean shouldShowAppVolume() {
+        ContentResolver cr = mContext.getContentResolver();
+        int showAppVolume = Settings.System.getIntForUser(
+            cr, Settings.System.SHOW_APP_VOLUME, 0, UserHandle.USER_CURRENT);
+        boolean ret = showAppVolume == 1;
+        if (ret) {
+            ret = false;
+            AudioManager audioManager = mController.getAudioManager();
+            for (AppVolume av : audioManager.listAppVolumes()) {
+                if (av.isActive()) {
+                    ret = true;
+                    break;
+                }
+            }
+        }
+        return ret;
+    }
+
+    public void initAppVolumeH() {
+        if (mAppVolumeView != null) {
+            mAppVolumeView.setVisibility(shouldShowAppVolume() ? VISIBLE : GONE);
+        }
+        if (mAppVolumeIcon != null) {
+            mAppVolumeIcon.setOnClickListener(v -> {
+                Events.writeEvent(Events.EVENT_SETTINGS_CLICK);
+                dismissH(DISMISS_REASON_SETTINGS_CLICKED);
+                mMediaOutputDialogManager.dismiss();
+                mVolumeNavigator.openVolumePanel(
+                        mVolumePanelNavigationInteractor.getAppVolumeRoute());
             });
         }
     }
@@ -1277,7 +1380,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 } else {
                     newRingerMode = AudioManager.RINGER_MODE_NORMAL;
                     if (ss.level == 0) {
-                        mController.setStreamVolume(AudioManager.STREAM_RING, 1, false);
+                        mController.setStreamVolume(AudioManager.STREAM_RING, 1);
                     }
                 }
 
@@ -1530,6 +1633,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         }
 
         initSettingsH(lockTaskModeState);
+        initAppVolumeH();
         mShowing = true;
         mIsAnimatingDismiss = false;
         mDialog.show();
@@ -1689,8 +1793,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             // Always show the stream for audio sharing if it exists.
             if ((volumeDialogAudioSharingFix() || audioSharingDeveloperOption())
                     && row.ss != null
-                    && mContext.getString(R.string.volume_dialog_guest_device_volume_description)
-                            .equals(row.ss.remoteLabel)) {
+                    && mContext.getString(R.string.audio_sharing_description)
+                    .equals(row.ss.remoteLabel)) {
                 return true;
             }
 
@@ -1718,8 +1822,10 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             trimObsoleteH();
         }
 
+        boolean isOutmostIndexMax = isWindowGravityLeft() ? isRtl() : !isRtl();
+
         // Index of the last row that is actually visible.
-        int rightmostVisibleRowIndex = !isRtl() ? -1 : Short.MAX_VALUE;
+        int outmostVisibleRowIndex = isOutmostIndexMax ? -1 : Short.MAX_VALUE;
 
         // apply changes to all rows
         for (final VolumeRow row : mRows) {
@@ -1728,14 +1834,11 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             Util.setVisOrGone(row.view, shouldBeVisible);
 
             if (shouldBeVisible && mRingerAndDrawerContainerBackground != null) {
-                // For RTL, the rightmost row has the lowest index since child views are laid out
+                // For RTL, the outmost row has the lowest index since child views are laid out
                 // from right to left.
-                rightmostVisibleRowIndex =
-                        !isRtl()
-                                ? Math.max(rightmostVisibleRowIndex,
-                                mDialogRowsView.indexOfChild(row.view))
-                                : Math.min(rightmostVisibleRowIndex,
-                                        mDialogRowsView.indexOfChild(row.view));
+                outmostVisibleRowIndex = isOutmostIndexMax
+                        ? Math.max(outmostVisibleRowIndex, mDialogRowsView.indexOfChild(row.view))
+                        : Math.min(outmostVisibleRowIndex, mDialogRowsView.indexOfChild(row.view));
 
                 // Add spacing between each of the visible rows - we'll remove the spacing from the
                 // last row after the loop.
@@ -1743,7 +1846,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 if (layoutParams instanceof LinearLayout.LayoutParams) {
                     final LinearLayout.LayoutParams linearLayoutParams =
                             ((LinearLayout.LayoutParams) layoutParams);
-                    if (!isRtl()) {
+                    if (isOutmostIndexMax) {
                         linearLayoutParams.setMarginEnd(mRingerRowsPadding);
                     } else {
                         linearLayoutParams.setMarginStart(mRingerRowsPadding);
@@ -1761,8 +1864,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             }
         }
 
-        if (rightmostVisibleRowIndex > -1 && rightmostVisibleRowIndex < Short.MAX_VALUE) {
-            final View lastVisibleChild = mDialogRowsView.getChildAt(rightmostVisibleRowIndex);
+        if (outmostVisibleRowIndex > -1 && outmostVisibleRowIndex < Short.MAX_VALUE) {
+            final View lastVisibleChild = mDialogRowsView.getChildAt(outmostVisibleRowIndex);
             final ViewGroup.LayoutParams layoutParams = lastVisibleChild.getLayoutParams();
             // Remove the spacing on the last row, and remove its background since the container is
             // drawing a background for this row.
@@ -1793,9 +1896,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             enableRingerViewsH(!isZenMuted);
             switch (mState.ringerModeInternal) {
                 case AudioManager.RINGER_MODE_VIBRATE:
-                    mRingerIcon.setImageResource(R.drawable.ic_legacy_volume_ringer_vibrate);
-                    mSelectedRingerIcon.setImageResource(
-                            R.drawable.ic_legacy_volume_ringer_vibrate);
+                    mRingerIcon.setImageResource(R.drawable.ic_volume_ringer_vibrate);
+                    mSelectedRingerIcon.setImageResource(R.drawable.ic_volume_ringer_vibrate);
                     addAccessibilityDescription(mRingerIcon, RINGER_MODE_VIBRATE,
                             mContext.getString(R.string.volume_ringer_hint_mute));
                     mRingerIcon.setTag(Events.ICON_STATE_VIBRATE);
@@ -1882,7 +1984,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
 
     protected void onStateChangedH(State state) {
         if (D.BUG) Log.d(TAG, "onStateChangedH() state: " + state.toString());
-        if (mState != null && state != null
+        if (mShowing && mState != null && state != null
                 && mState.ringerModeInternal != -1
                 && mState.ringerModeInternal != state.ringerModeInternal
                 && state.ringerModeInternal == AudioManager.RINGER_MODE_VIBRATE) {
@@ -1898,9 +2000,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             mDynamic.put(stream, true);
             if (findRow(stream) == null) {
                 if ((volumeDialogAudioSharingFix() || audioSharingDeveloperOption())
-                        && (mContext.getString(
-                                        R.string.volume_dialog_guest_device_volume_description)
-                                .equals(ss.remoteLabel))) {
+                        && (mContext.getString(R.string.audio_sharing_description)
+                        .equals(ss.remoteLabel))) {
                     addRow(
                             stream,
                             R.drawable.ic_volume_media_bt,
@@ -1984,9 +2085,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         }
 
         // update header text
-        String label = getStreamLabelH(ss);
-        Util.setText(row.header, label);
-        row.slider.setContentDescription(label);
+        Util.setText(row.header, getStreamLabelH(ss));
+        row.slider.setContentDescription(row.header.getText());
         mConfigurableTexts.add(row.header, ss.name);
 
         // update icon
@@ -1995,7 +2095,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         if (zenMuted) {
             iconRes = com.android.internal.R.drawable.ic_qs_dnd;
         } else if (isRingVibrate) {
-            iconRes = R.drawable.ic_legacy_volume_ringer_vibrate;
+            iconRes = R.drawable.ic_volume_ringer_vibrate;
         } else if (isRingSilent) {
             iconRes = row.iconMuteRes;
         } else if (ss.routedToBluetooth) {
@@ -2014,7 +2114,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
 
         row.setIcon(iconRes, mContext.getTheme());
         row.iconState =
-                iconRes == R.drawable.ic_legacy_volume_ringer_vibrate ? Events.ICON_STATE_VIBRATE
+                iconRes == R.drawable.ic_volume_ringer_vibrate ? Events.ICON_STATE_VIBRATE
                 : (iconRes == R.drawable.ic_volume_media_bt_mute || iconRes == row.iconMuteRes)
                         ? Events.ICON_STATE_MUTE
                 : (iconRes == R.drawable.ic_volume_media_bt || iconRes == row.iconRes
@@ -2241,7 +2341,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     }
 
     public void setCsdWarningNotificationActionIntents(
-            List<CsdWarningAction> actionIntent) {
+            ImmutableList<CsdWarningAction> actionIntent) {
         mCsdWarningNotificationActions = Optional.of(actionIntent);
     }
 
@@ -2334,6 +2434,9 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
         final Rect bounds = mRingerAndDrawerContainerBackground.copyBounds();
         if (!isLandscape()) {
             bounds.top = (int) (mRingerDrawerClosedAmount * getRingerDrawerOpenExtraSize());
+        } else if (isWindowGravityLeft()) {
+            bounds.right = (int) ((mDialogCornerRadius / 2) + mRingerDrawerItemSize
+                    + (1f - mRingerDrawerClosedAmount) * getRingerDrawerOpenExtraSize());
         } else {
             bounds.left = (int) (mRingerDrawerClosedAmount * getRingerDrawerOpenExtraSize());
         }
@@ -2341,7 +2444,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     }
 
     /*
-     * The top container is responsible for drawing the solid color background behind the rightmost
+     * The top container is responsible for drawing the solid color background behind the outmost
      * (primary) volume row. This is because the volume drawer animates in from below, initially
      * overlapping the primary row. We need the drawer to draw below the row's SeekBar, since it
      * looks strange to overlap it, but above the row's background color, since otherwise it will be
@@ -2396,8 +2499,9 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                         ? mDialogRowsViewContainer.getTop()
                         : mDialogRowsViewContainer.getTop() - mDialogCornerRadius);
 
-        // Set gravity to top-right, since additional rows will be added on the left.
-        background.setLayerGravity(0, Gravity.TOP | Gravity.RIGHT);
+        // Set gravity to top and opposite side where additional rows will be added.
+        background.setLayerGravity(0,
+                isWindowGravityLeft() ? Gravity.TOP | Gravity.LEFT : Gravity.TOP | Gravity.RIGHT);
 
         // In landscape, the ringer drawer animates out to the left (instead of down). Since the
         // drawer comes from the right (beyond the bounds of the dialog), we should clip it so it
@@ -2630,8 +2734,8 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             if (mRow.ss.level != userLevel || mRow.ss.muted && userLevel > 0) {
                 mRow.userAttempt = SystemClock.uptimeMillis();
                 if (mRow.requestedLevel != userLevel) {
-                    mController.setActiveStream(mRow.stream, false);
-                    mController.setStreamVolume(mRow.stream, userLevel, false);
+                    mController.setActiveStream(mRow.stream);
+                    mController.setStreamVolume(mRow.stream, userLevel);
                     mRow.requestedLevel = userLevel;
                     Events.writeEvent(Events.EVENT_TOUCH_LEVEL_CHANGED, mRow.stream,
                             userLevel);
@@ -2646,7 +2750,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
             if (mRow.mHapticPlugin != null) {
                 mRow.mHapticPlugin.onStartTrackingTouch();
             }
-            mController.setActiveStream(mRow.stream, false);
+            mController.setActiveStream(mRow.stream);
             mRow.tracking = true;
         }
 
@@ -2704,8 +2808,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 /* upperBookendScale= */ 1f,
                 /* lowerBookendScale= */ 0.05f,
                 /* exponent= */ 1f / 0.89f,
-                /* sliderStepSize = */ 0f,
-                /* filter =*/new SliderHapticFeedbackFilter());
+                /* sliderStepSize = */ 0f);
         private static final SeekableSliderTrackerConfig sSliderTrackerConfig =
                 new SeekableSliderTrackerConfig(
                         /* waitTimeMillis= */100,
