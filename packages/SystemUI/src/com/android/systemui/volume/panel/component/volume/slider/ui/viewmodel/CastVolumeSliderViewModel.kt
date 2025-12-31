@@ -19,6 +19,7 @@ package com.android.systemui.volume.panel.component.volume.slider.ui.viewmodel
 import android.content.Context
 import android.media.session.MediaController.PlaybackInfo
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.qualifiers.UiBackground
 import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter
@@ -82,7 +83,7 @@ constructor(
     }
 
     override fun getSliderHapticsViewModelFactory(): SliderHapticsViewModel.Factory? =
-        if (slider.value != SliderState.Empty) {
+        if (Flags.hapticsForComposeSliders() && slider.value != SliderState.Empty) {
             hapticsViewModelFactory
         } else {
             null

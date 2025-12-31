@@ -95,10 +95,13 @@ constructor(
     }
 
     private fun MutableList<SliderType>.addStream(stream: Int) {
-        // Hide other streams except STREAM_MUSIC in single volume mode to makes sure
+        // Hide other streams except STREAM_MUSIC if the isSingleVolume mode is on. This makes sure
         // the volume slider in volume panel is consistent with the volume slider inside system
         // settings app.
-        if (audioSystemRepository.isSingleVolume && stream != AudioManager.STREAM_MUSIC
+        if (
+            Flags.onlyShowMediaStreamSliderInSingleVolumeMode() &&
+                audioSystemRepository.isSingleVolume &&
+                stream != AudioManager.STREAM_MUSIC
         ) {
             return
         }

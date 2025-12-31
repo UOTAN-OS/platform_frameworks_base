@@ -30,7 +30,6 @@ import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.res.R
 import com.android.systemui.volume.Events
 import com.android.systemui.volume.dialog.dagger.factory.VolumeDialogComponentFactory
-import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogVisibilityInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.awaitCancellation
@@ -41,10 +40,7 @@ constructor(
     @Application context: Context,
     private val componentFactory: VolumeDialogComponentFactory,
     private val visibilityInteractor: VolumeDialogVisibilityInteractor,
-    desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
 ) : ComponentDialog(context, R.style.Theme_SystemUI_Dialog_Volume) {
-    // Use horizontal volume dialog if the audio tile details view is enabled
-    private val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
 
     init {
         with(window!!) {
@@ -62,13 +58,8 @@ constructor(
                 attributes.apply {
                     title = "VolumeDialog" // Not the same as Window#setTitle
                 }
-            if (isVolumeDialogVertical) {
-                setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                setGravity(Gravity.END)
-            } else {
-                setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                setGravity(Gravity.TOP or Gravity.END)
-            }
+            setLayout(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT)
+            setGravity(Gravity.END)
         }
         setCancelable(false)
         setCanceledOnTouchOutside(true)
@@ -76,17 +67,11 @@ constructor(
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (isVolumeDialogVertical) {
-            setContentView(R.layout.volume_dialog)
-        } else {
-            setContentView(R.layout.volume_dialog_horizontal)
-        }
+        setContentView(R.layout.volume_dialog)
         requireViewById<View>(R.id.volume_dialog).repeatWhenAttached {
             coroutineScopeTraced("[Volume]dialog") {
                 val component = componentFactory.create(this)
-                with(component.volumeDialogViewBinder()) {
-                    bind(this@VolumeDialog, isVolumeDialogVertical)
-                }
+                with(component.volumeDialogViewBinder()) { bind(this@VolumeDialog) }
 
                 awaitCancellation()
             }

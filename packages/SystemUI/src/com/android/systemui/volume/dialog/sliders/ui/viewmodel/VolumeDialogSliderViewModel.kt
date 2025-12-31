@@ -27,7 +27,6 @@ import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogVisibilityInteractor
 import com.android.systemui.volume.dialog.shared.VolumeDialogLogger
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogStreamModel
-import com.android.systemui.volume.dialog.shared.model.streamLabel
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.domain.interactor.VolumeDialogSliderInputEventsInteractor
 import com.android.systemui.volume.dialog.sliders.domain.interactor.VolumeDialogSliderInteractor
@@ -41,13 +40,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 /*
@@ -79,7 +76,20 @@ constructor(
 ) {
 
     private val userVolumeUpdates = MutableStateFlow<VolumeUpdate?>(null)
-    private val model: Flow<VolumeDialogStreamModel> = interactor.slider
+    private val model: Flow<VolumeDialogStreamModel> =
+        combine(interactor.slider, userVolumeUpdates) { model, currentVolumeUpdate ->
+                currentVolumeUpdate ?: return@combine model
+                val lastVolumeUpdateTime = currentVolumeUpdate.timestampMillis
+                val shouldIgnoreUpdates =
+                    getTimestampMillis() - lastVolumeUpdateTime < VOLUME_UPDATE_GRACE_PERIOD
+                if (shouldIgnoreUpdates) {
+                    model.copy(level = currentVolumeUpdate.newVolumeLevel)
+                } else {
+                    model
+                }
+            }
+            .stateIn(coroutineScope, SharingStarted.Eagerly, null)
+            .filterNotNull()
 
     val state: Flow<VolumeDialogSliderStateModel> =
         combine(
@@ -107,43 +117,17 @@ constructor(
                         }
                     }
                 },
-                userVolumeUpdates,
-            ) { isDisabledByZenMode, model, icon, currentVolumeUpdate ->
-                val isInGracePeriod =
-                    currentVolumeUpdate != null &&
-                        getTimestampMillis() - currentVolumeUpdate.timestampMillis <
-                            VOLUME_UPDATE_GRACE_PERIOD
-                val isMinimumVolume = model.levelMin == currentVolumeUpdate?.level
-                VolumeDialogSliderStateModel(
-                    value =
-                        if (currentVolumeUpdate != null && isInGracePeriod) {
-                            if (isMinimumVolume) {
-                                model.levelMin.toFloat()
-                            } else {
-                                currentVolumeUpdate.volume
-                            }
-                        } else {
-                            if (model.muted) {
-                                model.levelMin.toFloat()
-                            } else {
-                                model.level.toFloat()
-                            }
-                        },
-                    isDisabled = isDisabledByZenMode,
-                    valueRange = model.levelMin.toFloat()..model.levelMax.toFloat(),
-                    icon = icon,
-                    label = model.streamLabel(context),
-                )
+            ) { isDisabledByZenMode, model, icon ->
+                model.toStateModel(context = context, icon = icon, isDisabled = isDisabledByZenMode)
             }
             .stateIn(coroutineScope, SharingStarted.Eagerly, null)
             .filterNotNull()
 
     init {
         userVolumeUpdates
-            .mapNotNull { it?.level }
-            .distinctUntilChanged()
-            .onEach { volume ->
-                interactor.setStreamVolume(volume)
+            .filterNotNull()
+            .mapLatest { volume ->
+                interactor.setStreamVolume(volume.newVolumeLevel)
                 Events.writeEvent(Events.EVENT_TOUCH_LEVEL_CHANGED, model.first().stream, volume)
             }
             .launchIn(coroutineScope)
@@ -153,7 +137,10 @@ constructor(
         if (fromUser) {
             visibilityInteractor.resetDismissTimeout()
             userVolumeUpdates.value =
-                VolumeUpdate(volume = volume, timestampMillis = getTimestampMillis())
+                VolumeUpdate(
+                    newVolumeLevel = volume.roundToInt(),
+                    timestampMillis = getTimestampMillis(),
+                )
         }
     }
 
@@ -199,9 +186,5 @@ constructor(
 
     private fun getTimestampMillis(): Long = systemClock.uptimeMillis()
 
-    private data class VolumeUpdate(val volume: Float, val timestampMillis: Long) {
-
-        val level: Int
-            get() = volume.roundToInt()
-    }
+    private data class VolumeUpdate(val newVolumeLevel: Int, val timestampMillis: Long)
 }

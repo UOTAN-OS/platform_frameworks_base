@@ -35,6 +35,7 @@ import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.PluginDependencyProvider;
 import com.android.systemui.plugins.VolumeDialog;
 import com.android.systemui.plugins.VolumeDialogController;
+import com.android.systemui.qs.tiles.DndTile;
 import com.android.systemui.statusbar.policy.ExtensionController;
 import com.android.systemui.tuner.TunerService;
 
@@ -162,6 +163,7 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
 
     private void applyConfiguration() {
         mController.setVolumePolicy(mVolumePolicy);
+        mController.showDndTile();
     }
 
     @Override
@@ -191,6 +193,7 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
     @Override
     public void register() {
         mController.register();
+        DndTile.setCombinedIcon(mContext, true);
     }
 
     @Override

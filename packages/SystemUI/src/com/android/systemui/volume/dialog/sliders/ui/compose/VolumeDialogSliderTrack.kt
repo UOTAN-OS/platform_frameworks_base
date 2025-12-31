@@ -66,7 +66,7 @@ fun SliderTrack(
 ) {
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val measurePolicy =
-        remember(sliderState, isRtl, isVertical, thumbTrackGapSize) {
+        remember(sliderState) {
             TrackMeasurePolicy(
                 sliderState = sliderState,
                 shouldMirrorIcons = !isVertical && isRtl || isVertical,
@@ -102,28 +102,28 @@ fun SliderTrack(
                 contents = Contents.Active.TrackStartIcon,
                 isEnabled = isEnabled,
                 colors = colors,
-                trackMeasurePolicy = measurePolicy,
+                state = measurePolicy,
             )
             TrackIcon(
                 icon = activeTrackEndIcon,
                 contents = Contents.Active.TrackEndIcon,
                 isEnabled = isEnabled,
                 colors = colors,
-                trackMeasurePolicy = measurePolicy,
+                state = measurePolicy,
             )
             TrackIcon(
                 icon = inactiveTrackStartIcon,
                 contents = Contents.Inactive.TrackStartIcon,
                 isEnabled = isEnabled,
                 colors = colors,
-                trackMeasurePolicy = measurePolicy,
+                state = measurePolicy,
             )
             TrackIcon(
                 icon = inactiveTrackEndIcon,
                 contents = Contents.Inactive.TrackEndIcon,
                 isEnabled = isEnabled,
                 colors = colors,
-                trackMeasurePolicy = measurePolicy,
+                state = measurePolicy,
             )
         },
         modifier = modifier,
@@ -135,7 +135,7 @@ private fun TrackIcon(
     icon: (@Composable BoxScope.(sliderIconsState: SliderIconsState) -> Unit)?,
     isEnabled: Boolean,
     contents: Contents,
-    trackMeasurePolicy: TrackMeasurePolicy,
+    state: SliderIconsState,
     colors: SliderColors,
     modifier: Modifier = Modifier,
 ) {
@@ -164,11 +164,7 @@ private fun TrackIcon(
             }
         }
     Box(modifier = modifier.layoutId(contents).fillMaxSize()) {
-        if (trackMeasurePolicy.isVisible(contents) != null) {
-            CompositionLocalProvider(LocalContentColor provides iconColor) {
-                icon(trackMeasurePolicy)
-            }
-        }
+        CompositionLocalProvider(LocalContentColor provides iconColor) { icon(state) }
     }
 }
 
@@ -180,27 +176,25 @@ private class TrackMeasurePolicy(
     private val isVertical: Boolean,
 ) : MeasurePolicy, SliderIconsState {
 
-    private val isVisible: Map<Contents, MutableState<Boolean?>> =
+    private val isVisible: Map<Contents, MutableState<Boolean>> =
         mutableMapOf(
-            Contents.Active.TrackStartIcon to mutableStateOf(null),
-            Contents.Active.TrackEndIcon to mutableStateOf(null),
-            Contents.Inactive.TrackStartIcon to mutableStateOf(null),
-            Contents.Inactive.TrackEndIcon to mutableStateOf(null),
+            Contents.Active.TrackStartIcon to mutableStateOf(false),
+            Contents.Active.TrackEndIcon to mutableStateOf(false),
+            Contents.Inactive.TrackStartIcon to mutableStateOf(false),
+            Contents.Inactive.TrackEndIcon to mutableStateOf(false),
         )
 
-    fun isVisible(contents: Contents): Boolean? = isVisible.getValue(contents.resolve()).value
-
     override val isActiveTrackStartIconVisible: Boolean
-        get() = isVisible(Contents.Active.TrackStartIcon)!!
+        get() = isVisible.getValue(Contents.Active.TrackStartIcon.resolve()).value
 
     override val isActiveTrackEndIconVisible: Boolean
-        get() = isVisible(Contents.Active.TrackEndIcon)!!
+        get() = isVisible.getValue(Contents.Active.TrackEndIcon.resolve()).value
 
     override val isInactiveTrackStartIconVisible: Boolean
-        get() = isVisible(Contents.Inactive.TrackStartIcon)!!
+        get() = isVisible.getValue(Contents.Inactive.TrackStartIcon.resolve()).value
 
     override val isInactiveTrackEndIconVisible: Boolean
-        get() = isVisible(Contents.Inactive.TrackEndIcon)!!
+        get() = isVisible.getValue(Contents.Inactive.TrackEndIcon.resolve()).value
 
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
@@ -258,7 +252,8 @@ private class TrackMeasurePolicy(
 
                 // isVisible is only relevant for the icons
                 if (iconLayoutId != Contents.Track) {
-                    val isIconVisible =
+                    val isVisibleState = isVisible.getValue(iconLayoutId)
+                    val newIsVisible =
                         iconLayoutId.isVisible(
                             placeableDimension =
                                 if (isVertical) iconPlaceable.height else iconPlaceable.width,
@@ -266,7 +261,9 @@ private class TrackMeasurePolicy(
                             gapSize = gapSizePx,
                             coercedValueAsFraction = coercedValueAsFraction,
                         )
-                    isVisible.getValue(iconLayoutId).value = isIconVisible
+                    if (isVisibleState.value != newIsVisible) {
+                        isVisibleState.value = newIsVisible
+                    }
                 }
             }
         }
