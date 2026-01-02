@@ -542,6 +542,8 @@ android_library {
         "displaylib",
         "aconfig_settings_flags_lib",
         "vendor.lineage.powershare-V1-java",
+        "smartspace-proto-java",
+        "smartspace-proto-lite-java",
     ],
     libs: [
         "keepanno-annotations",
