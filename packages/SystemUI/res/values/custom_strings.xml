@@ -124,5 +124,4 @@
 
     <!-- Face unlock -->
     <string name="face_unlock_recognizing">Recognizing face...</string>
-
 </resources>
