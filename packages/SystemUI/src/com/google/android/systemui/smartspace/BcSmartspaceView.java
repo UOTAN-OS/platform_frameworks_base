@@ -6,6 +6,7 @@ import android.app.smartspace.SmartspaceTargetEvent;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.ContentObserver;
+import android.graphics.drawable.Drawable;
 import android.os.Debug;
 import android.os.Handler;
 import android.os.Parcelable;
@@ -675,6 +676,12 @@ public class BcSmartspaceView extends FrameLayout implements BcSmartspaceDataPlu
             mPagerDots.invalidate();
         }
     }
+
+    @Override
+    public final void setNextAlarm(Drawable image, String description) {}
+
+    @Override
+    public final void setDnd(Drawable image, String description) {}
 
     @Override
     public final void setScreenOn(boolean screenOn) {
