@@ -14,7 +14,9 @@ import com.android.systemui.statusbar.policy.NextAlarmControllerImpl
 import com.android.systemui.statusbar.policy.ZenModeController
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.statusbar.policy.domain.model.ZenModeInfo
-import com.android.systemui.res.R;
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.res.R
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -33,8 +35,8 @@ constructor(
     val alarmManager: AlarmManager,
     val nextAlarmController: NextAlarmControllerImpl,
     val handler: Handler,
-    val applicationScope: CoroutineScope,
-    val bgDispatcher: CoroutineDispatcher,
+    @Application val applicationScope: CoroutineScope,
+    @Background val bgDispatcher: CoroutineDispatcher,
 ) {
     lateinit var alarmImage: Drawable
     val smartspaceViews = mutableSetOf<BcSmartspaceDataPlugin.SmartspaceView>()
