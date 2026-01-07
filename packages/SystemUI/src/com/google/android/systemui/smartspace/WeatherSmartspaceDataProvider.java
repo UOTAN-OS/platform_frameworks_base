@@ -1,15 +1,12 @@
 package com.google.android.systemui.smartspace;
 
 import android.app.smartspace.SmartspaceTarget;
-import android.content.Context;
-import android.os.Debug;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
 import com.android.systemui.plugins.BcSmartspaceDataPlugin;
-
 import com.android.systemui.res.R;
 
 import java.util.ArrayList;
@@ -29,15 +26,15 @@ public final class WeatherSmartspaceDataProvider implements BcSmartspaceDataPlug
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(Context context) {
-        View view = LayoutInflater.from(context).inflate(R.layout.weather_large, (ViewGroup) null, false);
+    public final BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(ViewGroup parent) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.weather_large, parent, false);
         view.setId(R.id.weather_smartspace_view_large);
         return (BcSmartspaceDataPlugin.SmartspaceView) view;
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getView(Context context) {
-        return (BcSmartspaceDataPlugin.SmartspaceView) LayoutInflater.from(context).inflate(R.layout.weather, (ViewGroup) null, false);
+    public final BcSmartspaceDataPlugin.SmartspaceView getView(ViewGroup parent) {
+        return (BcSmartspaceDataPlugin.SmartspaceView) LayoutInflater.from(parent.getContext()).inflate(R.layout.weather, parent, false);
     }
 
     @Override
