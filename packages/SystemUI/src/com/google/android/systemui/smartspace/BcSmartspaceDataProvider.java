@@ -1,8 +1,6 @@
 package com.google.android.systemui.smartspace;
 
 import android.app.smartspace.SmartspaceTarget;
-import android.content.Context;
-import android.os.Debug;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,7 +10,6 @@ import com.android.systemui.res.R;
 import com.android.systemui.plugins.BcSmartspaceConfigPlugin;
 import com.android.systemui.plugins.BcSmartspaceDataPlugin;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -69,12 +66,12 @@ public final class BcSmartspaceDataProvider implements BcSmartspaceDataPlugin {
     }
 
     @Override
-    public BcSmartspaceDataPlugin.SmartspaceView getView(Context context) {
+    public BcSmartspaceDataPlugin.SmartspaceView getView(ViewGroup parent) {
         int layoutId = mConfigProvider.isViewPager2Enabled()
                 ? R.layout.smartspace_enhanced2
                 : R.layout.smartspace_enhanced;
 
-        View view = LayoutInflater.from(context).inflate(layoutId, (ViewGroup) null, false);
+        View view = LayoutInflater.from(parent.getContext()).inflate(layoutId, parent, false);
         view.addOnAttachStateChangeListener(mStateChangeListener);
 
         // Explicitly register data provider.
@@ -87,9 +84,14 @@ public final class BcSmartspaceDataProvider implements BcSmartspaceDataPlugin {
     }
 
     @Override
+    public BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(ViewGroup parent) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
+
+    @Override
     public void onTargetsAvailable(List<SmartspaceTarget> list) {
         if (DEBUG) {
-            Log.d("BcSmartspaceDataPlugin", this + " onTargetsAvailable called. Callers = " + Debug.getCallers(3));
+            Log.d("BcSmartspaceDataPlugin", this + " onTargetsAvailable called. Callers = " + android.os.Debug.getCallers(3));
             Log.d("BcSmartspaceDataPlugin", "    targets.size() = " + list.size());
         }
 
