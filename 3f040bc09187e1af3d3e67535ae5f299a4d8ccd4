@@ -34,6 +34,23 @@
       "parentUuid": "f3f084aa_e4d4e900",
       "revId": "3f040bc09187e1af3d3e67535ae5f299a4d8ccd4",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "a23191e0_2ce27a44",
+        "filename": "packages/SystemUI/src/com/android/systemui/dagger/SystemUIModule.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 410,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2026-01-07T23:39:40Z",
+      "side": 1,
+      "message": "Fix typo",
+      "revId": "3f040bc09187e1af3d3e67535ae5f299a4d8ccd4",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
