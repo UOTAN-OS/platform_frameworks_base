@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "f80e5619_4f78f672",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2026-01-07T23:38:31Z",
+      "side": 1,
+      "message": "I don’t see why this is needed when we will only ship smartspace. Unless we decide to provide a toggle to disable smartspace, this shouldn’t be merged.",
+      "revId": "40c00a79d88c865f1d9f15a6ec35da6d4990660c",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
