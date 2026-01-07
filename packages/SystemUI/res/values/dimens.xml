@@ -1575,7 +1575,7 @@
 
     <dimen name="screenrecord_title_margin_top">20dp</dimen>
     <dimen name="screenrecord_warning_line_height">20dp</dimen>
-    <dimen name="screenrecord_options_padding_bottom">16dp</dimen>
+    <dimen name="screenrecord_options_padding_bottom">20dp</dimen>
     <dimen name="screenrecord_buttons_margin_top">20dp</dimen>
 
     <!-- Connected display dialog -->
