@@ -28,16 +28,16 @@ public final class WeatherSmartspaceDataProvider implements BcSmartspaceDataPlug
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(Context context) {
-        View view = LayoutInflater.from(context).inflate(
+    public final BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(ViewGroup parent) {
+        View view = LayoutInflater.from(parent.getContext()).inflate(
                 R.layout.weather_large, (ViewGroup) null, false);
         view.setId(R.id.weather_smartspace_view_large);
         return (BcSmartspaceDataPlugin.SmartspaceView) view;
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getView(Context context) {
-        return (BcSmartspaceDataPlugin.SmartspaceView) LayoutInflater.from(context).inflate(
+    public final BcSmartspaceDataPlugin.SmartspaceView getView(ViewGroup parent) {
+        return (BcSmartspaceDataPlugin.SmartspaceView) LayoutInflater.from(getContext()).inflate(
                 R.layout.weather, (ViewGroup) null, false);
     }
 
