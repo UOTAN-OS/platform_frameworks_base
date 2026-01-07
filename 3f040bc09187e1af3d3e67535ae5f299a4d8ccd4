@@ -16,6 +16,24 @@
       "message": "Comment says its from BP4A.",
       "revId": "3f040bc09187e1af3d3e67535ae5f299a4d8ccd4",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e54cf0e0_ba195286",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000053
+      },
+      "writtenOn": "2026-01-07T10:16:15Z",
+      "side": 1,
+      "message": "Works on BP3A with the fix build commit nevertheless.\nhttps://t.me/charcoalchat/13896\nMoreover, I don\u0027t see much difference in smartspace between BP3A and BP4A.",
+      "parentUuid": "f3f084aa_e4d4e900",
+      "revId": "3f040bc09187e1af3d3e67535ae5f299a4d8ccd4",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
