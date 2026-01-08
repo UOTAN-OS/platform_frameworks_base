@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "da73f4e1_94bec648",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000053
+      },
+      "writtenOn": "2026-01-08T12:09:09Z",
+      "side": 1,
+      "message": "We\u0027re implementing the new smartspace",
+      "revId": "2eeacbafd66622c1338861f6a039fb505a0d8758",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
