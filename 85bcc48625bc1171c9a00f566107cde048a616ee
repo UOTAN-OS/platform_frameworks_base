@@ -16,6 +16,24 @@
       "message": "Only update the things that requires changes. Keep diffs as minimal as possible, and avoid renaming just for the sake of aligning with updated APIs.",
       "revId": "85bcc48625bc1171c9a00f566107cde048a616ee",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "477fca75_55007f2e",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-01-08T07:40:15Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "ed006540_cbbaf152",
+      "revId": "85bcc48625bc1171c9a00f566107cde048a616ee",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
