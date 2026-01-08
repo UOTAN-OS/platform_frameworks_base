@@ -16,9 +16,7 @@ public abstract class InstanceId {
     }
 
     public static int create(String str) {
-        if (str != null && !str.isEmpty()) {
-            return SmallHash.hash(str);
-        }
-        return SmallHash.hash(UUID.randomUUID().toString());
+        return (str == null || str.isEmpty()) ? SmallHash.hash(UUID.randomUUID().toString())
+                                              : SmallHash.hash(str);
     }
 }

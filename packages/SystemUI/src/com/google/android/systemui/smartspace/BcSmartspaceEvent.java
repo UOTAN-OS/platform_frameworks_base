@@ -12,10 +12,11 @@ public enum BcSmartspaceEvent {
 
     private final int mId;
 
-    BcSmartspaceEvent(int i) {
-        mId = i;
+    BcSmartspaceEvent(int id) {
+        this.mId = id;
     }
-    public final int getId() {
+
+    public int getId() {
         return mId;
     }
 }

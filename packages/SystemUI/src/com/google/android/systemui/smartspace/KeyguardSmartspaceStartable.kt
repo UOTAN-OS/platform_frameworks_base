@@ -1,3 +1,7 @@
+/*
+ * Copyright (C) 2025 auroraOSP
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package com.google.android.systemui.smartspace
 
 import com.android.systemui.CoreStartable
@@ -8,22 +12,51 @@ import kotlinx.coroutines.launch
 class KeyguardSmartspaceStartable
 @Inject
 constructor(
-    private val zenController: KeyguardZenAlarmViewController,
-    private val mediaController: KeyguardMediaViewController,
-    private val initializationChecker: InitializationChecker,
+    val zenController: KeyguardZenAlarmViewController,
+    val mediaController: KeyguardMediaViewController,
+    val initializationChecker: InitializationChecker,
 ) : CoreStartable {
 
     override fun start() {
-        if (initializationChecker.initializeComponents()) {
-            zenController.datePlugin.addOnAttachStateChangeListener(
-                zenController.attachStateChangeListener
-            )
-
-            zenController.applicationScope.launch { zenController.updateNextAlarm() }
-
-            mediaController.plugin.addOnAttachStateChangeListener(
-                mediaController.attachStateChangeListener
-            )
+        if (!initializationChecker.initializeComponents()) {
+            return
         }
+
+        zenController.datePlugin.addOnAttachStateChangeListener(
+            object : android.view.View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: android.view.View) {
+                    zenController.onViewAttachedToWindow(v)
+                }
+
+                override fun onViewDetachedFromWindow(v: android.view.View) {
+                    zenController.onViewDetachedFromWindow(v)
+                }
+            }
+        )
+
+        with(zenController.nextClockAlarmController) {
+            if (isUserUnlocked()) {
+                updateSession(userTracker.userContext)
+            }
+            dumpManager.registerNormalDumpable(TAG, this)
+            userTracker.addCallback(userChangedCallback, mainExecutor)
+            applicationScope.launch { zenController.updateNextAlarm() }
+        }
+
+        mediaController.plugin.addOnAttachStateChangeListener(
+            object : android.view.View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: android.view.View) {
+                    mediaController.onViewAttachedToWindow(v)
+                }
+
+                override fun onViewDetachedFromWindow(v: android.view.View) {
+                    mediaController.onViewDetachedFromWindow(v)
+                }
+            }
+        )
+    }
+
+    companion object {
+        const val TAG = "NextClockAlarmCtlr"
     }
 }

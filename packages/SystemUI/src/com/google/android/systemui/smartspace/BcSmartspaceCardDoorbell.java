@@ -8,7 +8,6 @@ import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.graphics.ImageDecoder;
 import android.graphics.Path;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -99,7 +98,9 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
 
     public void maybeUpdateLayoutHeight(Bundle extras, View view, String key) {
         if (extras.containsKey(key)) {
-            float density = getContext().getResources().getDisplayMetrics().density;
+            Resources res = getContext().getResources();
+            DisplayMetrics dm = res.getDisplayMetrics();
+            float density = dm.density;
             ViewGroup.LayoutParams params = view.getLayoutParams();
             params.height = (int) (extras.getInt(key) * density);
         }
@@ -107,15 +108,16 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
 
     public void maybeUpdateLayoutWidth(Bundle extras, View view, String key) {
         if (extras.containsKey(key)) {
-            float density = getContext().getResources().getDisplayMetrics().density;
+            Resources res = getContext().getResources();
+            DisplayMetrics dm = res.getDisplayMetrics();
+            float density = dm.density;
             ViewGroup.LayoutParams params = view.getLayoutParams();
             params.width = (int) (extras.getInt(key) * density);
         }
     }
 
-    @Override
     public boolean setSmartspaceActions(SmartspaceTarget target,
-            BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier,
+            BcSmartspaceDataPlugin.SmartspaceEventNotifier notifier,
             BcSmartspaceCardLoggingInfo loggingInfo) {
         if (!getContext().getPackageName().equals("com.android.systemui")) {
             return false;
@@ -124,11 +126,13 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
         SmartspaceAction baseAction = target.getBaseAction();
         Bundle extras = baseAction != null ? baseAction.getExtras() : null;
 
-        List<Uri> imageUris =
+        List<String> imageUris =
                 target.getIconGrid()
                         .stream()
                         .filter(action -> action.getExtras().containsKey("imageUri"))
-                        .map(action -> Uri.parse(action.getExtras().getString("imageUri")))
+                        .map(action -> action.getExtras().getString("imageUri"))
+                        .map(Uri::parse)
+                        .map(Uri::toString)
                         .collect(Collectors.toList());
 
         if (!imageUris.isEmpty()) {
@@ -136,13 +140,16 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
                 mGifFrameDurationInMs = extras.getInt("frameDurationMs");
             }
 
-            Set<Uri> newUris = imageUris.stream()
-                                       .filter(uri -> !mUriToDrawable.containsKey(uri))
-                                       .collect(Collectors.toSet());
+            List<Uri> uris = imageUris.stream().map(Uri::parse).collect(Collectors.toList());
+            Set<Uri> uriSet = uris.stream()
+                                      .filter(uri -> !mUriToDrawable.containsKey(uri))
+                                      .collect(Collectors.toSet());
 
-            if (!newUris.isEmpty()) {
-                mLatencyInstrumentContext.mUriSet.addAll(newUris);
-                mLatencyInstrumentContext.mLatencyTracker.onActionStart(22);
+            if (!uriSet.isEmpty()) {
+                mLatencyInstrumentContext.mUriSet.addAll(uriSet);
+                if (!mLatencyInstrumentContext.mUriSet.isEmpty()) {
+                    mLatencyInstrumentContext.mLatencyTracker.onActionStart(22);
+                }
             }
 
             maybeResetImageView(target);
@@ -159,16 +166,13 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
             WeakReference<ViewGroup> loadingScreenRef = new WeakReference<>(mLoadingScreenView);
 
             List<DrawableWithUri> drawables =
-                    imageUris.stream()
+                    uris.stream()
                             .map(uri -> {
-                                DrawableWithUri drawable =
-                                        mUriToDrawable.computeIfAbsent(uri, u -> {
-                                            DrawableWithUri d = new DrawableWithUri(u,
-                                                    contentResolver, height, cornerRadius,
-                                                    imageViewRef, loadingScreenRef);
-                                            new LoadUriTask(mLatencyInstrumentContext).execute(d);
-                                            return d;
-                                        });
+                                DrawableWithUri drawable = mUriToDrawable.computeIfAbsent(uri,
+                                        k
+                                        -> new DrawableWithUri(uri, contentResolver, height,
+                                                cornerRadius, imageViewRef, loadingScreenRef));
+                                new LoadUriTask(mLatencyInstrumentContext).execute(drawable);
                                 return drawable;
                             })
                             .filter(Objects::nonNull)
@@ -191,16 +195,16 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
                 int height =
                         (int) getResources().getDimension(R.dimen.enhanced_smartspace_card_height);
                 float aspectRatio = (float) bitmap.getWidth() / bitmap.getHeight();
-                bitmap = Bitmap.createScaledBitmap(
-                        bitmap, (int) (height * aspectRatio), height, true);
-
-                RoundedBitmapDrawable drawable =
-                        RoundedBitmapDrawableFactory.create(getResources(), bitmap);
-                drawable.setCornerRadius(getResources().getDimension(
-                        R.dimen.enhanced_smartspace_secondary_card_corner_radius));
-                mImageView.setImageDrawable(drawable);
-                Log.d(TAG, "imageBitmap is set");
+                int width = (int) (height * aspectRatio);
+                bitmap = Bitmap.createScaledBitmap(bitmap, width, height, true);
             }
+
+            Resources res = getResources();
+            RoundedBitmapDrawable drawable = RoundedBitmapDrawableFactory.create(res, bitmap);
+            drawable.setCornerRadius(
+                    res.getDimension(R.dimen.enhanced_smartspace_secondary_card_corner_radius));
+            mImageView.setImageDrawable(drawable);
+            Log.d(TAG, "imageBitmap is set");
             return true;
         } else if (extras != null && extras.containsKey("loadingScreenState")) {
             int state = extras.getInt("loadingScreenState");
@@ -225,7 +229,7 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
                     ColorStateList.valueOf(getContext().getColor(R.color.smartspace_button_text)));
 
             boolean progressBarVisible =
-                    (state == 1 || (state == 4 && extras.getBoolean("progressBarVisible", true)));
+                    state == 1 || (state == 4 && extras.getBoolean("progressBarVisible", true));
             BcSmartspaceTemplateDataUtils.updateVisibility(
                     mProgressBar, progressBarVisible ? View.VISIBLE : View.GONE);
 
@@ -237,7 +241,8 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
                 mLoadingIcon.setImageDrawable(getContext().getDrawable(R.drawable.videocam_off));
                 iconVisible = true;
             } else if (state == 4 && extras.containsKey("loadingScreenIcon")) {
-                mLoadingIcon.setImageBitmap((Bitmap) extras.get("loadingScreenIcon"));
+                Bitmap iconBitmap = (Bitmap) extras.get("loadingScreenIcon");
+                mLoadingIcon.setImageBitmap(iconBitmap);
                 if (extras.getBoolean("tintLoadingIcon", false)) {
                     mLoadingIcon.setColorFilter(
                             getContext().getColor(R.color.smartspace_button_text));
@@ -325,16 +330,18 @@ public class BcSmartspaceCardDoorbell extends BcSmartspaceCardGenericImage {
             DrawableWithUri drawable = params[0];
             try (InputStream inputStream =
                             drawable.mContentResolver.openInputStream(drawable.mUri)) {
-                ImageDecoder.Source source =
-                        ImageDecoder.createSource((Resources) null, inputStream);
-                drawable.mDrawable = ImageDecoder.decodeDrawable(source, (decoder, info, src) -> {
-                    decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
-                    int height = drawable.mHeightInPx;
-                    float aspectRatio = info.getSize().getHeight() != 0
-                            ? (float) info.getSize().getWidth() / info.getSize().getHeight()
-                            : 0;
-                    decoder.setTargetSize((int) (height * aspectRatio), height);
-                });
+                android.graphics.ImageDecoder.Source source =
+                        android.graphics.ImageDecoder.createSource(null, inputStream);
+                drawable.mDrawable = android.graphics.ImageDecoder.decodeDrawable(
+                        source, (decoder, info, src) -> {
+                            decoder.setAllocator(android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE);
+                            int height = drawable.mHeightInPx;
+                            float aspectRatio = info.getSize().getHeight() != 0
+                                    ? (float) info.getSize().getWidth() / info.getSize().getHeight()
+                                    : 0;
+                            int width = (int) (height * aspectRatio);
+                            decoder.setTargetSize(width, height);
+                        });
             } catch (IOException e) {
                 Log.e(TAG, "Unable to decode stream: " + e);
             } catch (Exception e) {

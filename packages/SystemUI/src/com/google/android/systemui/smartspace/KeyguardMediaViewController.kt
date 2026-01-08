@@ -7,7 +7,6 @@ import android.content.Context
 import android.media.MediaMetadata
 import android.os.UserHandle
 import android.text.TextUtils
-import android.view.View
 import com.android.systemui.media.NotificationMediaManager
 import com.android.systemui.plugins.BcSmartspaceDataPlugin
 import com.android.systemui.res.R
@@ -19,16 +18,15 @@ class KeyguardMediaViewController
 @Inject
 constructor(
     val context: Context,
-    val mediaManager: NotificationMediaManager,
-    val plugin: BcSmartspaceDataPlugin,
     val userTracker: UserTracker,
+    val plugin: BcSmartspaceDataPlugin,
     val uiExecutor: DelayableExecutor,
+    val mediaManager: NotificationMediaManager,
 ) {
+    var smartspaceView: BcSmartspaceDataPlugin.SmartspaceView? = null
     var title: CharSequence? = null
     var artist: CharSequence? = null
-    var smartspaceView: BcSmartspaceDataPlugin.SmartspaceView? = null
-    lateinit var mediaComponent: ComponentName
-
+    val mediaComponent = ComponentName(context, KeyguardMediaViewController::class.java)
     val mediaListener =
         object : NotificationMediaManager.MediaListener {
             override fun onPrimaryMetadataOrStateChanged(metadata: MediaMetadata?, state: Int) {
@@ -36,42 +34,34 @@ constructor(
             }
         }
 
-    val attachStateChangeListener =
-        object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(view: View) {
-                smartspaceView = view as? BcSmartspaceDataPlugin.SmartspaceView
-                mediaManager.addCallback(mediaListener)
-            }
-
-            override fun onViewDetachedFromWindow(view: View) {
-                smartspaceView = null
-                mediaManager.removeCallback(mediaListener)
-            }
-        }
-
-    private fun updateMediaInfo(metadata: MediaMetadata?, state: Int) {
+    fun updateMediaInfo(metadata: MediaMetadata?, state: Int) {
         if (!NotificationMediaManager.isPlayingState(state)) {
-            clearMedia()
+            title = null
+            artist = null
+            smartspaceView?.setMediaTarget(null)
             return
         }
-
         val newTitle =
             metadata?.let {
-                it.getText(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-                    ?: it.getText(MediaMetadata.METADATA_KEY_TITLE)
-                    ?: context.resources.getString(R.string.music_controls_no_title)
+                val displayTitle = it.getText(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
+                if (TextUtils.isEmpty(displayTitle)) {
+                    it.getText(MediaMetadata.METADATA_KEY_TITLE)
+                } else {
+                    displayTitle
+                } ?: context.resources.getString(R.string.music_controls_no_title)
             }
-
         val newArtist = metadata?.getText(MediaMetadata.METADATA_KEY_ARTIST)
-
         if (TextUtils.equals(title, newTitle) && TextUtils.equals(artist, newArtist)) {
             return
         }
-
         title = newTitle
         artist = newArtist
-
         if (newTitle != null) {
+            val action =
+                SmartspaceAction.Builder("deviceMediaTitle", newTitle.toString())
+                    .setSubtitle(newArtist)
+                    .setIcon(mediaManager.getMediaIcon())
+                    .build()
             val target =
                 SmartspaceTarget.Builder(
                         "deviceMedia",
@@ -79,23 +69,24 @@ constructor(
                         UserHandle.of(userTracker.userId),
                     )
                     .setFeatureType(SmartspaceTarget.FEATURE_MEDIA)
-                    .setHeaderAction(
-                        SmartspaceAction.Builder("deviceMediaTitle", newTitle.toString())
-                            .setSubtitle(artist)
-                            .setIcon(mediaManager.getMediaIcon())
-                            .build()
-                    )
+                    .setHeaderAction(action)
                     .build()
-
-            smartspaceView?.setMediaTarget(target) ?: clearMedia()
+            smartspaceView?.setMediaTarget(target)
         } else {
-            clearMedia()
+            title = null
+            artist = null
+            smartspaceView?.setMediaTarget(null)
         }
     }
 
-    private fun clearMedia() {
-        title = null
-        artist = null
-        smartspaceView?.setMediaTarget(null)
+    fun onViewAttachedToWindow(v: android.view.View) {
+        smartspaceView = v as BcSmartspaceDataPlugin.SmartspaceView
+        mediaManager.addCallback(mediaListener)
+        mediaManager.findAndUpdateMediaNotifications()
+    }
+
+    fun onViewDetachedFromWindow(v: android.view.View) {
+        smartspaceView = null
+        mediaManager.removeCallback(mediaListener)
     }
 }

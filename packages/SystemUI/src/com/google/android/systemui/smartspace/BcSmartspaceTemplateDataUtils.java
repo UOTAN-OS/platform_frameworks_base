@@ -24,10 +24,11 @@ public abstract class BcSmartspaceTemplateDataUtils {
     public static void offsetTextViewForIcon(
             TextView textView, DoubleShadowIconDrawable iconDrawable, boolean isRtl) {
         if (iconDrawable == null) {
-            textView.setTranslationX(0.0f);
-        } else {
-            textView.setTranslationX((isRtl ? 1 : -1) * iconDrawable.mIconInsetSize);
+            textView.setTranslationX(0f);
+            return;
         }
+        int direction = isRtl ? 1 : -1;
+        textView.setTranslationX(direction * iconDrawable.mIconInsetSize);
     }
 
     public static void setIcon(ImageView imageView, Icon icon) {
@@ -38,7 +39,9 @@ public abstract class BcSmartspaceTemplateDataUtils {
         if (icon == null) {
             Log.w("BcSmartspaceTemplateDataUtils", "Cannot set. The given icon is null");
             updateVisibility(imageView, View.GONE);
+            return;
         }
+
         imageView.setImageIcon(icon.getIcon());
         if (icon.getContentDescription() != null) {
             imageView.setContentDescription(icon.getContentDescription());
@@ -53,17 +56,17 @@ public abstract class BcSmartspaceTemplateDataUtils {
         if (SmartspaceUtils.isEmpty(text)) {
             Log.w("BcSmartspaceTemplateDataUtils", "Cannot set. The given text is empty");
             updateVisibility(textView, View.GONE);
-        } else {
-            textView.setText(text.getText());
-            textView.setEllipsize(text.getTruncateAtType());
-            textView.setMaxLines(text.getMaxLines());
+            return;
         }
+
+        textView.setText(text.getText());
+        textView.setEllipsize(text.getTruncateAtType());
+        textView.setMaxLines(text.getMaxLines());
     }
 
     public static void updateVisibility(View view, int visibility) {
-        if (view == null || view.getVisibility() == visibility) {
-            return;
+        if (view != null && view.getVisibility() != visibility) {
+            view.setVisibility(visibility);
         }
-        view.setVisibility(visibility);
     }
 }
