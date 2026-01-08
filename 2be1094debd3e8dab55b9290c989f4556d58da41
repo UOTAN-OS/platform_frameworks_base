@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "fd52fd9b_61b6b268",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-01-08T06:38:22Z",
+      "side": 1,
+      "message": "Sorry but I think we should depend on SettingsLib themes instead.",
+      "revId": "2be1094debd3e8dab55b9290c989f4556d58da41",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
