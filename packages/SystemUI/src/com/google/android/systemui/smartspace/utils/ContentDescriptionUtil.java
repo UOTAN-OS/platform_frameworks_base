@@ -16,8 +16,8 @@ public abstract class ContentDescriptionUtil {
                 : view.getContext().getString(R.string.generic_smartspace_concatenated_desc,
                           charSequence2, charSequence);
         Log.i(str,
-                String.format("setFormattedContentDescription: text=%s, iconDescription=%s, "
-                                + "contentDescription=%s",
+                String.format("setFormattedContentDescription: text=%s, iconDescription=%s,"
+                                + " contentDescription=%s",
                         Arrays.copyOf(new Object[] {charSequence, charSequence2, string}, 3)));
         view.setContentDescription(string);
     }

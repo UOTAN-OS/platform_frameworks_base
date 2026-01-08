@@ -21,18 +21,22 @@ import com.google.android.systemui.smartspace.logging.BcSmartspaceCardLoggerUtil
 import com.google.android.systemui.smartspace.logging.BcSmartspaceCardLoggingInfo;
 
 public class HeadToHeadTemplateCard extends BcSmartspaceCardSecondary {
-    public ImageView mFirstCompetitorIcon;
-    public TextView mFirstCompetitorText;
     public TextView mHeadToHeadTitle;
-    public ImageView mSecondCompetitorIcon;
+    public TextView mFirstCompetitorText;
     public TextView mSecondCompetitorText;
+    public ImageView mFirstCompetitorIcon;
+    public ImageView mSecondCompetitorIcon;
 
     public HeadToHeadTemplateCard(Context context) {
         super(context);
     }
 
+    public HeadToHeadTemplateCard(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
     @Override
-    public final void onFinishInflate() {
+    protected void onFinishInflate() {
         super.onFinishInflate();
         mHeadToHeadTitle = findViewById(R.id.head_to_head_title);
         mFirstCompetitorText = findViewById(R.id.first_competitor_text);
@@ -42,7 +46,7 @@ public class HeadToHeadTemplateCard extends BcSmartspaceCardSecondary {
     }
 
     @Override
-    public final void resetUi() {
+    public void resetUi() {
         BcSmartspaceTemplateDataUtils.updateVisibility(mHeadToHeadTitle, View.GONE);
         BcSmartspaceTemplateDataUtils.updateVisibility(mFirstCompetitorText, View.GONE);
         BcSmartspaceTemplateDataUtils.updateVisibility(mSecondCompetitorText, View.GONE);
@@ -127,12 +131,8 @@ public class HeadToHeadTemplateCard extends BcSmartspaceCardSecondary {
     }
 
     @Override
-    public final void setTextColor(int color) {
+    public void setTextColor(int color) {
         mFirstCompetitorText.setTextColor(color);
         mSecondCompetitorText.setTextColor(color);
-    }
-
-    public HeadToHeadTemplateCard(Context context, AttributeSet attrs) {
-        super(context, attrs);
     }
 }

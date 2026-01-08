@@ -91,7 +91,8 @@ public final class BcSmartspaceCardLoggingInfo {
         this.mDimensionalInfo = builder.mDimensionalInfo;
     }
 
-    public final boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
@@ -106,16 +107,33 @@ public final class BcSmartspaceCardLoggingInfo {
                 && Objects.equals(mDimensionalInfo, other.mDimensionalInfo);
     }
 
-    public final int hashCode() {
+    @Override
+    public int hashCode() {
         return Objects.hash(mInstanceId, mDisplaySurface, mRank, mCardinality, mFeatureType,
-                mReceivedLatency, mUid, mSubcardInfo);
+                mReceivedLatency, mUid, mSubcardInfo, mDimensionalInfo);
     }
 
-    public final String toString() {
-        return "instance_id = " + mInstanceId + ", feature type = " + mFeatureType
-                + ", display surface = " + mDisplaySurface + ", rank = " + mRank
-                + ", cardinality = " + mCardinality
-                + ", receivedLatencyMillis = " + mReceivedLatency + ", uid = " + mUid
-                + ", subcardInfo = " + mSubcardInfo + ", dimensionalInfo = " + mDimensionalInfo;
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("instance_id = ")
+                .append(mInstanceId)
+                .append(", feature type = ")
+                .append(mFeatureType)
+                .append(", display surface = ")
+                .append(mDisplaySurface)
+                .append(", rank = ")
+                .append(mRank)
+                .append(", cardinality = ")
+                .append(mCardinality)
+                .append(", receivedLatencyMillis = ")
+                .append(mReceivedLatency)
+                .append(", uid = ")
+                .append(mUid)
+                .append(", subcardInfo = ")
+                .append(mSubcardInfo)
+                .append(", dimensionalInfo = ")
+                .append(mDimensionalInfo);
+        return sb.toString();
     }
 }

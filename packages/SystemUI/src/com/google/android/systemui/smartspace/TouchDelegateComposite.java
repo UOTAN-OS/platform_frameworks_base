@@ -10,18 +10,18 @@ import java.util.ArrayList;
 import java.util.Iterator;
 
 public final class TouchDelegateComposite extends TouchDelegate {
-    public ArrayList mDelegates;
+    public final ArrayList mDelegates;
 
-    public TouchDelegateComposite(Rect rect, BaseTemplateCard baseTemplateCard) {
-        super(rect, baseTemplateCard);
-        mDelegates = new ArrayList();
+    public TouchDelegateComposite(BaseTemplateCard baseTemplateCard) {
+        super(new Rect(), baseTemplateCard);
+        this.mDelegates = new ArrayList();
     }
 
     @Override
     public final boolean onTouchEvent(MotionEvent motionEvent) {
         float x = motionEvent.getX();
         float y = motionEvent.getY();
-        Iterator it = mDelegates.iterator();
+        Iterator it = this.mDelegates.iterator();
         while (it.hasNext()) {
             TouchDelegate touchDelegate = (TouchDelegate) it.next();
             motionEvent.setLocation(x, y);

@@ -1,5 +1,6 @@
 package com.google.android.systemui.smartspace;
 
+import android.app.smartspace.SmartspaceTargetEvent;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,15 +15,23 @@ import java.util.Set;
 
 public final class DateSmartspaceDataProvider implements BcSmartspaceDataPlugin {
     public Set<View.OnAttachStateChangeListener> mAttachListeners = new HashSet<>();
-    public EventNotifierProxy mEventNotifier = new EventNotifierProxy();
-    public final View.OnAttachStateChangeListener mStateChangeListener = new StateChangeListener();
+    public BcSmartspaceDataPlugin.SmartspaceEventNotifier mEventNotifier;
+    public final View.OnAttachStateChangeListener mStateChangeListener =
+            new StateChangeListener(this);
     public Set<View> mViews = new HashSet<>();
 
-    public final class StateChangeListener implements View.OnAttachStateChangeListener {
+    public static class StateChangeListener implements View.OnAttachStateChangeListener {
+        public final DateSmartspaceDataProvider this$0;
+
+        public StateChangeListener(DateSmartspaceDataProvider provider) {
+            this.this$0 = provider;
+        }
+
         @Override
-        public final void onViewAttachedToWindow(View view) {
-            mViews.add(view);
-            Iterator<View.OnAttachStateChangeListener> iterator = mAttachListeners.iterator();
+        public void onViewAttachedToWindow(View view) {
+            this$0.mViews.add(view);
+            Iterator<View.OnAttachStateChangeListener> iterator =
+                    this$0.mAttachListeners.iterator();
             while (iterator.hasNext()) {
                 View.OnAttachStateChangeListener listener = iterator.next();
                 listener.onViewAttachedToWindow(view);
@@ -30,9 +39,10 @@ public final class DateSmartspaceDataProvider implements BcSmartspaceDataPlugin 
         }
 
         @Override
-        public final void onViewDetachedFromWindow(View view) {
-            mViews.remove(view);
-            Iterator<View.OnAttachStateChangeListener> iterator = mAttachListeners.iterator();
+        public void onViewDetachedFromWindow(View view) {
+            this$0.mViews.remove(view);
+            Iterator<View.OnAttachStateChangeListener> iterator =
+                    this$0.mAttachListeners.iterator();
             while (iterator.hasNext()) {
                 View.OnAttachStateChangeListener listener = iterator.next();
                 listener.onViewDetachedFromWindow(view);
@@ -41,7 +51,7 @@ public final class DateSmartspaceDataProvider implements BcSmartspaceDataPlugin 
     }
 
     @Override
-    public final void addOnAttachStateChangeListener(View.OnAttachStateChangeListener listener) {
+    public void addOnAttachStateChangeListener(View.OnAttachStateChangeListener listener) {
         mAttachListeners.add(listener);
         Iterator<View> iterator = mViews.iterator();
         while (iterator.hasNext()) {
@@ -51,35 +61,34 @@ public final class DateSmartspaceDataProvider implements BcSmartspaceDataPlugin 
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceEventNotifier getEventNotifier() {
-        return mEventNotifier;
-    }
-
-    @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(ViewGroup parent) {
-        View view = LayoutInflater.from(parent.getContext())
-                            .inflate(R.layout.date_plus_extras_large, (ViewGroup) null, false);
+    public BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(ViewGroup viewGroup) {
+        Context context = viewGroup.getContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        View view = inflater.inflate(R.layout.date_plus_extras_large, viewGroup, false);
         view.setId(R.id.date_smartspace_view_large);
-        view.addOnAttachStateChangeListener(this.mStateChangeListener);
+        view.addOnAttachStateChangeListener(mStateChangeListener);
         return (BcSmartspaceDataPlugin.SmartspaceView) view;
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getView(ViewGroup parent) {
-        View view = LayoutInflater.from(parent.getContext())
-                            .inflate(R.layout.date_plus_extras, (ViewGroup) null, false);
-        view.addOnAttachStateChangeListener(this.mStateChangeListener);
+    public BcSmartspaceDataPlugin.SmartspaceView getView(ViewGroup viewGroup) {
+        Context context = viewGroup.getContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        View view = inflater.inflate(R.layout.date_plus_extras, viewGroup, false);
+        view.addOnAttachStateChangeListener(mStateChangeListener);
         return (BcSmartspaceDataPlugin.SmartspaceView) view;
     }
 
     @Override
-    public final void setEventDispatcher(
-            BcSmartspaceDataPlugin.SmartspaceEventDispatcher eventDispatcher) {
-        mEventNotifier.eventDispatcher = eventDispatcher;
+    public void notifySmartspaceEvent(SmartspaceTargetEvent smartspaceTargetEvent) {
+        if (mEventNotifier != null) {
+            mEventNotifier.notifySmartspaceEvent(smartspaceTargetEvent);
+        }
     }
 
     @Override
-    public final void setIntentStarter(BcSmartspaceDataPlugin.IntentStarter intentStarter) {
-        mEventNotifier.intentStarterRef = intentStarter;
+    public void registerSmartspaceEventNotifier(
+            BcSmartspaceDataPlugin.SmartspaceEventNotifier smartspaceEventNotifier) {
+        mEventNotifier = smartspaceEventNotifier;
     }
 }

@@ -19,30 +19,32 @@ public class BcSmartspaceCardCombinationAtStore extends BcSmartspaceCardCombinat
         super(context);
     }
 
+    public BcSmartspaceCardCombinationAtStore(Context context, AttributeSet attributeSet) {
+        super(context, attributeSet);
+    }
+
     @Override
-    public final boolean setSmartspaceActions(SmartspaceTarget target,
-            BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier,
-            BcSmartspaceCardLoggingInfo loggingInfo) {
-        SmartspaceAction action;
-        List actionChips = target.getActionChips();
+    public final boolean setSmartspaceActions(SmartspaceTarget smartspaceTarget,
+            BcSmartspaceDataPlugin.SmartspaceEventNotifier smartspaceEventNotifier,
+            BcSmartspaceCardLoggingInfo bcSmartspaceCardLoggingInfo) {
+        SmartspaceAction smartspaceAction;
+        List actionChips = smartspaceTarget.getActionChips();
         if (actionChips == null || actionChips.isEmpty()
-                || (action = (SmartspaceAction) actionChips.get(0)) == null) {
+                || (smartspaceAction = (SmartspaceAction) actionChips.get(0)) == null) {
             return false;
         }
         ConstraintLayout constraintLayout = this.mFirstSubCard;
         boolean z = (constraintLayout instanceof BcSmartspaceCardShoppingList)
                 && ((BcSmartspaceCardShoppingList) constraintLayout)
-                           .setSmartspaceActions(target, eventNotifier, loggingInfo);
+                           .setSmartspaceActions(smartspaceTarget, smartspaceEventNotifier,
+                                   bcSmartspaceCardLoggingInfo);
         ConstraintLayout constraintLayout2 = this.mSecondSubCard;
         boolean z2 = constraintLayout2 != null
-                && fillSubCard(constraintLayout2, target, action, eventNotifier, loggingInfo);
+                && fillSubCard(constraintLayout2, smartspaceTarget, smartspaceAction,
+                        smartspaceEventNotifier, bcSmartspaceCardLoggingInfo);
         if (z) {
             this.mFirstSubCard.setBackgroundResource(R.drawable.bg_smartspace_combination_sub_card);
         }
         return z && z2;
-    }
-
-    public BcSmartspaceCardCombinationAtStore(Context context, AttributeSet attributeSet) {
-        super(context, attributeSet);
     }
 }

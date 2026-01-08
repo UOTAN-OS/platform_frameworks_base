@@ -3,7 +3,6 @@ package com.google.android.systemui.smartspace.logging;
 import android.util.StatsEvent;
 import android.util.StatsLog;
 
-import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.smartspace.SmartspaceProtoLite;
 
 import com.google.android.systemui.smartspace.BcSmartSpaceUtil;
@@ -15,7 +14,7 @@ import java.util.List;
 
 public abstract class BcSmartspaceCardLogger {
     static {
-        FalsingManager falsingManager = BcSmartSpaceUtil.sFalsingManager;
+        BcSmartSpaceUtil.sIntentStarter = null;
     }
 
     public static void log(BcSmartspaceEvent event, BcSmartspaceCardLoggingInfo loggingInfo) {

@@ -15,27 +15,27 @@ public abstract class BcSmartspaceCardSecondary extends ConstraintLayout {
 
     public BcSmartspaceCardSecondary(Context context) {
         super(context);
-        mPrevSmartspaceTargetId = "";
+        this.mPrevSmartspaceTargetId = "";
     }
-
-    public final void reset(String str) {
-        if (mPrevSmartspaceTargetId.equals(str)) {
-            return;
-        }
-        mPrevSmartspaceTargetId = str;
-        resetUi();
-    }
-
-    public abstract boolean setSmartspaceActions(SmartspaceTarget target,
-            BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier,
-            BcSmartspaceCardLoggingInfo loggingInfo);
-
-    public abstract void setTextColor(int color);
 
     public BcSmartspaceCardSecondary(Context context, AttributeSet attributeSet) {
         super(context, attributeSet);
-        mPrevSmartspaceTargetId = "";
+        this.mPrevSmartspaceTargetId = "";
+    }
+
+    public final void reset(String str) {
+        if (this.mPrevSmartspaceTargetId.equals(str)) {
+            return;
+        }
+        this.mPrevSmartspaceTargetId = str;
+        resetUi();
     }
 
     public void resetUi() {}
+
+    public abstract boolean setSmartspaceActions(SmartspaceTarget smartspaceTarget,
+            BcSmartspaceDataPlugin.SmartspaceEventNotifier smartspaceEventNotifier,
+            BcSmartspaceCardLoggingInfo bcSmartspaceCardLoggingInfo);
+
+    public abstract void setTextColor(int i);
 }
