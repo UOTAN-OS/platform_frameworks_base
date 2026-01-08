@@ -4,10 +4,11 @@ import java.util.List;
 import java.util.Objects;
 
 public final class BcSmartspaceSubcardLoggingInfo {
-    public int mClickedSubcardIndex;
     public List<BcSmartspaceCardMetadataLoggingInfo> mSubcards;
+    public int mClickedSubcardIndex;
 
-    public final boolean equals(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
@@ -19,12 +20,18 @@ public final class BcSmartspaceSubcardLoggingInfo {
                 && Objects.equals(mSubcards, other.mSubcards);
     }
 
-    public final int hashCode() {
+    @Override
+    public int hashCode() {
         return Objects.hash(mSubcards, mClickedSubcardIndex);
     }
 
-    public final String toString() {
-        return "BcSmartspaceSubcardLoggingInfo{mSubcards=" + mSubcards
-                + ", mClickedSubcardIndex=" + mClickedSubcardIndex + "}";
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("BcSmartspaceSubcardLoggingInfo{mSubcards=");
+        sb.append(mSubcards);
+        sb.append(", mClickedSubcardIndex=");
+        sb.append(mClickedSubcardIndex);
+        sb.append('}');
+        return sb.toString();
     }
 }

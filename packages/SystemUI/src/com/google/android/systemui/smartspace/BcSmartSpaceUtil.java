@@ -29,139 +29,69 @@ import java.util.List;
 import java.util.Map;
 
 public abstract class BcSmartSpaceUtil {
-    public static final Map<Integer, Integer> FEATURE_TYPE_TO_SECONDARY_CARD_RESOURCE_MAP;
+    public static final Map<Integer, Integer> FEATURE_TYPE_TO_SECONDARY_CARD_RESOURCE_MAP =
+            Map.ofEntries(Map.entry(-1, R.layout.smartspace_card_combination),
+                    Map.entry(-2, R.layout.smartspace_card_combination_at_store),
+                    Map.entry(3, R.layout.smartspace_card_generic_landscape_image),
+                    Map.entry(18, R.layout.smartspace_card_generic_landscape_image),
+                    Map.entry(4, R.layout.smartspace_card_flight),
+                    Map.entry(14, R.layout.smartspace_card_loyalty),
+                    Map.entry(13, R.layout.smartspace_card_shopping_list),
+                    Map.entry(9, R.layout.smartspace_card_sports),
+                    Map.entry(10, R.layout.smartspace_card_weather_forecast),
+                    Map.entry(30, R.layout.smartspace_card_doorbell),
+                    Map.entry(20, R.layout.smartspace_card_doorbell));
+
     public static FalsingManager sFalsingManager;
-
-    public static class InteractionHandler implements RemoteViews.InteractionHandler {
-        public final BcSmartspaceCardLoggingInfo loggingInfo;
-        public final BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier;
-        public final SmartspaceTarget target;
-        public final SmartspaceAction action;
-
-        public InteractionHandler(BcSmartspaceCardLoggingInfo loggingInfo,
-                BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier,
-                SmartspaceTarget target, SmartspaceAction action) {
-            this.loggingInfo = loggingInfo;
-            this.eventNotifier = eventNotifier;
-            this.target = target;
-            this.action = action;
-        }
-
-        @Override
-        public final boolean onInteraction(
-                View view, PendingIntent pendingIntent, RemoteViews.RemoteResponse remoteResponse) {
-            BcSmartspaceDataPlugin.IntentStarter intentStarter =
-                    BcSmartSpaceUtil.getIntentStarter(eventNotifier, "BcSmartspaceRemoteViewsCard");
-            if (pendingIntent != null) {
-                BcSmartspaceCardLogger.log(BcSmartspaceEvent.SMARTSPACE_CARD_CLICK, loggingInfo);
-                if (eventNotifier != null) {
-                    eventNotifier.notifySmartspaceEvent(new SmartspaceTargetEvent.Builder(1)
-                                    .setSmartspaceTarget(target)
-                                    .setSmartspaceActionId(action.getId())
-                                    .build());
-                }
-                intentStarter.startPendingIntent(view, pendingIntent, false);
-            }
-            return true;
-        }
-    }
-
-    public static class DefaultIntentStarter implements BcSmartspaceDataPlugin.IntentStarter {
-        public final String tag;
-
-        public DefaultIntentStarter(String tag) {
-            this.tag = tag;
-        }
-
-        @Override
-        public final void startIntent(View view, Intent intent, boolean showOnLockscreen) {
-            try {
-                view.getContext().startActivity(intent);
-            } catch (ActivityNotFoundException | NullPointerException | SecurityException e) {
-                Log.e(tag, "Cannot invoke smartspace intent", e);
-            }
-        }
-
-        @Override
-        public final void startPendingIntent(
-                View view, PendingIntent pendingIntent, boolean showOnLockscreen) {
-            try {
-                pendingIntent.send();
-            } catch (PendingIntent.CanceledException e) {
-                Log.e(tag, "Cannot invoke canceled smartspace intent", e);
-            }
-        }
-    }
-
-    static {
-        FEATURE_TYPE_TO_SECONDARY_CARD_RESOURCE_MAP = Map.ofEntries(
-                Map.entry(-1, Integer.valueOf(R.layout.smartspace_card_combination)),
-                Map.entry(-2, Integer.valueOf(R.layout.smartspace_card_combination_at_store)),
-                Map.entry(3, Integer.valueOf(R.layout.smartspace_card_generic_landscape_image)),
-                Map.entry(18, Integer.valueOf(R.layout.smartspace_card_generic_landscape_image)),
-                Map.entry(4, Integer.valueOf(R.layout.smartspace_card_flight)),
-                Map.entry(14, Integer.valueOf(R.layout.smartspace_card_loyalty)),
-                Map.entry(13, Integer.valueOf(R.layout.smartspace_card_shopping_list)),
-                Map.entry(9, Integer.valueOf(R.layout.smartspace_card_sports)),
-                Map.entry(10, Integer.valueOf(R.layout.smartspace_card_weather_forecast)),
-                Map.entry(30, Integer.valueOf(R.layout.smartspace_card_doorbell)),
-                Map.entry(20, Integer.valueOf(R.layout.smartspace_card_doorbell)));
-    }
+    public static BcSmartspaceDataPlugin.IntentStarter sIntentStarter;
 
     public static String getDimensionRatio(Bundle bundle) {
-        if (!bundle.containsKey("imageRatioWidth") || !bundle.containsKey("imageRatioHeight")) {
-            return null;
+        if (bundle.containsKey("imageRatioWidth") && bundle.containsKey("imageRatioHeight")) {
+            int width = bundle.getInt("imageRatioWidth");
+            int height = bundle.getInt("imageRatioHeight");
+            if (width > 0 && height > 0) {
+                return width + ":" + height;
+            }
         }
-        int width = bundle.getInt("imageRatioWidth");
-        int height = bundle.getInt("imageRatioHeight");
-        if (width <= 0 || height <= 0) {
-            return null;
-        }
-        return width + ":" + height;
+        return null;
     }
 
     public static int getFeatureType(SmartspaceTarget target) {
-        List actionChips = target.getActionChips();
+        List<SmartspaceAction> actionChips = target.getActionChips();
         int featureType = target.getFeatureType();
-        return (actionChips == null || actionChips.isEmpty())    ? featureType
-                : (featureType == 13 && actionChips.size() == 1) ? -2
-                                                                 : -1;
+        if (actionChips != null && !actionChips.isEmpty() && featureType == 13
+                && actionChips.size() == 1) {
+            return -2;
+        }
+        return actionChips != null && !actionChips.isEmpty() ? -1 : featureType;
     }
 
     public static Drawable getIconDrawableWithCustomSize(Icon icon, Context context, int size) {
         if (icon == null) {
             return null;
         }
-        Drawable drawable = (icon.getType() == 1 || icon.getType() == 5)
-                ? new BitmapDrawable(context.getResources(), icon.getBitmap())
-                : icon.loadDrawable(context);
+        Drawable drawable;
+        if (icon.getType() == Icon.TYPE_RESOURCE || icon.getType() == Icon.TYPE_URI) {
+            drawable = icon.loadDrawable(context);
+        } else {
+            drawable = new BitmapDrawable(context.getResources(), icon.getBitmap());
+        }
         if (drawable != null) {
             drawable.setBounds(0, 0, size, size);
         }
         return drawable;
     }
 
-    public static BcSmartspaceDataPlugin.IntentStarter getIntentStarter(
-            BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier, String tag) {
-        BcSmartspaceDataPlugin.IntentStarter intentStarter =
-                eventNotifier != null ? eventNotifier.getIntentStarter() : null;
-        if (intentStarter != null) {
-            return intentStarter;
-        }
-        return new DefaultIntentStarter(tag);
-    }
-
     public static int getLoggingDisplaySurface(String uiSurface, float dozeAmount) {
         if (uiSurface == null) {
             return 0;
         }
-
         switch (uiSurface) {
-            case BcSmartspaceDataPlugin.UI_SURFACE_HOME_SCREEN:
+            case "home":
                 return 1;
-            case BcSmartspaceDataPlugin.UI_SURFACE_DREAM:
+            case "dream":
                 return 5;
-            case BcSmartspaceDataPlugin.UI_SURFACE_LOCK_SCREEN_AOD:
+            case "lockscreen":
                 if (dozeAmount == 1.0f) {
                     return 3;
                 } else if (dozeAmount == 0.0f) {
@@ -193,36 +123,34 @@ public abstract class BcSmartSpaceUtil {
             return;
         }
 
-        boolean isNoIntent = action.getIntent() == null && action.getPendingIntent() == null;
-        boolean showOnLockscreen =
+        boolean shouldShowOnLockscreen =
                 action.getExtras() != null && action.getExtras().getBoolean("show_on_lockscreen");
-        BcSmartspaceDataPlugin.IntentStarter intentStarter = getIntentStarter(eventNotifier, tag);
-
+        boolean noIntent = action.getIntent() == null && action.getPendingIntent() == null;
+        BcSmartspaceDataPlugin.IntentStarter intentStarter =
+                sIntentStarter != null ? sIntentStarter : new DefaultIntentStarter(tag);
         view.setOnClickListener(v -> {
             if (sFalsingManager != null && sFalsingManager.isFalseTap(1)) {
                 return;
             }
-
             if (loggingInfo != null) {
                 if (loggingInfo.mSubcardInfo != null) {
                     loggingInfo.mSubcardInfo.mClickedSubcardIndex = index;
                 }
                 BcSmartspaceCardLogger.log(BcSmartspaceEvent.SMARTSPACE_CARD_CLICK, loggingInfo);
             }
-
-            if (!isNoIntent) {
-                intentStarter.startFromAction(action, v, showOnLockscreen);
+            if (!noIntent) {
+                intentStarter.startFromAction(action, v, shouldShowOnLockscreen);
             }
-
-            if (eventNotifier == null) {
-                Log.w(tag,
-                        "Cannot notify target interaction smartspace event: event notifier null.");
+            if (eventNotifier != null) {
+                SmartspaceTargetEvent event = new SmartspaceTargetEvent.Builder(1)
+                                                      .setSmartspaceTarget(target)
+                                                      .setSmartspaceActionId(action.getId())
+                                                      .build();
+                eventNotifier.notifySmartspaceEvent(event);
             } else {
-                eventNotifier.notifySmartspaceEvent(new SmartspaceTargetEvent
-                                .Builder(SmartspaceTargetEvent.EVENT_TARGET_INTERACTION)
-                                .setSmartspaceTarget(target)
-                                .setSmartspaceActionId(action.getId())
-                                .build());
+                Log.w(tag,
+                        "Cannot notify target interaction smartspace event: event notifier"
+                                + " null.");
             }
         });
     }
@@ -235,36 +163,97 @@ public abstract class BcSmartSpaceUtil {
             return;
         }
 
-        boolean showOnLockscreen = tapAction.shouldShowOnLockscreen();
-
+        boolean shouldShowOnLockscreen = tapAction.shouldShowOnLockscreen();
         view.setOnClickListener(v -> {
             if (sFalsingManager != null && sFalsingManager.isFalseTap(1)) {
                 return;
             }
-
             if (loggingInfo != null) {
                 if (loggingInfo.mSubcardInfo != null) {
                     loggingInfo.mSubcardInfo.mClickedSubcardIndex = index;
                 }
                 BcSmartspaceCardLogger.log(BcSmartspaceEvent.SMARTSPACE_CARD_CLICK, loggingInfo);
             }
-
             BcSmartspaceDataPlugin.IntentStarter intentStarter =
-                    getIntentStarter(eventNotifier, tag);
+                    sIntentStarter != null ? sIntentStarter : new DefaultIntentStarter(tag);
             if (tapAction.getIntent() != null || tapAction.getPendingIntent() != null) {
-                intentStarter.startFromAction(tapAction, v, showOnLockscreen);
+                intentStarter.startFromAction(tapAction, v, shouldShowOnLockscreen);
             }
-
-            if (eventNotifier == null) {
-                Log.w(tag,
-                        "Cannot notify target interaction smartspace event: event notifier null.");
-            } else {
-                eventNotifier.notifySmartspaceEvent(new SmartspaceTargetEvent
-                                .Builder(SmartspaceTargetEvent.EVENT_TARGET_INTERACTION)
+            if (eventNotifier != null) {
+                SmartspaceTargetEvent event =
+                        new SmartspaceTargetEvent.Builder(1)
                                 .setSmartspaceTarget(target)
                                 .setSmartspaceActionId(tapAction.getId().toString())
-                                .build());
+                                .build();
+                eventNotifier.notifySmartspaceEvent(event);
+            } else {
+                Log.w(tag,
+                        "Cannot notify target interaction smartspace event: event notifier"
+                                + " null.");
             }
         });
+    }
+
+    public static class InteractionHandler implements RemoteViews.InteractionHandler {
+        public final BcSmartspaceCardLoggingInfo loggingInfo;
+        public final BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier;
+        public final SmartspaceTarget target;
+        public final SmartspaceAction action;
+
+        public InteractionHandler(BcSmartspaceCardLoggingInfo loggingInfo,
+                BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier,
+                SmartspaceTarget target, SmartspaceAction action) {
+            this.loggingInfo = loggingInfo;
+            this.eventNotifier = eventNotifier;
+            this.target = target;
+            this.action = action;
+        }
+
+        @Override
+        public boolean onInteraction(
+                View view, PendingIntent pendingIntent, RemoteViews.RemoteResponse response) {
+            BcSmartspaceDataPlugin.IntentStarter intentStarter = sIntentStarter != null
+                    ? sIntentStarter
+                    : new DefaultIntentStarter("BcSmartspaceRemoteViewsCard");
+            if (pendingIntent != null) {
+                BcSmartspaceCardLogger.log(BcSmartspaceEvent.SMARTSPACE_CARD_CLICK, loggingInfo);
+                if (eventNotifier != null) {
+                    SmartspaceTargetEvent event = new SmartspaceTargetEvent.Builder(1)
+                                                          .setSmartspaceTarget(target)
+                                                          .setSmartspaceActionId(action.getId())
+                                                          .build();
+                    eventNotifier.notifySmartspaceEvent(event);
+                }
+                intentStarter.startPendingIntent(view, pendingIntent, false);
+            }
+            return true;
+        }
+    }
+
+    public static class DefaultIntentStarter implements BcSmartspaceDataPlugin.IntentStarter {
+        public final String tag;
+
+        public DefaultIntentStarter(String tag) {
+            this.tag = tag;
+        }
+
+        @Override
+        public void startIntent(View view, Intent intent, boolean showOnLockscreen) {
+            try {
+                view.getContext().startActivity(intent);
+            } catch (NullPointerException | ActivityNotFoundException | SecurityException e) {
+                Log.e(tag, "Cannot invoke smartspace intent", e);
+            }
+        }
+
+        @Override
+        public void startPendingIntent(
+                View view, PendingIntent pendingIntent, boolean showOnLockscreen) {
+            try {
+                pendingIntent.send();
+            } catch (PendingIntent.CanceledException e) {
+                Log.e(tag, "Cannot invoke canceled smartspace intent", e);
+            }
+        }
     }
 }

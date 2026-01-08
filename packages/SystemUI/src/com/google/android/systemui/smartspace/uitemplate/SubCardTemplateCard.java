@@ -29,15 +29,19 @@ public class SubCardTemplateCard extends BcSmartspaceCardSecondary {
         super(context);
     }
 
+    public SubCardTemplateCard(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
     @Override
-    public final void onFinishInflate() {
+    protected void onFinishInflate() {
         super.onFinishInflate();
         mImageView = findViewById(R.id.image_view);
         mTextView = findViewById(R.id.card_prompt);
     }
 
     @Override
-    public final void resetUi() {
+    public void resetUi() {
         BcSmartspaceTemplateDataUtils.updateVisibility(mImageView, View.GONE);
         BcSmartspaceTemplateDataUtils.updateVisibility(mTextView, View.GONE);
     }
@@ -79,9 +83,5 @@ public class SubCardTemplateCard extends BcSmartspaceCardSecondary {
     @Override
     public void setTextColor(int color) {
         mTextView.setTextColor(color);
-    }
-
-    public SubCardTemplateCard(Context context, AttributeSet attrs) {
-        super(context, attrs);
     }
 }

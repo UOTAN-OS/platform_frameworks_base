@@ -1,8 +1,8 @@
 package com.google.android.systemui.smartspace;
 
 import android.app.smartspace.SmartspaceTarget;
+import android.app.smartspace.SmartspaceTargetEvent;
 import android.content.Context;
-import android.os.Debug;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,29 +16,41 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public final class WeatherSmartspaceDataProvider implements BcSmartspaceDataPlugin {
+public class WeatherSmartspaceDataProvider implements BcSmartspaceDataPlugin {
     public static final boolean DEBUG = Log.isLoggable("WeatherSSDataProvider", Log.DEBUG);
-    public final Set<SmartspaceTargetListener> mSmartspaceTargetListeners = new HashSet<>();
-    public final List<SmartspaceTarget> mSmartspaceTargets = new ArrayList<>();
-    public final EventNotifierProxy mEventNotifier = new EventNotifierProxy();
 
-    @Override
-    public final BcSmartspaceDataPlugin.SmartspaceEventNotifier getEventNotifier() {
-        return mEventNotifier;
+    private SmartspaceEventNotifier mEventNotifier;
+    private final Set<SmartspaceTargetListener> mSmartspaceTargetListeners;
+    private final List<SmartspaceTarget> mSmartspaceTargets;
+
+    public WeatherSmartspaceDataProvider() {
+        mSmartspaceTargetListeners = new HashSet<>();
+        mSmartspaceTargets = new ArrayList<>();
+        mEventNotifier = null;
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getLargeClockView(ViewGroup parent) {
-        View view = LayoutInflater.from(parent.getContext())
-                            .inflate(R.layout.weather_large, (ViewGroup) null, false);
+    public SmartspaceView getLargeClockView(ViewGroup container) {
+        Context context = container.getContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        View view = inflater.inflate(R.layout.weather_large, container, false);
         view.setId(R.id.weather_smartspace_view_large);
-        return (BcSmartspaceDataPlugin.SmartspaceView) view;
+        return (SmartspaceView) view;
     }
 
     @Override
-    public final BcSmartspaceDataPlugin.SmartspaceView getView(ViewGroup parent) {
-        return (BcSmartspaceDataPlugin.SmartspaceView) LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.weather, (ViewGroup) null, false);
+    public SmartspaceView getView(ViewGroup container) {
+        Context context = container.getContext();
+        LayoutInflater inflater = LayoutInflater.from(context);
+        View view = inflater.inflate(R.layout.weather, container, false);
+        return (SmartspaceView) view;
+    }
+
+    @Override
+    public void notifySmartspaceEvent(SmartspaceTargetEvent event) {
+        if (mEventNotifier != null) {
+            mEventNotifier.notifySmartspaceEvent(event);
+        }
     }
 
     @Override
@@ -63,24 +75,18 @@ public final class WeatherSmartspaceDataProvider implements BcSmartspaceDataPlug
     }
 
     @Override
-    public final void registerListener(BcSmartspaceDataPlugin.SmartspaceTargetListener listener) {
+    public void registerListener(SmartspaceTargetListener listener) {
         mSmartspaceTargetListeners.add(listener);
         listener.onSmartspaceTargetsUpdated(mSmartspaceTargets);
     }
 
     @Override
-    public final void setEventDispatcher(
-            BcSmartspaceDataPlugin.SmartspaceEventDispatcher eventDispatcher) {
-        mEventNotifier.eventDispatcher = eventDispatcher;
+    public void registerSmartspaceEventNotifier(SmartspaceEventNotifier notifier) {
+        mEventNotifier = notifier;
     }
 
     @Override
-    public final void setIntentStarter(BcSmartspaceDataPlugin.IntentStarter intentStarter) {
-        mEventNotifier.intentStarterRef = intentStarter;
-    }
-
-    @Override
-    public final void unregisterListener(BcSmartspaceDataPlugin.SmartspaceTargetListener listener) {
+    public void unregisterListener(SmartspaceTargetListener listener) {
         mSmartspaceTargetListeners.remove(listener);
     }
 }

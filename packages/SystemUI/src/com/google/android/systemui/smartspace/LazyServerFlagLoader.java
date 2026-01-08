@@ -10,16 +10,17 @@ public final class LazyServerFlagLoader {
     public Boolean mValue = null;
 
     public LazyServerFlagLoader(String str) {
-        mPropertyKey = str;
+        this.mPropertyKey = str;
     }
 
     public boolean get() {
-        if (mValue == null) {
-            mValue = Boolean.valueOf(DeviceConfig.getBoolean("launcher", mPropertyKey, true));
+        if (this.mValue == null) {
+            this.mValue =
+                    Boolean.valueOf(DeviceConfig.getBoolean("launcher", this.mPropertyKey, true));
             DeviceConfig.addOnPropertiesChangedListener("launcher",
                     Executors.newSingleThreadExecutor(), new OnPropertiesChangedListener(this));
         }
-        return mValue.booleanValue();
+        return this.mValue.booleanValue();
     }
 
     private static class OnPropertiesChangedListener
@@ -27,7 +28,7 @@ public final class LazyServerFlagLoader {
         private final LazyServerFlagLoader lazyServerFlagLoader;
 
         OnPropertiesChangedListener(LazyServerFlagLoader loader) {
-            lazyServerFlagLoader = loader;
+            this.lazyServerFlagLoader = loader;
         }
 
         @Override

@@ -7,11 +7,9 @@ import android.app.smartspace.uitemplatedata.TapAction;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.ColorStateList;
-import android.content.res.Resources;
 import android.graphics.ImageDecoder;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.Icon.OnDrawableLoadedListener;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -29,13 +27,11 @@ import com.android.systemui.res.R;
 
 import com.google.android.systemui.smartspace.BcSmartSpaceUtil;
 import com.google.android.systemui.smartspace.BcSmartspaceCardSecondary;
-import com.google.android.systemui.smartspace.BcSmartspaceTemplateDataUtils;
 import com.google.android.systemui.smartspace.logging.BcSmartspaceCardLoggerUtil;
 import com.google.android.systemui.smartspace.logging.BcSmartspaceCardLoggingInfo;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.invoke.VarHandle;
 import java.lang.ref.WeakReference;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,8 +42,6 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 public class SubImageTemplateCard extends BcSmartspaceCardSecondary {
-    private static final String TAG = "SubImageTemplateCard";
-
     public final Handler mHandler;
     public final Map<String, Drawable> mIconDrawableCache;
     public final int mImageHeight;
@@ -66,13 +60,13 @@ public class SubImageTemplateCard extends BcSmartspaceCardSecondary {
     }
 
     @Override
-    public final void onFinishInflate() {
+    protected void onFinishInflate() {
         super.onFinishInflate();
         mImageView = findViewById(R.id.image_view);
     }
 
     @Override
-    public final void resetUi() {
+    public void resetUi() {
         if (mIconDrawableCache != null) {
             mIconDrawableCache.clear();
         }
@@ -84,80 +78,90 @@ public class SubImageTemplateCard extends BcSmartspaceCardSecondary {
     }
 
     @Override
-    public final void setTextColor(int color) {}
-
-    @Override
-    public final boolean setSmartspaceActions(SmartspaceTarget target,
+    public boolean setSmartspaceActions(SmartspaceTarget target,
             BcSmartspaceDataPlugin.SmartspaceEventNotifier eventNotifier,
             BcSmartspaceCardLoggingInfo loggingInfo) {
         SubImageTemplateData templateData = (SubImageTemplateData) target.getTemplateData();
         if (!BcSmartspaceCardLoggerUtil.containsValidTemplateType(templateData)
                 || templateData.getSubImages() == null || templateData.getSubImages().isEmpty()) {
-            Log.w(TAG, "SubImageTemplateData is null or has no SubImage or invalid template type");
+            Log.w("SubImageTemplateCard",
+                    "SubImageTemplateData is null or has no SubImage or invalid template type");
             return false;
         }
 
         List<Icon> subImages = templateData.getSubImages();
         TapAction tapAction = templateData.getSubImageAction();
 
-        if (mImageView == null) {
-            Log.w(TAG, "No image view can be updated. Skipping background update...");
-        } else if (tapAction != null && tapAction.getExtras() != null) {
+        if (mImageView != null && tapAction != null) {
             Bundle extras = tapAction.getExtras();
-            String dimensionRatio = extras.getString("imageDimensionRatio", "");
-            if (!TextUtils.isEmpty(dimensionRatio)) {
-                mImageView.getLayoutParams().width = 0;
-                ((ConstraintLayout.LayoutParams) mImageView.getLayoutParams()).dimensionRatio =
-                        dimensionRatio;
-            }
-            if (extras.getBoolean("shouldShowBackground", false)) {
-                mImageView.setBackgroundTintList(ColorStateList.valueOf(
-                        getContext().getColor(R.color.smartspace_button_background)));
+            if (extras != null) {
+                String dimensionRatio = extras.getString("imageDimensionRatio", "");
+                if (!TextUtils.isEmpty(dimensionRatio)) {
+                    mImageView.getLayoutParams().width = 0;
+                    ((ConstraintLayout.LayoutParams) mImageView.getLayoutParams()).dimensionRatio =
+                            dimensionRatio;
+                }
+                if (extras.getBoolean("shouldShowBackground", false)) {
+                    mImageView.setBackgroundTintList(ColorStateList.valueOf(
+                            getContext().getColor(R.color.smartspace_button_background)));
+                }
             }
         }
 
-        int frameDurationMillis = (tapAction != null && tapAction.getExtras() != null)
-                ? tapAction.getExtras().getInt("GifFrameDurationMillis", 200)
-                : 200;
+        int frameDurationMillis = 200;
+        if (tapAction != null && tapAction.getExtras() != null) {
+            frameDurationMillis = tapAction.getExtras().getInt("GifFrameDurationMillis", 200);
+        }
 
         ContentResolver contentResolver = getContext().getApplicationContext().getContentResolver();
-        TreeMap<Integer, Drawable> frameMap = new TreeMap<>();
+        Map<Integer, Drawable> frameMap = new TreeMap<>();
         WeakReference<ImageView> imageViewRef = new WeakReference<>(mImageView);
         String prevTargetId = mPrevSmartspaceTargetId;
 
         for (int i = 0; i < subImages.size(); i++) {
-            int index = i;
             Icon subImage = subImages.get(i);
-            if (subImage == null || subImage.getIcon() == null)
+            if (subImage == null || subImage.getIcon() == null) {
                 continue;
+            }
 
             android.graphics.drawable.Icon icon = subImage.getIcon();
-            String cacheKey = getCacheKey(icon);
+            StringBuilder keyBuilder = new StringBuilder(String.valueOf(icon.getType()));
+            String cacheKey;
+            switch (icon.getType()) {
+                case android.graphics.drawable.Icon.TYPE_BITMAP:
+                case android.graphics.drawable.Icon.TYPE_ADAPTIVE_BITMAP:
+                    keyBuilder.append(icon.getBitmap().hashCode());
+                    cacheKey = keyBuilder.toString();
+                    break;
+                case android.graphics.drawable.Icon.TYPE_RESOURCE:
+                    keyBuilder.append(icon.getResPackage())
+                            .append(String.format("0x%08x", icon.getResId()));
+                    cacheKey = keyBuilder.toString();
+                    break;
+                case android.graphics.drawable.Icon.TYPE_DATA:
+                    keyBuilder.append(Arrays.hashCode(icon.getDataBytes()));
+                    cacheKey = keyBuilder.toString();
+                    break;
+                case android.graphics.drawable.Icon.TYPE_URI:
+                case android.graphics.drawable.Icon.TYPE_URI_ADAPTIVE_BITMAP:
+                    keyBuilder.append(icon.getUriString());
+                    cacheKey = keyBuilder.toString();
+                    break;
+                default:
+                    cacheKey = keyBuilder.toString();
+                    break;
+            }
 
-            OnDrawableLoadedListener listener = drawable -> {
-                if (!prevTargetId.equals(mPrevSmartspaceTargetId)) {
-                    Log.d(TAG, "SmartspaceTarget has changed. Skip the loaded result...");
-                    return;
-                }
+            OnDrawableLoadedListener listener = new OnDrawableLoadedListener(this, prevTargetId,
+                    cacheKey, mIconDrawableCache, i, subImages, frameDurationMillis, imageViewRef);
 
-                if (drawable != null) {
-                    mIconDrawableCache.put(cacheKey, drawable);
-                    frameMap.put(index, drawable);
-                }
-
-                if (frameMap.size() == subImages.size()) {
-                    createAndStartAnimation(frameMap, frameDurationMillis, imageViewRef);
-                }
-            };
-
-            if (mIconDrawableCache.containsKey(cacheKey)) {
+            if (mIconDrawableCache.containsKey(cacheKey)
+                    && mIconDrawableCache.get(cacheKey) != null) {
                 listener.onDrawableLoaded(mIconDrawableCache.get(cacheKey));
-            } else if (icon.getType() == android.graphics.drawable.Icon.TYPE_URI) {
-                DrawableWrapper wrapper = new DrawableWrapper();
-                wrapper.mUri = icon.getUri();
-                wrapper.mHeightInPx = mImageHeight;
-                wrapper.mContentResolver = contentResolver;
-                wrapper.mListener = listener;
+            } else if (icon.getType() == android.graphics.drawable.Icon.TYPE_URI
+                    || icon.getType() == android.graphics.drawable.Icon.TYPE_URI_ADAPTIVE_BITMAP) {
+                DrawableWrapper wrapper =
+                        new DrawableWrapper(icon.getUri(), contentResolver, mImageHeight, listener);
                 new LoadUriTask().execute(wrapper);
             } else {
                 icon.loadDrawableAsync(getContext(), listener, mHandler);
@@ -166,101 +170,131 @@ public class SubImageTemplateCard extends BcSmartspaceCardSecondary {
 
         if (tapAction != null) {
             BcSmartSpaceUtil.setOnClickListener(
-                    this, target, tapAction, eventNotifier, TAG, loggingInfo, 0);
+                    this, target, tapAction, eventNotifier, "SubImageTemplateCard", loggingInfo, 0);
         }
 
         return true;
     }
 
-    private String getCacheKey(android.graphics.drawable.Icon icon) {
-        StringBuilder keyBuilder = new StringBuilder().append(icon.getType());
-        switch (icon.getType()) {
-            case android.graphics.drawable.Icon.TYPE_BITMAP:
-            case android.graphics.drawable.Icon.TYPE_ADAPTIVE_BITMAP:
-                keyBuilder.append(icon.getBitmap().hashCode());
-                break;
-            case android.graphics.drawable.Icon.TYPE_RESOURCE:
-                keyBuilder.append(icon.getResPackage())
-                        .append(String.format("0x%08x", icon.getResId()));
-                break;
-            case android.graphics.drawable.Icon.TYPE_DATA:
-                keyBuilder.append(Arrays.hashCode(icon.getDataBytes()));
-                break;
-            case android.graphics.drawable.Icon.TYPE_URI:
-            case android.graphics.drawable.Icon.TYPE_URI_ADAPTIVE_BITMAP:
-                keyBuilder.append(icon.getUriString());
-                break;
-        }
-        return keyBuilder.toString();
+    @Override
+    public void setTextColor(int color) {
+        // No-op
     }
 
-    private void createAndStartAnimation(TreeMap<Integer, Drawable> drawables, int duration,
-            WeakReference<ImageView> imageViewRef) {
-        List<Drawable> validDrawables =
-                drawables.values().stream().filter(Objects::nonNull).collect(Collectors.toList());
+    public static class OnDrawableLoadedListener
+            implements android.graphics.drawable.Icon.OnDrawableLoadedListener {
+        public final SubImageTemplateCard card;
+        public final String prevTargetId;
+        public final String cacheKey;
+        public final Map<String, Drawable> iconDrawableCache;
+        public final int index;
+        public final List<Icon> subImages;
+        public final int frameDurationMillis;
+        public final WeakReference<ImageView> imageViewRef;
 
-        ImageView iv = imageViewRef.get();
-        if (validDrawables.isEmpty()) {
-            Log.w(TAG, "All images failed to load. Resetting imageView");
-            if (iv != null) {
-                iv.getLayoutParams().width = -2;
-                iv.setImageDrawable(null);
-                iv.setBackgroundTintList(null);
+        public OnDrawableLoadedListener(SubImageTemplateCard card, String prevTargetId,
+                String cacheKey, Map<String, Drawable> iconDrawableCache, int index,
+                List<Icon> subImages, int frameDurationMillis,
+                WeakReference<ImageView> imageViewRef) {
+            this.card = card;
+            this.prevTargetId = prevTargetId;
+            this.cacheKey = cacheKey;
+            this.iconDrawableCache = iconDrawableCache;
+            this.index = index;
+            this.subImages = subImages;
+            this.frameDurationMillis = frameDurationMillis;
+            this.imageViewRef = imageViewRef;
+        }
+
+        @Override
+        public void onDrawableLoaded(Drawable drawable) {
+            if (!prevTargetId.equals(card.mPrevSmartspaceTargetId)) {
+                Log.d("SubImageTemplateCard",
+                        "SmartspaceTarget has changed. Skip the loaded result...");
+                return;
             }
-            return;
-        }
 
-        AnimationDrawable animationDrawable = new AnimationDrawable();
-        for (Drawable d : validDrawables) {
-            animationDrawable.addFrame(d, duration);
-        }
+            iconDrawableCache.put(cacheKey, drawable);
+            iconDrawableCache.put(String.valueOf(index), drawable);
 
-        if (iv != null) {
-            iv.setImageDrawable(animationDrawable);
-            int intrinsicWidth = animationDrawable.getIntrinsicWidth();
-            if (iv.getLayoutParams().width != intrinsicWidth) {
-                iv.getLayoutParams().width = intrinsicWidth;
-                iv.requestLayout();
+            if (iconDrawableCache.size() == subImages.size()) {
+                AnimationDrawable animationDrawable = new AnimationDrawable();
+                List<Drawable> drawables = iconDrawableCache.values()
+                                                   .stream()
+                                                   .filter(Objects::nonNull)
+                                                   .collect(Collectors.toList());
+
+                if (drawables.isEmpty()) {
+                    Log.w("SubImageTemplateCard", "All images are failed to load. Reset imageView");
+                    if (card.mImageView != null) {
+                        card.mImageView.getLayoutParams().width =
+                                ViewGroup.LayoutParams.WRAP_CONTENT;
+                        card.mImageView.setImageDrawable(null);
+                        card.mImageView.setBackgroundTintList(null);
+                    }
+                    return;
+                }
+
+                drawables.forEach(d -> animationDrawable.addFrame(d, frameDurationMillis));
+                ImageView imageView = imageViewRef.get();
+                imageView.setImageDrawable(animationDrawable);
+                int intrinsicWidth = animationDrawable.getIntrinsicWidth();
+                if (imageView.getLayoutParams().width != intrinsicWidth) {
+                    Log.d("SubImageTemplateCard", "imageView requestLayout");
+                    imageView.getLayoutParams().width = intrinsicWidth;
+                    imageView.requestLayout();
+                }
+                animationDrawable.start();
             }
-            animationDrawable.start();
         }
     }
 
-    private static final class DrawableWrapper {
-        ContentResolver mContentResolver;
-        Drawable mDrawable;
-        int mHeightInPx;
-        OnDrawableLoadedListener mListener;
-        Uri mUri;
+    public static class DrawableWrapper {
+        public final Uri mUri;
+        public final ContentResolver mContentResolver;
+        public final int mHeightInPx;
+        public final OnDrawableLoadedListener mListener;
+        public Drawable mDrawable;
+
+        public DrawableWrapper(Uri uri, ContentResolver contentResolver, int heightInPx,
+                OnDrawableLoadedListener listener) {
+            mUri = uri;
+            mContentResolver = contentResolver;
+            mHeightInPx = heightInPx;
+            mListener = listener;
+        }
     }
 
-    private static final class LoadUriTask
-            extends AsyncTask<DrawableWrapper, Void, DrawableWrapper> {
+    public static class LoadUriTask extends AsyncTask<DrawableWrapper, Void, DrawableWrapper> {
         @Override
         protected DrawableWrapper doInBackground(DrawableWrapper... wrappers) {
-            if (wrappers.length == 0)
+            if (wrappers.length == 0) {
                 return null;
+            }
             DrawableWrapper wrapper = wrappers[0];
-            try (InputStream inputStream = wrapper.mContentResolver.openInputStream(wrapper.mUri)) {
+            try {
+                InputStream inputStream = wrapper.mContentResolver.openInputStream(wrapper.mUri);
                 ImageDecoder.Source source = ImageDecoder.createSource(null, inputStream);
-
-                wrapper.mDrawable = ImageDecoder.decodeDrawable(source, (decoder, info, src) -> {
-                    decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
-                    int height = info.getSize().getHeight();
-                    float ratio = height != 0 ? (float) info.getSize().getWidth() / height : 0.0f;
-                    decoder.setTargetSize((int) (wrapper.mHeightInPx * ratio), wrapper.mHeightInPx);
+                ImageDecoder.decodeDrawable(source, (decoder, info, src) -> {
+                    decoder.setAllocator(ImageDecoder.ALLOCATOR_HARDWARE);
+                    float aspectRatio = info.getSize().getHeight() != 0
+                            ? (float) info.getSize().getWidth() / info.getSize().getHeight()
+                            : 0;
+                    int targetWidth = (int) (wrapper.mHeightInPx * aspectRatio);
+                    decoder.setTargetSize(targetWidth, wrapper.mHeightInPx);
                 });
+                wrapper.mDrawable = ImageDecoder.decodeDrawable(source);
+            } catch (IOException e) {
+                Log.e("SubImageTemplateCard", "Unable to decode stream: " + e);
             } catch (Exception e) {
-                Log.w(TAG, "Failed to load uri: " + wrapper.mUri, e);
+                Log.w("SubImageTemplateCard", "open uri:" + wrapper.mUri + " got exception:" + e);
             }
             return wrapper;
         }
 
         @Override
         protected void onPostExecute(DrawableWrapper wrapper) {
-            if (wrapper != null && wrapper.mListener != null) {
-                wrapper.mListener.onDrawableLoaded(wrapper.mDrawable);
-            }
+            wrapper.mListener.onDrawableLoaded(wrapper.mDrawable);
         }
     }
 }
