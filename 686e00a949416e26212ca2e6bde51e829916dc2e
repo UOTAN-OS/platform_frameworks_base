@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "48fd363d_78b3285d",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 16
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-01-09T18:55:38Z",
+      "side": 1,
+      "message": "Waiting on @basam.aryan@gmail.com",
+      "revId": "686e00a949416e26212ca2e6bde51e829916dc2e",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
