@@ -139,10 +139,13 @@ public class DateSmartspaceView extends LinearLayout
 
     @Override
     public final void setDnd(Drawable image, String description) {
+        int iconSize = getContext().getResources().getDimensionPixelSize(
+            R.dimen.enhanced_smartspace_icon_size);
         if (image == null) {
             BcSmartspaceTemplateDataUtils.updateVisibility(mDndImageView, View.GONE);
         } else {
             mDndIconDrawable.setIcon(image.mutate());
+            mDndIconDrawable.setBounds(0, 0, iconSize, iconSize);
             mDndImageView.setImageDrawable(mDndIconDrawable);
             mDndImageView.setContentDescription(description);
             BcSmartspaceTemplateDataUtils.updateVisibility(mDndImageView, View.VISIBLE);
