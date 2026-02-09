@@ -1915,7 +1915,7 @@ public class LockPatternView extends View {
          */
         @UnsupportedAppUsage
         private SavedState(Parcelable superState, String serializedPattern, int displayMode,
-                byte patternSize, boolean inputEnabled, int inputMode
+                byte patternSize, boolean inputEnabled, int inputMode,
                 boolean inStealthMode, boolean visibleDots, boolean showErrorPath) {
             super(superState);
             mSerializedPattern = serializedPattern;
