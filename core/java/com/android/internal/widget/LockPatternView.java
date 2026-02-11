@@ -367,11 +367,12 @@ public class LockPatternView extends View {
         /**
          * A pattern was detected from the user.
          * @param pattern The pattern.
-         *
-         * @deprecated use {@link #onPatternDetected(List<Cell>, InputMode)}
+         * @param patternSize The pattern size.
+	 *
+         * @deprecated use {@link #onPatternDetected(List<Cell>, InputMode, byte)}
          */
         @Deprecated
-        default void onPatternDetected(List<Cell> pattern) {}
+        default void onPatternDetected(List<Cell> pattern, byte patternSize) {}
 
         /**
          * A pattern was detected from the user.
@@ -382,7 +383,7 @@ public class LockPatternView extends View {
         default void onPatternDetected(List<Cell> pattern, 
                                        InputMode inputMode,
                                        byte patternSize) {
-            onPatternDetected(pattern);
+            onPatternDetected(pattern, patternSize);
         }
     }
 
