@@ -7159,7 +7159,7 @@ public class Intent implements Parcelable, Cloneable {
     @FlaggedApi(com.android.eyedropper.Flags.FLAG_ENABLE_EYE_DROPPER_API)
     public static final String EXTRA_COLOR = "android.intent.extra.COLOR";
 
-    /*
+    /**
      * Broadcast action: notify the system that the user has performed a gesture on the screen
      * to launch the camera. Broadcast should be protected to receivers holding the
      * {@link Manifest.permission#STATUS_BAR_SERVICE} permission.
