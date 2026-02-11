@@ -418,13 +418,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             "com.android.server.policy.PhoneWindowManager.ACTION_TORCH_OFF";
 
     //Ext add
-    private static final String TAG_GESTURE = "AviumGesture";
-    private static final String ACTION_WINDOWMODE_LEFT = "org.avium.WINDOWMODE_LEFT";
-    private static final String ACTION_WINDOWMODE_RIGHT = "org.avium.WINDOWMODE_RIGHT";
+    private static final String TAG_GESTURE = "FreeformGesture";
     private static float GESTURE_AREA_HEIGHT_DP = 20.0f; 
     private static float GESTURE_AREA_WIDTH_DP = 30.0f; 
 
-    private static final boolean AVIUM_DEBUG = false;
+    private static final boolean GESTURE_DEBUG = false;
 
     private static final float TRIGGER_MIN_DISTANCE_DP = 30.0f; 
     private static final float TRIGGER_MAX_ANGLE_RAD = (float) Math.toRadians(80.0); 
@@ -5582,8 +5580,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     BroadcastReceiver mGestureSettingsReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if ("org.avium.UPDATE_GESTURE_SETTINGS".equals(intent.getAction())) {
-                if (AVIUM_DEBUG) {
+            if ("org.uwuaosp.freeformsettings.UPDATE_GESTURE_SETTINGS".equals(
+                    intent.getAction())) {
+                if (GESTURE_DEBUG) {
                     Slog.d(TAG_GESTURE, "Received gesture settings update broadcast");
                 }
                 updateGestureParams();
@@ -6247,8 +6246,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     //Ext add
     @Override
     public void notifySystemGestureState(boolean down) {
-        if(AVIUM_DEBUG){
-            Slog.d("AviumGesture", "notifySystemGestureState called with: " + down);
+        if (GESTURE_DEBUG) {
+            Slog.d(TAG_GESTURE, "notifySystemGestureState called with: " + down);
         }
         mIsTrackingSystemGesture = down;
         if (!down) {
@@ -6258,36 +6257,37 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     @Override
     public int interceptMotionBeforeQueueing(MotionEvent event) {
-        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", true);
+        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", false);
         if(!isPopupViewEnable){
             return SYSTEM_GESTURE_NONE;
         }
         final int action = event.getActionMasked();
         final float x = event.getRawX();
         final float y = event.getRawY();
-        boolean gestureTriggered = false;
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                mGestureTriggered = false;
                 boolean inGestureArea = y > (mDisplayHeight - mGestureAreaHeightPx) &&
                                         (x < mGestureAreaWidthPx || x > (mDisplayWidth - mGestureAreaWidthPx));
                 if (inGestureArea) {
                     mIsTrackingSideGesture = true;
                     mGestureStartPoint.set(x, y);
-                    if(AVIUM_DEBUG){
-                        Slog.d("AviumGesture", "interceptMotionBeforeQueueing ACTION_DOWN inGestureArea: " + inGestureArea);
+                    if (GESTURE_DEBUG) {
+                        Slog.d(TAG_GESTURE,
+                                "interceptMotionBeforeQueueing ACTION_DOWN inGestureArea: "
+                                        + inGestureArea);
                     }
                     return SYSTEM_GESTURE_DOWN;
                 }
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                if (mIsTrackingSideGesture) {
+                if (mIsTrackingSideGesture || mGestureTriggered) {
                     final float dx = x - mGestureStartPoint.x;
                     final float dy = y - mGestureStartPoint.y;
                     final float distance = (float) Math.hypot(dx, dy);
-
-                    if (distance > mMinGestureDistancePx) {
+                    if (!mGestureTriggered && distance > mMinGestureDistancePx) {
                         final float absDx = Math.abs(dx);
                         final float absDy = Math.abs(dy);
                         final float angle = (float) Math.atan2(absDy, absDx);
@@ -6297,24 +6297,32 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                             boolean isRightSwipe = mGestureStartPoint.x > (mDisplayWidth - mGestureAreaWidthPx) && dx < 0;
 
                             if (isLeftSwipe || isRightSwipe) {
-                                onSideGestureDetected(isRightSwipe);
+                                onSideGestureDetected(isRightSwipe, mGestureStartPoint.x, mGestureStartPoint.y); 
+                                mGestureTriggered = true;
                                 mIsTrackingSideGesture = false; 
-                                gestureTriggered = true; 
                             }
                         }
-                        if (!gestureTriggered) {
+                        if (!mGestureTriggered) {
                             mIsTrackingSideGesture = false;
+                            return SYSTEM_GESTURE_RESET;
                         }
                     }
-                    if (gestureTriggered || !mIsTrackingSideGesture) {
-                        return SYSTEM_GESTURE_RESET;
+                    if (mGestureTriggered) {
+                        sendTouchCoordinatesToApp(x, y, false);
+                        return SYSTEM_GESTURE_MOVE;
                     }
-                    return SYSTEM_GESTURE_MOVE;
+                    
+                    return mGestureTriggered ? SYSTEM_GESTURE_MOVE : SYSTEM_GESTURE_RESET; 
                 }
                 break;
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
+                if (mGestureTriggered) {
+                    sendTouchCoordinatesToApp(x, y, true);
+                    mGestureTriggered = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
                 if (mIsTrackingSideGesture) {
                     mIsTrackingSideGesture = false;
                     return SYSTEM_GESTURE_RESET;
@@ -6325,17 +6333,29 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         return SYSTEM_GESTURE_NONE;
     }
 
-    private void onSideGestureDetected(boolean fromRight) { 
-        if(AVIUM_DEBUG){
-            Slog.d("AviumGesture", "onSideGestureDetected called with: " + fromRight);
+    private void sendTouchCoordinatesToApp(float x, float y, boolean isUp) {
+        Intent intent = new Intent("org.uwuaosp.freeformsettings.TOUCH_COORDINATES");
+        intent.putExtra("x", x);
+        intent.putExtra("y", y);
+        intent.putExtra("isUp", isUp);
+        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mContext.sendBroadcast(intent);
+    }
+
+    private void onSideGestureDetected(boolean fromRight, float startX, float startY) {
+        if (GESTURE_DEBUG) {
+            Slog.d(TAG_GESTURE, "onSideGestureDetected called with: " + fromRight
+                    + ", startX: " + startX + ", startY: " + startY);
         }
     
-        Intent intent = new Intent(); 
-        intent.setComponent(new ComponentName( 
-            "org.avium.systemuiex", 
-            "org.avium.systemuiex.service.GestureService" 
-        )); 
-        intent.putExtra("isLeft", !fromRight); 
+        Intent intent = new Intent();
+        intent.setComponent(new ComponentName(
+                "org.uwuaosp.freeformsettings",
+                "org.uwuaosp.freeformsettings.service.GestureService"
+        ));
+        intent.putExtra("isLeft", !fromRight);
+        intent.putExtra("touchX", startX);
+        intent.putExtra("touchY", startY);
         
         PendingIntent pendingIntent;
         pendingIntent = PendingIntent.getForegroundService(
@@ -6395,7 +6415,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mKeyguardDelegate.onSystemReady();
         //Ext add
         updateGestureParams();
-        IntentFilter gestureSettingsFilter = new IntentFilter("org.avium.UPDATE_GESTURE_SETTINGS");
+        IntentFilter gestureSettingsFilter =
+                new IntentFilter("org.uwuaosp.freeformsettings.UPDATE_GESTURE_SETTINGS");
         mContext.registerReceiver(mGestureSettingsReceiver, gestureSettingsFilter,
                 Context.RECEIVER_NOT_EXPORTED);
         mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
