@@ -1525,6 +1525,18 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private void powerLongPress(long eventTime) {
+        if (mSingleKeyGestureDetector.beganFromNonInteractive() || isFlashLightIsOn()) {
+            if (mTorchGesture) {
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS,
+                        "Power - Long Press - Torch");
+                toggleCameraFlash();
+                return;
+            }
+            if (!mSupportLongPressPowerWhenNonInteractive) {
+                Slog.v(TAG, "Not support long press power when device is not interactive.");
+                return;
+            }
+        }
         final int behavior = getResolvedLongPressOnPowerBehavior();
         Slog.d(TAG, "powerLongPress: eventTime=" + eventTime
                 + " mLongPressOnPowerBehavior=" + mLongPressOnPowerBehavior);
@@ -2679,17 +2691,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
 
         private void onLongPress(@NonNull SingleKeyGestureEvent event) {
-            if (mSingleKeyGestureDetector.beganFromNonInteractive() || isFlashLightIsOn()) {
-                if (mTorchGesture) {
-                    performHapticFeedback(HapticFeedbackConstants.LONG_PRESS,
-                            "Power - Long Press - Torch");
-                    toggleCameraFlash();
-                    return;
-                }
-                if (!mSupportLongPressPowerWhenNonInteractive) {
-                    Slog.v(TAG, "Not support long press power when device is not interactive.");
-                    return;
-                }
+            if (mSingleKeyGestureDetector.beganFromNonInteractive()
+                    && !mSupportLongPressPowerWhenNonInteractive) {
+                Slog.v(TAG, "Not support long press power when device is not interactive.");
+                return;
             }
             // If Assistant mapped to long press, we send start, complete and cancel gesture
             // This is done to allow Assistant launch animation in SysUI. Will extend
