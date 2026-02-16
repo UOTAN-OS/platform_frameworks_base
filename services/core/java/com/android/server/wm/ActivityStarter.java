@@ -31,6 +31,7 @@ import static android.app.ActivityManager.isStartResultSuccessful;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.app.PendingIntent.FLAG_CANCEL_CURRENT;
 import static android.app.PendingIntent.FLAG_ONE_SHOT;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK;
@@ -787,6 +788,8 @@ class ActivityStarter {
         String callerActivityName = null;
         ActivityRecord launchingRecord = null;
         try {
+            PopUpWindowController.getInstance().computeBeforeExecuteRequest(mRequest);
+
             onExecutionStarted();
 
             if (mRequest.intent != null) {
@@ -1705,6 +1708,19 @@ class ActivityStarter {
         int result = START_CANCELED;
         final Task startedActivityRootTask;
 
+        // Create a transition now to record the original intent of actions taken within
+        // startActivityInner. Otherwise, logic in startActivityInner could start a different
+        // transition based on a sub-action.
+        // Only do the create here (and defer requestStart) since startActivityInner might abort.
+        final TransitionController transitionController = r.mTransitionController;
+        final boolean isStartingPopUpView = options != null &&
+                WindowConfiguration.isPopUpWindowMode(options.getLaunchWindowingMode()) &&
+                (sourceRecord == null || !r.packageName.equals(sourceRecord.packageName) ||
+                        sourceRecord.getChildCount() == 0);
+        Transition newTransition = transitionController.isShellTransitionsEnabled()
+                && !isStartingPopUpView
+                ? transitionController.createAndStartCollecting(TRANSIT_OPEN) : null;
+
         RemoteTransition remoteTransition = r.takeRemoteTransition();
         // Create a display snapshot as soon as possible.
         if (isIndependentLaunch && mRequest.freezeScreen) {
@@ -2132,7 +2148,7 @@ class ActivityStarter {
                 mOptions, sourceRecord);
         if (mDoResume) {
             final ActivityRecord topTaskActivity = startedTask.topRunningActivityLocked();
-            if (!mTargetRootTask.isTopActivityFocusable()
+            if (!mTargetRootTask.isTopActivityFocusableOrPinWindow()
                     || (topTaskActivity != null && topTaskActivity.isTaskOverlay()
                     && mStartActivity != topTaskActivity)) {
                 // If the activity is not focusable, we can't resume it, but still would like to
@@ -2253,6 +2269,7 @@ class ActivityStarter {
             Task targetTask) {
         mSupervisor.getLaunchParamsController().calculate(targetTask, r.info.windowLayout, r,
                 sourceRecord, mOptions, mRequest, PHASE_BOUNDS, mLaunchParams);
+        PopUpWindowController.getInstance().computeLaunchParams(mLaunchParams, mOptions, targetTask);
         mPreferredTaskDisplayArea = mLaunchParams.hasPreferredTaskDisplayArea()
                 ? mLaunchParams.mPreferredTaskDisplayArea
                 : mRootWindowContainer.getDefaultTaskDisplayArea();

@@ -122,12 +122,16 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
     public static final int WINDOWING_MODE_MULTI_WINDOW = 6;
 
     /** @hide */
+    public static final int WINDOWING_MODE_MINI_WINDOW_EXT = 102;
+
+    /** @hide */
     @IntDef(prefix = { "WINDOWING_MODE_" }, value = {
             WINDOWING_MODE_UNDEFINED,
             WINDOWING_MODE_FULLSCREEN,
             WINDOWING_MODE_MULTI_WINDOW,
             WINDOWING_MODE_PINNED,
             WINDOWING_MODE_FREEFORM,
+            WINDOWING_MODE_MINI_WINDOW_EXT,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface WindowingMode {
@@ -806,7 +810,8 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
      */
     public boolean canResizeTask() {
         return mWindowingMode == WINDOWING_MODE_FREEFORM
-                || mWindowingMode == WINDOWING_MODE_MULTI_WINDOW;
+                || mWindowingMode == WINDOWING_MODE_MULTI_WINDOW
+                || isPopUpWindowMode();
     }
 
     /**
@@ -821,7 +826,8 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
 
     /** Returns true if the windowingMode represents a floating window. */
     public static boolean isFloating(@WindowingMode int windowingMode) {
-        return windowingMode == WINDOWING_MODE_FREEFORM || windowingMode == WINDOWING_MODE_PINNED;
+        return windowingMode == WINDOWING_MODE_FREEFORM || windowingMode == WINDOWING_MODE_PINNED
+                || isPopUpWindowMode(windowingMode);
     }
 
     /**
@@ -831,7 +837,29 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
      */
     public static boolean inMultiWindowMode(@WindowingMode int windowingMode) {
         return windowingMode != WINDOWING_MODE_FULLSCREEN
-                && windowingMode != WINDOWING_MODE_UNDEFINED;
+                && windowingMode != WINDOWING_MODE_UNDEFINED
+                && !isPopUpWindowMode(windowingMode);
+    }
+
+    /** @hide */
+    public boolean isMiniExtWindowMode() {
+        return isMiniExtWindowMode(mWindowingMode);
+    }
+
+    /** @hide */
+    public boolean isPopUpWindowMode() {
+        return isMiniExtWindowMode();
+    }
+
+
+    /** @hide */
+    public static boolean isMiniExtWindowMode(@WindowingMode int windowingMode) {
+        return windowingMode == WINDOWING_MODE_MINI_WINDOW_EXT;
+    }
+
+    /** @hide */
+    public static boolean isPopUpWindowMode(@WindowingMode int windowingMode) {
+        return isMiniExtWindowMode(windowingMode);
     }
 
     /**
@@ -852,7 +880,8 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
         if (mActivityType == ACTIVITY_TYPE_DREAM) return true;
         if (mAlwaysOnTop != ALWAYS_ON_TOP_ON) return false;
         return mWindowingMode == WINDOWING_MODE_FREEFORM
-                    || mWindowingMode == WINDOWING_MODE_MULTI_WINDOW;
+                    || mWindowingMode == WINDOWING_MODE_MULTI_WINDOW
+                    || isPopUpWindowMode();
     }
 
     /**
@@ -903,6 +932,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
             case WINDOWING_MODE_MULTI_WINDOW: return "multi-window";
             case WINDOWING_MODE_PINNED: return "pinned";
             case WINDOWING_MODE_FREEFORM: return "freeform";
+            case WINDOWING_MODE_MINI_WINDOW_EXT: return "mini-window-ext";
             default: return String.valueOf(windowingMode);
         }
     }

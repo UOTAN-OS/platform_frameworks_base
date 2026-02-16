@@ -130,7 +130,10 @@ public class SystemSettings {
                 Settings.System.CV_ENABLED,
                 Settings.System.CV_DYNAMIC_ENABLED,
                 Settings.System.CV_PREFERRED_INTENSITY,
-                Settings.System.ADVANCED_REBOOT
+                Settings.System.ADVANCED_REBOOT,
+                Settings.System.POP_UP_NOTIFICATION_JUMP_PORTRAIT,
+                Settings.System.POP_UP_NOTIFICATION_JUMP_LANDSCAPE,
+                Settings.System.POP_UP_NOTIFICATION_BLACKLIST
         ));
         if (Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
             settings.add(Settings.System.PEAK_REFRESH_RATE);

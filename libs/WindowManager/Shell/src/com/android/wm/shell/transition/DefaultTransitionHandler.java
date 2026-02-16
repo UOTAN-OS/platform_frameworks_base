@@ -346,7 +346,19 @@ public class DefaultTransitionHandler implements Transitions.TransitionHandler {
             finishCallback.onTransitionFinished(null /* wct */);
             return true;
         }
-
+        // Skip animation for mini window mode (WINDOWING_MODE_PINNED_WINDOW_EXT = 102)
+        for (int i = info.getChanges().size() - 1; i >= 0; --i) {
+            final TransitionInfo.Change change = info.getChanges().get(i);
+            if (change.getTaskInfo() != null
+                    && change.getTaskInfo().getWindowingMode() ==
+                        102) {
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                        "Skipping animation for mini window mode (winMode=102)");
+                startTransaction.apply();
+                finishCallback.onTransitionFinished(null /* wct */);
+                return true;
+            }
+        }
         // Early check if the transition doesn't warrant an animation.
         if (isAnimationsDisabledForAnyDisplay(info) || TransitionUtil.isAllNoAnimation(info)
                 || TransitionUtil.isAllOrderOnly(info)

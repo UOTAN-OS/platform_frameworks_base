@@ -208,6 +208,42 @@ class BackNavigationController {
                 window = wmService.getFocusedWindowLocked();
             }
 
+            if (window != null && window.getTask() != null
+                    && window.getTask().getWindowConfiguration().isMiniExtWindowMode()) {
+                final boolean miniHasInputFocus = PopUpWindowController.getInstance()
+                            .shouldMiniWindowHandleInput();
+                Slog.d(TAG, "startBackNavigation: Mini window detected, hasInputFocus=" + miniHasInputFocus);
+
+                if (!miniHasInputFocus) {
+                    // Mini window doesn't have focus, skip to background task
+                    Slog.d(TAG, "startBackNavigation: Skipping mini window, getting background task");
+
+                    final Task backgroundTask = PopUpWindowController.getInstance()
+                            .getTopFullscreenTaskBelowMini();
+
+                    if (backgroundTask != null) {
+                        final ActivityRecord backgroundActivity = backgroundTask.getTopVisibleActivity();
+                        WindowState backgroundWindow = backgroundActivity != null
+                                ? backgroundActivity.findMainWindow(false) : null;
+
+                        if (backgroundWindow != null && backgroundWindow.isDrawn()) {
+                            Slog.d(TAG, "startBackNavigation: Using background window: " + backgroundWindow);
+                            window = backgroundWindow;
+                        } else {
+                            Slog.w(TAG, "startBackNavigation: Background window not drawable, " +
+                                    "falling back to callback");
+                            // No valid background window, return callback type
+                            infoBuilder.setType(BackNavigationInfo.TYPE_CALLBACK);
+                            return infoBuilder.build();
+                        }
+                    } else {
+                        Slog.w(TAG, "startBackNavigation: No background task found, falling back to callback");
+                        infoBuilder.setType(BackNavigationInfo.TYPE_CALLBACK);
+                        return infoBuilder.build();
+                    }
+                }
+            }
+
             if (window == null) {
                 // We don't have any focused window, fallback ont the top currentTask of the focused
                 // display.
@@ -445,6 +481,7 @@ class BackNavigationController {
                                     || backType == BackNavigationInfo.TYPE_CROSS_TASK
                                     || backType == BackNavigationInfo.TYPE_CROSS_ACTIVITY
                                     || backType == BackNavigationInfo.TYPE_DIALOG_CLOSE)
+                            && !currentTask.getWindowConfiguration().isMiniExtWindowMode()
                             && (adapter != null && adapter.isAnimatable(backType));
 
             if (prepareAnimation) {

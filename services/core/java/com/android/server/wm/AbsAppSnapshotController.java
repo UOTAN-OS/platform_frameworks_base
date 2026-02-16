@@ -24,6 +24,8 @@ import static com.android.server.wm.WindowManagerDebugConfig.DEBUG_SCREENSHOT;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 
+import static org.rising.DebugConstants.DEBUG_POP_UP;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -165,6 +167,12 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
     @VisibleForTesting
     SnapshotSupplier captureSnapshot(TYPE source, boolean allowAppTheme) {
         final SnapshotSupplier supplier = new SnapshotSupplier();
+        if (source.getWindowConfiguration().isPopUpWindowMode()) {
+            if (DEBUG_POP_UP) {
+                Slog.d(TAG, "Skip captureSnapshot for " + source);
+            }
+            return null;
+        }
         switch (getSnapshotMode(source)) {
             case SNAPSHOT_MODE_APP_THEME:
                 Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "drawAppThemeSnapshot");
@@ -193,6 +201,9 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
             return null;
         }
         final SnapshotSupplier supplier = captureSnapshot(source, allowAppTheme);
+        if (supplier == null) {
+            return null;
+        }
         supplier.setConsumer(t -> {
             synchronized (mService.mGlobalLock) {
                 if (!source.isAttached()) {

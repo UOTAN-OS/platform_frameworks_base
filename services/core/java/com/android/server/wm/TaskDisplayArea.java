@@ -196,6 +196,12 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         return getRootTask(alwaysTruePredicate());
     }
 
+    Task getNonPopUpViewTopRootTask() {
+        return getRootTask(rootTask -> {
+            return !rootTask.getWindowConfiguration().isPopUpWindowMode();
+        });
+    }
+
     @Nullable
     Task getRootHomeTask() {
         return mRootHomeTask;
@@ -827,7 +833,9 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
             }
             // Update windowing mode if necessary, e.g. launch into a different windowing mode.
             if (windowingMode != WINDOWING_MODE_UNDEFINED
-                    && candidateTask.getWindowingMode() != windowingMode) {
+                    && candidateTask.getWindowingMode() != windowingMode
+                    && !PopUpWindowController.getInstance().getOrCreateRootTask(
+                            candidateTask, mDisplayContent, windowingMode)) {
                 candidateTask.mTransitionController.collect(candidateTask);
                 // We only explicitly change the windowing mode if it's a root task.
                 // If it's not a root task, we don't do anything. But, if the desired windowing
@@ -841,7 +849,7 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
             }
             return candidateTask.getRootTask();
         }
-        return new Task.Builder(mAtmService)
+        final Task origTask = new Task.Builder(mAtmService)
                 .setWindowingMode(windowingMode)
                 .setActivityType(activityType)
                 .setOnTop(onTop)
@@ -850,6 +858,9 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
                 .setActivityOptions(options)
                 .setLaunchFlags(launchFlags)
                 .build();
+        PopUpWindowController.getInstance().setUpRootTask(
+                origTask, mDisplayContent, windowingMode);
+        return origTask;
     }
 
     /**
@@ -1253,7 +1264,8 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     boolean isWindowingModeSupported(int windowingMode, boolean supportsMultiWindow,
             boolean supportsFreeform, boolean supportsPip) {
         if (windowingMode == WINDOWING_MODE_UNDEFINED
-                || windowingMode == WINDOWING_MODE_FULLSCREEN) {
+                || windowingMode == WINDOWING_MODE_FULLSCREEN
+                || WindowConfiguration.isPopUpWindowMode(windowingMode)) {
             return true;
         }
         if (mDisplayContent != null && !mDisplayContent.isWindowingModeSupported(windowingMode)) {

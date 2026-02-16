@@ -1495,6 +1495,9 @@ class RecentTasks {
                     return false;
                 }
                 break;
+            case 101:
+            case 102:
+                return false;
         }
 
         // If we're in lock task mode, ignore the root task

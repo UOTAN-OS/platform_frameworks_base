@@ -36,6 +36,7 @@ public final class InputChannel implements Parcelable {
     private static final String TAG = "InputChannel";
 
     private static final boolean DEBUG = false;
+    private boolean mServerRetained = false;
     private static final NativeAllocationRegistry sRegistry =
             NativeAllocationRegistry.createMalloced(
                     InputChannel.class.getClassLoader(),
@@ -187,6 +188,14 @@ public final class InputChannel implements Parcelable {
         }
     }
 
+    /**
+     * Mark this channel as retained by the server. Server-retained channels
+     * are not disposed during parceling.
+     */
+    public void setServerRetained(boolean retained) {
+        mServerRetained = retained;
+    }
+
     @Override
     public void writeToParcel(Parcel out, int flags) {
         if (out == null) {
@@ -195,7 +204,7 @@ public final class InputChannel implements Parcelable {
 
         nativeWriteToParcel(out, mPtr);
 
-        if ((flags & PARCELABLE_WRITE_RETURN_VALUE) != 0) {
+        if (!mServerRetained && (flags & PARCELABLE_WRITE_RETURN_VALUE) != 0) {
             dispose();
         }
     }

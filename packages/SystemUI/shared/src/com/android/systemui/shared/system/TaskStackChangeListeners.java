@@ -145,6 +145,7 @@ public class TaskStackChangeListeners {
         private static final int ON_LOCK_TASK_MODE_CHANGED = 23;
         private static final int ON_TASK_SNAPSHOT_INVALIDATED = 24;
         private static final int ON_RECENTS_TASK_REMOVED_FOR_ADD_TASK = 25;
+        private static final int ON_TASK_FOCUS_CHANGED = 26;
 
         /**
          * List of {@link TaskStackChangeListener} registered from {@link #addListener}.
@@ -368,6 +369,11 @@ public class TaskStackChangeListeners {
         }
 
         @Override
+        public void onTaskFocusChanged(int taskId, boolean focused) {
+            mHandler.obtainMessage(ON_TASK_FOCUS_CHANGED, taskId, focused ? 1 : 0).sendToTarget();
+        }
+
+        @Override
         public boolean handleMessage(Message msg) {
             synchronized (mTaskStackListeners) {
                 switch (msg.what) {
@@ -547,6 +553,12 @@ public class TaskStackChangeListeners {
                     case ON_RECENTS_TASK_REMOVED_FOR_ADD_TASK: {
                         for (int i = mTaskStackListeners.size() - 1; i >= 0; i--) {
                             mTaskStackListeners.get(i).onRecentTaskRemovedForAddTask(msg.arg1);
+                        }
+                        break;
+                    }
+                    case ON_TASK_FOCUS_CHANGED: {
+                        for (int i = mTaskStackListeners.size() - 1; i >= 0; i--) {
+                            mTaskStackListeners.get(i).onTaskFocusChanged(msg.arg1, msg.arg2 != 0);
                         }
                         break;
                     }

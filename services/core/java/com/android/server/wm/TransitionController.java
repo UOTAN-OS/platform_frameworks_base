@@ -943,9 +943,13 @@ class TransitionController {
      * Requests transition for a window container which will be removed or invisible.
      * @return the new transition if it was created for this request, `null` otherwise.
      */
-    Transition requestCloseTransitionIfNeeded(@NonNull WindowContainer<?> wc) {
+    Transition requestCloseTransitionIfNeeded(@NonNull WindowContainer<?> wc, boolean endTask) {
         if (!Flags.fallbackTransitionPlayer() && mTransitionPlayers.isEmpty()) return null;
         if (isCollecting()) return null;
+        if (endTask && wc.inPopUpWindowingMode()) {
+            collect(wc);
+            return null;
+        }
         if (!wc.isVisibleRequested()) return null;
         return requestStartTransition(createTransition(TRANSIT_CLOSE, 0 /* flags */), wc.asTask(),
                 null /* remoteTransition */, null /* displayChange */);
@@ -985,7 +989,7 @@ class TransitionController {
         transition.collectVisibleChange(wc);
         // Collect all visible tasks.
         wc.forAllLeafTasks(task -> {
-            if (task.isVisible()) {
+            if (task.isVisible() && !task.getWindowConfiguration().isPopUpWindowMode()) {
                 transition.collect(task);
             }
         }, true /* traverseTopToBottom */);
@@ -1095,6 +1099,7 @@ class TransitionController {
             return;
         }
         ProtoLog.v(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS, "Finish Transition: %s", record);
+        PopUpWindowController.getInstance().notifyFinishTransition();
         mPlayingTransitions.remove(record);
         if (!inTransition()) {
             // reset track-count now since shell-side is idle.
