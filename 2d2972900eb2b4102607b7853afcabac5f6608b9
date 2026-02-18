@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e27d286c_63340179",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000000
+      },
+      "writtenOn": "2026-02-18T12:30:49Z",
+      "side": 1,
+      "message": "Won\u0027t this disable landscape lockscreen globally? I see no reason to disable it for tablets",
+      "revId": "2d2972900eb2b4102607b7853afcabac5f6608b9",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
