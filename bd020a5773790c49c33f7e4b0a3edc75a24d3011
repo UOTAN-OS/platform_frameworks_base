@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "0db8c79e_6d78bf07",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000018
+      },
+      "writtenOn": "2026-02-22T06:47:41Z",
+      "side": 1,
+      "message": "Tested on mobiles as well as tablets. Behavior is as intended.",
+      "revId": "bd020a5773790c49c33f7e4b0a3edc75a24d3011",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
