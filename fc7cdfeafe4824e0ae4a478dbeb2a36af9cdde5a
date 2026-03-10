@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "9adb5f41_c6a4a539",
+        "filename": "packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationGutsManager.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 889,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-03-10T18:09:09Z",
+      "side": 1,
+      "message": "```suggestion\n        StatusBarNotification sbn \u003d row.getEntry().getSbn();\n        \n        if (sbn \u003d\u003d null) {\n            return false;\n        }\n        \n        int userId \u003d sbn.getNormalizedUserId();\n```",
+      "range": {
+        "startLine": 883,
+        "startChar": 0,
+        "endLine": 889,
+        "endChar": 47
+      },
+      "revId": "fc7cdfeafe4824e0ae4a478dbeb2a36af9cdde5a",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
