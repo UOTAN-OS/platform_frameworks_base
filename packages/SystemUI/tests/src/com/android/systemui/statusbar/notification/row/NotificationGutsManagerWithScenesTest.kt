@@ -599,7 +599,7 @@ class NotificationGutsManagerWithScenesTest : SysuiTestCase() {
         verify(guts, never()).openControls(anyInt(), anyInt(), anyBoolean(), any<Runnable>())
     }
 
-    private fun createTestNotificationRow(
+private fun createTestNotificationRow(
         block: NotificationEntryBuilder.() -> Unit = {}
     ): ExpandableNotificationRow {
         val nb =
