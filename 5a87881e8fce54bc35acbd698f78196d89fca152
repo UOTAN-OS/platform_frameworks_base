@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "ebf449e1_e127784f",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-03-10T17:49:36Z",
+      "side": 1,
+      "message": "https://m3.material.io/components/sliders/specs\n\nhttps://lh3.googleusercontent.com/QFc1hXc78XHCuqhH4no1fQLDRvSzLaW1K8El5jIW1v3K3sNXjMquxEGcaq22u48Mq5kCqGRoPSCD7m8H37sAwyP_XyI6xY4AJp2GGW3e7-hs\u003ds0\n\nStick to M3 design guidelines.",
+      "revId": "5a87881e8fce54bc35acbd698f78196d89fca152",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
