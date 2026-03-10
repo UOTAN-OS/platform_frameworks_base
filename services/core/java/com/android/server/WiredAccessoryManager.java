@@ -556,6 +556,9 @@ final class WiredAccessoryManager implements WiredAccessoryCallbacks {
 
             if (name == null) {
                 name = event.get("SWITCH_NAME");
+                if(name == null) {
+                    return;
+                }
             }
 
             try {
