@@ -22,6 +22,30 @@
       },
       "revId": "fc7cdfeafe4824e0ae4a478dbeb2a36af9cdde5a",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "db076312_5a5bf1e1",
+        "filename": "packages/SystemUI/src/com/android/systemui/statusbar/notification/row/NotificationGutsManager.java",
+        "patchSetId": 1
+      },
+      "lineNbr": 889,
+      "author": {
+        "id": 1000018
+      },
+      "writtenOn": "2026-03-10T18:10:39Z",
+      "side": 1,
+      "message": "I will test it as is first, if it works then will try this.",
+      "parentUuid": "9adb5f41_c6a4a539",
+      "range": {
+        "startLine": 883,
+        "startChar": 0,
+        "endLine": 889,
+        "endChar": 47
+      },
+      "revId": "fc7cdfeafe4824e0ae4a478dbeb2a36af9cdde5a",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
