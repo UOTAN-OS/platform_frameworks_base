@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "352b3464_b332c4cb",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-03-11T03:17:34Z",
+      "side": 1,
+      "message": "Retain the commit authors, while adding Former-Change-Id to it as well.",
+      "revId": "bdf0480b132b7f1cd66eb8722b0eebe9b64ffa15",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
