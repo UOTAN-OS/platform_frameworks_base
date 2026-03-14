@@ -2312,6 +2312,11 @@ class ActivityStarter {
         boolean blockBalInTask = (newTask
                 || !targetTask.isUidPresent(mCallingUid)
                 || (LAUNCH_SINGLE_INSTANCE == mLaunchMode && targetTask.inPinnedWindowingMode()));
+        final boolean isPopUpLaunch = mOptions != null
+                && WindowConfiguration.isPopUpWindowMode(mOptions.getLaunchWindowingMode());
+        if (isPopUpLaunch) {
+            blockBalInTask = false;
+        }
 
         if (mBalVerdict.blocks() && blockBalInTask
                 && handleBackgroundActivityAbort(r)) {

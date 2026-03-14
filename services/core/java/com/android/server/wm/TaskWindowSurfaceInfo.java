@@ -127,7 +127,7 @@ class TaskWindowSurfaceInfo {
     void setWindowSurfaceScaleDrag(float scale, Rect displayBound, boolean isLandscape) {
         if (mWindowSurfaceScale != scale) {
             mWindowSurfaceScale = scale;
-            DimmerWindow.getInstance().onDragResizeChanged(scale,
+            DimmerWindowManager.getInstance().onDragResizeChanged(mTask, scale,
                     getTaskWindowSurfaceBoundsOnDrag(displayBound), isLandscape);
         }
     }
@@ -135,7 +135,7 @@ class TaskWindowSurfaceInfo {
     void setWindowSurfaceScale(float scale) {
         if (mWindowSurfaceScale != scale) {
             mWindowSurfaceScale = scale;
-            DimmerWindow.getInstance().onResizeChanged();
+            DimmerWindowManager.getInstance().onResizeChanged(mTask);
         }
     }
 
@@ -259,8 +259,10 @@ class TaskWindowSurfaceInfo {
             }
             mCornerRadius = mMiniWindowCornerRadius;
             if (!isPrevMiniWindow) {
-                DimmerWindow.getInstance().setTask(mTask);
+                DimmerWindowManager.getInstance().attachTask(mTask);
             }
+        } else if (isPrevMiniWindow) {
+            DimmerWindowManager.getInstance().detachTask(mTask);
         }
         if (isPopUpWindow || isPrevPopUpWindow) {
             final SurfaceControl surfaceControl = mTask.getSurfaceControl();
@@ -319,7 +321,7 @@ class TaskWindowSurfaceInfo {
                 setWindowSurfaceScale(WindowResizingAlgorithm.getDefaultMiniWindowScale(
                         mTask.getConfiguration().orientation, mTask.mDisplayContent.getRotation()));
             }
-            DimmerWindow.getInstance().onResizeChanged();
+            DimmerWindowManager.getInstance().onResizeChanged(mTask);
         }
         if ((mConfiguration.diff(newConfig) & ActivityInfo.CONFIG_DENSITY) != 0) {
             updateDensityIfNeed(false);

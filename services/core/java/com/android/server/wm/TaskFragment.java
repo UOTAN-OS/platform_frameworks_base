@@ -1444,12 +1444,11 @@ class TaskFragment extends WindowContainer<WindowContainer> {
                 affectsSiblingVisibility &= other.hasFillingContent();
             }
 
-            // Popup windows should NOT hide tasks below UNLESS it's the same popup mode
+            // Pop-Up View should NOT hide tasks below (allow multiple pop-up windows to be visible)
             final int otherWindowingMode = other.getWindowingMode();
             final int thisWindowingMode = getWindowingMode();
             if (WindowConfiguration.isPopUpWindowMode(otherWindowingMode)) {
-                // Only hide tasks of the SAME popup mode
-                affectsSiblingVisibility = (thisWindowingMode == otherWindowingMode);
+                affectsSiblingVisibility = false;
             }
 
             if (affectsSiblingVisibility) {
