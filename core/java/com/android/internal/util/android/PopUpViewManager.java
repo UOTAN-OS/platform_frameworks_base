@@ -16,13 +16,6 @@ public class PopUpViewManager {
     /** TODO: Get rid of these dirty blacklist stuff. Maybe move them to local config file. */
     private static final ArraySet<String> SYSTEM_NOTIFICATION_BLACKLIST = new ArraySet<>();
 
-    public static final String ACTION_START_MINI_WINDOW = "com.android.intent.START_MINI_WINDOW";
-
-    public static final String EXTRA_PACKAGE_NAME = "packageName";
-    public static final String EXTRA_ACTIVITY_NAME = "activityName";
-    public static final String EXTRA_SHORTCUT_ID = "shortcutId";
-    public static final String EXTRA_SHORTCUT_USER_ID = "shortcutUserId";
-
     private PopUpViewManager() {}
 
     static {
