@@ -471,6 +471,7 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
 
     private boolean mKeepInParentForDismissAnimation;
     private boolean mRemoved;
+    private boolean mForcePopUpOnNextClick;
     public static final FloatProperty<ExpandableNotificationRow> TRANSLATE_CONTENT =
             new FloatProperty<>("translate") {
                 @Override
@@ -1419,6 +1420,16 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
      */
     public boolean wasJustClicked() {
         return mJustClicked;
+    }
+
+    public void setForcePopUpOnNextClick(boolean forcePopUpOnNextClick) {
+        mForcePopUpOnNextClick = forcePopUpOnNextClick;
+    }
+
+    public boolean consumeForcePopUpOnNextClick() {
+        boolean forcePopUpOnNextClick = mForcePopUpOnNextClick;
+        mForcePopUpOnNextClick = false;
+        return forcePopUpOnNextClick;
     }
 
     public void setChronometerRunning(boolean running) {

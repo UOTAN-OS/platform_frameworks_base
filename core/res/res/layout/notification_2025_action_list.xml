@@ -80,6 +80,15 @@
                 android:visibility="gone"
                 android:scaleType="centerInside"
                 />
+            <ImageView
+                android:id="@+id/freeform_popup_button"
+                android:layout_width="@dimen/notification_2025_actions_icon_size"
+                android:layout_height="@dimen/notification_2025_actions_icon_size"
+                android:layout_gravity="center_vertical|end"
+                android:tint="?android:attr/textColorSecondary"
+                android:visibility="gone"
+                android:scaleType="centerInside"
+                />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
