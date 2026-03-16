@@ -14,7 +14,7 @@ import com.android.systemui.statusbar.policy.NextAlarmControllerImpl
 import com.android.systemui.statusbar.policy.ZenModeController
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.statusbar.policy.domain.model.ZenModeInfo
-import com.android.systemui.res.R
+import com.android.systemui.res.R;
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
