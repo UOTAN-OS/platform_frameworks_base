@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ea680370_32641a01",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 7
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000018
+      },
+      "writtenOn": "2026-03-20T09:53:00Z",
+      "side": 1,
+      "message": "Works as intended. Shows ticks on devices with less levels, and hides it when it is excessive.",
+      "revId": "b938ac717ac20cb07f32418222a325108b008d76",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
