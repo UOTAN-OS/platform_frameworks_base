@@ -34,6 +34,24 @@
       "parentUuid": "5446c27a_f41006b1",
       "revId": "95a6c25bc811ede9a8902c9e32334a9f8e344998",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "616d647f_1c3cab74",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000018
+      },
+      "writtenOn": "2026-03-20T07:16:31Z",
+      "side": 1,
+      "message": "the formatting itself looks fine, I am yet to review the patch properly. Building it as is right now.",
+      "parentUuid": "3146dfbf_dc08aec0",
+      "revId": "95a6c25bc811ede9a8902c9e32334a9f8e344998",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
