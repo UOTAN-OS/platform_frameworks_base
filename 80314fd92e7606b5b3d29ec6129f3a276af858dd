@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "90dd892e_d0b8f7ee",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-03-20T12:56:13Z",
+      "side": 1,
+      "message": "Cleanup unnecessary new diffs.",
+      "revId": "80314fd92e7606b5b3d29ec6129f3a276af858dd",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
