@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "5446c27a_f41006b1",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000053
+      },
+      "writtenOn": "2026-03-20T06:41:24Z",
+      "side": 1,
+      "message": "is the xml padding fine or do we need any changes",
+      "revId": "95a6c25bc811ede9a8902c9e32334a9f8e344998",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    }
+  ]
+}
