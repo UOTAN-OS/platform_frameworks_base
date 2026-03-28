@@ -67,6 +67,24 @@
       "message": "Doesn\u0027t fully work as intended; the date hides itself with large clock during lockdown (and sometimes always) with this change",
       "revId": "80314fd92e7606b5b3d29ec6129f3a276af858dd",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "18e31242_42cd9625",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000053
+      },
+      "writtenOn": "2026-03-28T12:14:13Z",
+      "side": 1,
+      "message": "Done",
+      "parentUuid": "90dd892e_d0b8f7ee",
+      "revId": "80314fd92e7606b5b3d29ec6129f3a276af858dd",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
