@@ -16,6 +16,23 @@
       "message": "Cleanup unnecessary new diffs.",
       "revId": "80314fd92e7606b5b3d29ec6129f3a276af858dd",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "026276ea_83bb1345",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000053
+      },
+      "writtenOn": "2026-03-28T08:58:08Z",
+      "side": 1,
+      "message": "Is the smartspace supposed to not show up before unlocking the device for the first time after this change?",
+      "revId": "80314fd92e7606b5b3d29ec6129f3a276af858dd",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
