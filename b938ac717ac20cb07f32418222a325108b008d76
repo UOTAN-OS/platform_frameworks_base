@@ -16,6 +16,23 @@
       "message": "Works as intended. Shows ticks on devices with less levels, and hides it when it is excessive.",
       "revId": "b938ac717ac20cb07f32418222a325108b008d76",
       "serverId": "58543e18-2196-4633-8043-7787712585ad"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "6dbdc650_001f3794",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 7
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1000003
+      },
+      "writtenOn": "2026-04-01T07:17:58Z",
+      "side": 1,
+      "message": "or we can convert to 5/10 steps per 10% of maxLevel for those devices?",
+      "revId": "b938ac717ac20cb07f32418222a325108b008d76",
+      "serverId": "58543e18-2196-4633-8043-7787712585ad"
     }
   ]
 }
