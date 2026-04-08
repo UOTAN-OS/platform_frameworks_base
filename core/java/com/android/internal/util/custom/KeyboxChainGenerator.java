@@ -1,5 +1,6 @@
 /*
  * SPDX-FileCopyrightText: 2025 Neoteric OS
+ * SPDX-FileCopyrightText: 2026 The uwuAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.internal.util.custom;
@@ -79,6 +80,12 @@ public final class KeyboxChainGenerator {
     private static final int ATTESTATION_PACKAGE_INFO_VERSION_INDEX = 1;
 
     public static List<Certificate> generateCertChain(int uid, KeyDescriptor descriptor, KeyGenParameters params) {
+        GeneratedKeyMaterial keyMaterial = generateKeyMaterial(uid, descriptor, params);
+        return keyMaterial != null ? keyMaterial.certificateChain : null;
+    }
+
+    public static GeneratedKeyMaterial generateKeyMaterial(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params) {
         dlog("Requested KeyPair with alias: " + descriptor.alias);
         int size = params.keySize;
         KeyPair kp;
@@ -124,7 +131,7 @@ public final class KeyboxChainGenerator {
             List<Certificate> chain = KeyboxUtils.getCertificateChain(leaf.getPublicKey().getAlgorithm());
             chain.add(0, leaf);
             dlog("Successfully generated X500 Cert for alias: " + descriptor.alias);
-            return chain;
+            return new GeneratedKeyMaterial(kp, chain);
         } catch (Throwable t) {
             Log.e(TAG, Log.getStackTraceString(t));
         }
@@ -360,9 +367,18 @@ public final class KeyboxChainGenerator {
         kpg.initialize(spec);
         return kpg.generateKeyPair();
     }
-
     private static void dlog(String msg) {
         if (DEBUG) Log.d(TAG, msg);
+    }
+
+    public static final class GeneratedKeyMaterial {
+        public final KeyPair keyPair;
+        public final List<Certificate> certificateChain;
+
+        GeneratedKeyMaterial(KeyPair keyPair, List<Certificate> certificateChain) {
+            this.keyPair = keyPair;
+            this.certificateChain = certificateChain;
+        }
     }
 
     public static class KeyGenParameters {

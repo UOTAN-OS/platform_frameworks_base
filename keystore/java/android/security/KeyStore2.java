@@ -285,11 +285,6 @@ public class KeyStore2 {
             throws KeyStoreException {
         StrictMode.noteDiskRead();
 
-        KeyEntryResponse response = KeyboxImitationHooks.onGetKeyEntry(descriptor);
-        if (response != null) {
-            return response;
-        }
-
         return handleRemoteExceptionWithRetry((service) -> service.getKeyEntry(descriptor));
     }
 
