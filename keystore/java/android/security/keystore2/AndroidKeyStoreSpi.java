@@ -1260,8 +1260,17 @@ public class AndroidKeyStoreSpi extends KeyStoreSpi {
                     return d.alias;
                 }
             } else if (response.metadata.certificateChain != null && caAlias == null) {
-                if (Arrays.equals(response.metadata.certificateChain, targetCertBytes)) {
-                    caAlias =  d.alias;
+                final Collection<X509Certificate> caChain =
+                        toCertificates(response.metadata.certificateChain);
+                if (!caChain.isEmpty()) {
+                    final X509Certificate firstCert = caChain.iterator().next();
+                    try {
+                        if (Arrays.equals(firstCert.getEncoded(), targetCertBytes)) {
+                            caAlias = d.alias;
+                        }
+                    } catch (CertificateEncodingException e) {
+                        Log.w(TAG, "Failed to encode certificate while looking up alias", e);
+                    }
                 }
             }
         }

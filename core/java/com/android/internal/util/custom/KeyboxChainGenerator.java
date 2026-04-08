@@ -403,7 +403,6 @@ public final class KeyboxChainGenerator {
         kpg.initialize(spec, getSecureRandom(entropy));
         return kpg.generateKeyPair();
     }
-
     private static SecureRandom getSecureRandom(byte[] entropy) {
         SecureRandom secureRandom = new SecureRandom();
         if (entropy != null && entropy.length > 0) {

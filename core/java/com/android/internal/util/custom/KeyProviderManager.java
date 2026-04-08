@@ -1,5 +1,6 @@
 /*
  * SPDX-FileCopyrightText: 2024 Paranoid Android
+ * SPDX-FileCopyrightText: 2026 The uwuAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.internal.util.custom;
@@ -15,7 +16,6 @@ import org.xmlpull.v1.XmlPullParser;
 
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -198,15 +198,18 @@ public final class KeyProviderManager {
         }
 
         private String[] getCertificateChain(String prefix) {
-            List<String> dataList = new ArrayList<>();
-            for (String key : keyboxData.keySet()) {
-                if (key.startsWith(prefix + ".CERT_")) {
-                    dataList.add(keyboxData.get(key));
+            List<Map.Entry<String, String>> entries = new ArrayList<>();
+            for (Map.Entry<String, String> entry : keyboxData.entrySet()) {
+                if (entry.getKey().startsWith(prefix + ".CERT_")) {
+                    entries.add(entry);
                 }
             }
-            String[] chain = dataList.toArray(String[]::new);
-            Arrays.sort(chain);
-            return chain;
+            entries.sort((left, right) -> {
+                int leftIndex = Integer.parseInt(left.getKey().substring((prefix + ".CERT_").length()));
+                int rightIndex = Integer.parseInt(right.getKey().substring((prefix + ".CERT_").length()));
+                return Integer.compare(leftIndex, rightIndex);
+            });
+            return entries.stream().map(Map.Entry::getValue).toArray(String[]::new);
         }
     }
 }

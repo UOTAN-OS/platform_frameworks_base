@@ -1,5 +1,6 @@
 /*
  * SPDX-FileCopyrightText: 2025 Neoteric OS
+ * SPDX-FileCopyrightText: 2026 The uwuAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.internal.util.custom;
@@ -27,19 +28,14 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.RSAPrivateCrtKeySpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @hide
  */
 public class KeyboxUtils {
-
-    private static final ConcurrentHashMap<Key, KeyEntryResponse> response = new ConcurrentHashMap<>();
-    public static record Key(int uid, String alias) {}
 
     public static byte[] decodePemOrBase64(String input) {
         String base64 = input
@@ -54,26 +50,26 @@ public class KeyboxUtils {
         ASN1Primitive primitive = ASN1Primitive.fromByteArray(keyBytes);
         if ("EC".equalsIgnoreCase(algorithm)) {
             try {
-                // Try parsing as PKCS#8
                 PrivateKeyInfo info = PrivateKeyInfo.getInstance(primitive);
-                return KeyFactory.getInstance("EC").generatePrivate(new PKCS8EncodedKeySpec(info.getEncoded()));
+                return KeyFactory.getInstance("EC")
+                        .generatePrivate(new PKCS8EncodedKeySpec(info.getEncoded()));
             } catch (Exception e) {
-                // Possibly SEC1 / PKCS#1 EC
                 ASN1Sequence seq = ASN1Sequence.getInstance(primitive);
                 ECPrivateKey ecPrivateKey = ECPrivateKey.getInstance(seq);
-                AlgorithmIdentifier algId = new AlgorithmIdentifier(X9ObjectIdentifiers.id_ecPublicKey, ecPrivateKey.getParameters());
+                AlgorithmIdentifier algId = new AlgorithmIdentifier(
+                        X9ObjectIdentifiers.id_ecPublicKey, ecPrivateKey.getParameters());
                 PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, ecPrivateKey);
                 PKCS8EncodedKeySpec pkcs8Spec = new PKCS8EncodedKeySpec(privInfo.getEncoded());
                 return KeyFactory.getInstance("EC").generatePrivate(pkcs8Spec);
             }
         } else if ("RSA".equalsIgnoreCase(algorithm)) {
             try {
-                // Try parsing as PKCS#8
-                return KeyFactory.getInstance("RSA").generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
+                return KeyFactory.getInstance("RSA")
+                        .generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
             } catch (Exception e) {
-                // Parse as PKCS#1
                 RSAPrivateKey rsaKey = RSAPrivateKey.getInstance(primitive);
-                AlgorithmIdentifier algId = new AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
+                AlgorithmIdentifier algId = new AlgorithmIdentifier(
+                        PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
                 PrivateKeyInfo privInfo = new PrivateKeyInfo(algId, rsaKey);
                 PKCS8EncodedKeySpec pkcs8Spec = new PKCS8EncodedKeySpec(privInfo.getEncoded());
                 return KeyFactory.getInstance("RSA").generatePrivate(pkcs8Spec);
@@ -85,8 +81,7 @@ public class KeyboxUtils {
 
     public static X509Certificate parseCertificate(String encodedCert) throws Exception {
         byte[] certBytes = decodePemOrBase64(encodedCert);
-        return (X509Certificate) CertificateFactory
-                .getInstance("X.509")
+        return (X509Certificate) CertificateFactory.getInstance("X.509")
                 .generateCertificate(new ByteArrayInputStream(certBytes));
     }
 
@@ -96,30 +91,36 @@ public class KeyboxUtils {
                 ? provider.getEcCertificateChain()
                 : provider.getRsaCertificateChain();
 
-        CertificateFactory factory = CertificateFactory.getInstance("X.509");
         List<Certificate> certs = new ArrayList<>();
-
         for (String certPem : certChainPem) {
             certs.add(parseCertificate(certPem));
         }
-
         return certs;
     }
 
-    public static void putCertificateChain(KeyEntryResponse response, Certificate[] chain) throws Exception {
+    public static void putCertificateChain(KeyEntryResponse response, Certificate[] chain)
+            throws Exception {
         putCertificateChain(response.metadata, chain);
     }
 
-    public static void putCertificateChain(KeyMetadata metadata, Certificate[] chain) throws Exception {
+    public static void putCertificateChain(KeyMetadata metadata, Certificate[] chain)
+            throws Exception {
         metadata.certificate = chain[0].getEncoded();
-        var output = new ByteArrayOutputStream();
-        for (int i = 1; i < chain.length; i++) {
-            output.write(chain[i].getEncoded());
-        }
-        metadata.certificateChain = output.toByteArray();
+        metadata.certificateChain = chain.length > 1
+                ? toCertificateChainBytes(java.util.Arrays.copyOfRange(chain, 1, chain.length))
+                : null;
     }
 
-    public static X509Certificate getCertificateFromHolder(X509CertificateHolder holder) throws Exception {
+    public static byte[] toCertificateChainBytes(Certificate[] chain) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        for (Certificate certificate : chain) {
+            output.write(certificate.getEncoded());
+        }
+        return output.toByteArray();
+    }
+
+    public static X509Certificate getCertificateFromHolder(X509CertificateHolder holder)
+            throws Exception {
         CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
         ByteArrayInputStream in = new ByteArrayInputStream(holder.getEncoded());
         return (X509Certificate) certFactory.generateCertificate(in);
@@ -142,13 +143,5 @@ public class KeyboxUtils {
 
         X509Certificate parsedCert = parseCertificate(certPem);
         return new X509CertificateHolder(parsedCert.getEncoded());
-    }
-
-    public static void append(int uid, String a, KeyEntryResponse c) {
-        response.put(new Key(uid, a), c);
-    }
-
-    public static KeyEntryResponse retrieve(int uid, String a) {
-        return response.get(new Key(uid, a));
     }
 }
