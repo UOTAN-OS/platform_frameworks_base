@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2024 The LeafOS Project
+ * Copyright (C) 2026 The uwuAOSP Project
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -13,12 +14,22 @@ import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.os.Binder;
 import android.os.Environment;
+import android.os.Process;
 import android.os.SystemProperties;
 import android.provider.Settings;
 import android.util.Log;
 
+import android.hardware.security.keymint.KeyParameter;
+import android.security.keybox.AttestationCertificates;
+import android.security.keybox.IKeyboxAttestationService;
+import android.system.keystore2.KeyDescriptor;
+
 import com.android.internal.util.custom.CustomUtils;
+import com.android.internal.util.custom.KeyboxChainGenerator;
+import com.android.internal.util.custom.KeyboxChainGenerator.KeyGenParameters;
+import com.android.internal.util.custom.KeyboxUtils;
 import com.android.server.SystemService;
 
 import java.io.BufferedReader;
@@ -30,6 +41,9 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
+import java.security.cert.Certificate;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +65,8 @@ public final class AttestationService extends SystemService {
     private final Context mContext;
     private final ScheduledExecutorService mScheduler;
 
+    private final KeyboxAttestationServiceImpl mKeyboxAttestationService = new KeyboxAttestationServiceImpl();
+
     public AttestationService(Context context) {
         super(context);
         mContext = context;
@@ -58,7 +74,9 @@ public final class AttestationService extends SystemService {
     }
 
     @Override
-    public void onStart() {}
+    public void onStart() {
+        publishBinderService("android.security.keybox", mKeyboxAttestationService);
+    }
 
     @Override
     public void onBootPhase(int phase) {
@@ -143,6 +161,69 @@ public final class AttestationService extends SystemService {
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error in FetchGmsCertifiedProps", e);
+            }
+        }
+    }
+
+    private static class KeyboxAttestationServiceImpl extends IKeyboxAttestationService.Stub {
+        private void enforcePermission() {
+            int callingUid = Binder.getCallingUid();
+            if (callingUid != Process.KEYSTORE_UID) {
+                throw new SecurityException("Only Keystore daemon can call this service");
+            }
+        }
+
+        @Override
+        public AttestationCertificates generateCertificateChain(int targetUid,
+                KeyDescriptor descriptor,
+                KeyParameter[] params, byte[] leafCertificate) {
+            enforcePermission();
+            try {
+                KeyGenParameters keyGenParams = new KeyGenParameters(params);
+                List<Certificate> chain = KeyboxChainGenerator.generateCertChainFromCert(
+                        targetUid, descriptor, keyGenParams, leafCertificate);
+
+                if (chain == null || chain.isEmpty()) {
+                    return null;
+                }
+
+                AttestationCertificates certs = new AttestationCertificates();
+                certs.certificate = chain.get(0).getEncoded();
+                certs.certificateChain = chain.size() > 1 ? KeyboxUtils.toCertificateChainBytes(
+                        chain.subList(1, chain.size()).toArray(new Certificate[0])) : null;
+
+                return certs;
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to generate certificate chain", e);
+                return null;
+            }
+        }
+
+        @Override
+        public AttestationCertificates generateSoftwareKey(int targetUid, KeyDescriptor descriptor,
+                KeyParameter[] params, byte[] entropy) {
+            enforcePermission();
+            try {
+                KeyGenParameters keyGenParams = new KeyGenParameters(params);
+
+                KeyboxChainGenerator.GeneratedKeyMaterial material =
+                        KeyboxChainGenerator.generateKeyMaterial(
+                                targetUid, descriptor, keyGenParams, entropy);
+
+                if (material == null || material.certificateChain == null || material.certificateChain.isEmpty()) {
+                    return null;
+                }
+
+                AttestationCertificates certs = new AttestationCertificates();
+                certs.privateKey = material.keyPair.getPrivate().getEncoded();
+                certs.certificate = material.certificateChain.get(0).getEncoded();
+                certs.certificateChain = material.certificateChain.size() > 1 ? KeyboxUtils.toCertificateChainBytes(
+                        material.certificateChain.subList(1, material.certificateChain.size()).toArray(new Certificate[0])) : null;
+
+                return certs;
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to generate software key and certificates", e);
+                return null;
             }
         }
     }
