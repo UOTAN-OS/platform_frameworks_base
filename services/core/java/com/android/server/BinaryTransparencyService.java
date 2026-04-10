@@ -82,6 +82,7 @@ import android.util.apk.ApkSigningBlockUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.IBinaryTransparencyService;
+import com.android.internal.util.custom.VerifiedBootState;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.modules.expresslog.Histogram;
 import com.android.server.pm.ApexManager;
@@ -1576,7 +1577,7 @@ public class BinaryTransparencyService extends SystemService {
     }
 
     private void collectBootIntegrityInfo() {
-        mVbmetaDigest = SystemProperties.get(SYSPROP_NAME_VBETA_DIGEST, VBMETA_DIGEST_UNAVAILABLE);
+        mVbmetaDigest = VerifiedBootState.getVerifiedBootHashHex();
         Slog.d(TAG, String.format("VBMeta Digest: %s", mVbmetaDigest));
         FrameworkStatsLog.write(FrameworkStatsLog.VBMETA_DIGEST_REPORTED, mVbmetaDigest);
 

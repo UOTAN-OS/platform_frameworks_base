@@ -148,16 +148,11 @@ public final class KeyboxChainGenerator {
 
     private static Extension createExtension(KeyGenParameters params, int uid) {
         try {
-            SecureRandom random = new SecureRandom();
-
-            byte[] bytes1 = new byte[32];
-            byte[] bytes2 = new byte[32];
-
-            random.nextBytes(bytes1);
-            random.nextBytes(bytes2);
-
-            ASN1Encodable[] rootOfTrustEncodables = {new DEROctetString(bytes1), ASN1Boolean.TRUE,
-                    new ASN1Enumerated(0), new DEROctetString(bytes2)};
+            ASN1Encodable[] rootOfTrustEncodables = {
+                    new DEROctetString(VerifiedBootState.getVerifiedBootKeyBytes()),
+                    ASN1Boolean.TRUE,
+                    new ASN1Enumerated(0),
+                    new DEROctetString(VerifiedBootState.getVerifiedBootHashBytes())};
 
             ASN1Sequence rootOfTrustSeq = new DERSequence(rootOfTrustEncodables);
 
