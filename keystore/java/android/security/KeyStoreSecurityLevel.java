@@ -33,8 +33,6 @@ import android.system.keystore2.KeyMetadata;
 import android.system.keystore2.ResponseCode;
 import android.util.Log;
 
-import com.android.internal.util.custom.KeyboxImitationHooks;
-
 import java.util.Calendar;
 import java.util.Collection;
 
@@ -63,26 +61,6 @@ public class KeyStoreSecurityLevel {
             // This should prompt the caller drop the reference to this operation and retry.
             Log.e(TAG, "Could not connect to Keystore.", e);
             throw new KeyStoreException(ResponseCode.SYSTEM_ERROR, "", e.getMessage());
-        }
-    }
-
-    private <R> R retryBusyException(CheckedRemoteRequest<R> request) throws KeyStoreException {
-        while (true) {
-            try {
-                return request.execute();
-            } catch (ServiceSpecificException e) {
-                // Retry on backend busy.
-                if (e.errorCode == ResponseCode.BACKEND_BUSY) {
-                    Log.w(TAG, "Backend is busy, retrying");
-                    long backOffHint = (long) (Math.random() * 80 + 20);
-                    interruptedPreservingSleep(backOffHint);
-                } else {
-                    throw KeyStore2.getKeyStoreException(e.errorCode, e.getMessage());
-                }
-            } catch (RemoteException e) {
-                Log.e(TAG, "Could not connect to Keystore.", e);
-                throw new KeyStoreException(ResponseCode.SYSTEM_ERROR, "", e.getMessage());
-            }
         }
     }
 
@@ -168,16 +146,7 @@ public class KeyStoreSecurityLevel {
             throws KeyStoreException {
         StrictMode.noteDiskWrite();
 
-        KeyboxImitationHooks.setSuccessFlag(false);
-        if (attestationKey == null) {
-            KeyMetadata metadata = KeyboxImitationHooks.generateKey(mSecurityLevel,
-                    descriptor, args);
-            if (metadata != null) {
-                return metadata;
-            }
-        }
-
-        return retryBusyException(() -> mSecurityLevel.generateKey(
+        return handleExceptions(() -> mSecurityLevel.generateKey(
                 descriptor, attestationKey, args.toArray(new KeyParameter[args.size()]),
                 flags, entropy));
     }

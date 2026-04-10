@@ -1,5 +1,6 @@
 /*
  * SPDX-FileCopyrightText: 2025 Neoteric OS
+ * SPDX-FileCopyrightText: 2026 The uwuAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 package com.android.internal.util.custom;
@@ -45,14 +46,18 @@ import com.android.internal.org.bouncycastle.operator.ContentSigner;
 import com.android.internal.org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.RSAKeyGenParameterSpec;
 import java.util.Arrays;
@@ -78,57 +83,96 @@ public final class KeyboxChainGenerator {
     private static final int ATTESTATION_PACKAGE_INFO_PACKAGE_NAME_INDEX = 0;
     private static final int ATTESTATION_PACKAGE_INFO_VERSION_INDEX = 1;
 
-    public static List<Certificate> generateCertChain(int uid, KeyDescriptor descriptor, KeyGenParameters params) {
+    public static List<Certificate> generateCertChain(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params, byte[] entropy) {
+        GeneratedKeyMaterial keyMaterial = generateKeyMaterial(uid, descriptor, params, entropy);
+        return keyMaterial != null ? keyMaterial.certificateChain : null;
+    }
+
+    public static List<Certificate> generateCertChainFromCert(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params, byte[] leafCertificateBytes) {
+        if (leafCertificateBytes == null || leafCertificateBytes.length == 0) {
+            Log.e(TAG, "Leaf certificate bytes are empty");
+            return null;
+        }
+        try {
+            X509Certificate leafCertificate = (X509Certificate) CertificateFactory.getInstance(
+                    "X.509").generateCertificate(new ByteArrayInputStream(leafCertificateBytes));
+            return generateCertChain(uid, descriptor, params, leafCertificate.getPublicKey());
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to parse generated leaf certificate", e);
+            return null;
+        }
+    }
+
+    public static List<Certificate> generateCertChain(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params, PublicKey publicKey) {
+        try {
+            return buildCertificateChain(uid, descriptor, params, publicKey);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to build certificate chain", e);
+            return null;
+        }
+    }
+
+    public static GeneratedKeyMaterial generateKeyMaterial(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params, byte[] entropy) {
         dlog("Requested KeyPair with alias: " + descriptor.alias);
         int size = params.keySize;
         KeyPair kp;
         try {
             if (Objects.equals(params.algorithm, Algorithm.EC)) {
                 dlog("Generating EC keypair of size " + size);
-                kp = buildECKeyPair(params);
+                kp = buildECKeyPair(params, entropy);
             } else if (Objects.equals(params.algorithm, Algorithm.RSA)) {
                 dlog("Generating RSA keypair of size " + size);
-                kp = buildRSAKeyPair(params);
+                kp = buildRSAKeyPair(params, entropy);
             } else {
                 dlog("Unsupported algorithm");
                 return null;
             }
 
-            X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
-                    KeyboxUtils.getCertificateHolder(
-                            Objects.equals(params.algorithm, Algorithm.EC)
-                                    ? KeyProperties.KEY_ALGORITHM_EC
-                                    : KeyProperties.KEY_ALGORITHM_RSA
-                    ).getSubject(),
-                    params.certificateSerial,
-                    new Time(params.certificateNotBefore),
-                    new Time(params.certificateNotAfter),
-                    params.certificateSubject,
-                    SubjectPublicKeyInfo.getInstance(
-                            ASN1Sequence.getInstance(kp.getPublic().getEncoded())
-                    )
-            );
-
-            KeyUsage keyUsage = new KeyUsage(KeyUsage.keyCertSign);
-            certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
-            certBuilder.addExtension(createExtension(params, uid));
-
-            ContentSigner contentSigner;
-            if (Objects.equals(params.algorithm, Algorithm.EC)) {
-                contentSigner = new JcaContentSignerBuilder("SHA256withECDSA").build(KeyboxUtils.getPrivateKey(KeyProperties.KEY_ALGORITHM_EC));
-            } else {
-                contentSigner = new JcaContentSignerBuilder("SHA256withRSA").build(KeyboxUtils.getPrivateKey(KeyProperties.KEY_ALGORITHM_RSA));
-            }
-            X509CertificateHolder certHolder = certBuilder.build(contentSigner);
-            Certificate leaf = KeyboxUtils.getCertificateFromHolder(certHolder);
-            List<Certificate> chain = KeyboxUtils.getCertificateChain(leaf.getPublicKey().getAlgorithm());
-            chain.add(0, leaf);
+            List<Certificate> chain = buildCertificateChain(uid, descriptor, params, kp.getPublic());
             dlog("Successfully generated X500 Cert for alias: " + descriptor.alias);
-            return chain;
+            return new GeneratedKeyMaterial(kp, chain);
         } catch (Throwable t) {
             Log.e(TAG, Log.getStackTraceString(t));
         }
         return null;
+    }
+
+    private static List<Certificate> buildCertificateChain(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params, PublicKey publicKey) throws Exception {
+        X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
+                KeyboxUtils.getCertificateHolder(
+                        Objects.equals(params.algorithm, Algorithm.EC)
+                                ? KeyProperties.KEY_ALGORITHM_EC
+                                : KeyProperties.KEY_ALGORITHM_RSA
+                ).getSubject(),
+                params.certificateSerial,
+                new Time(params.certificateNotBefore),
+                new Time(params.certificateNotAfter),
+                params.certificateSubject,
+                SubjectPublicKeyInfo.getInstance(ASN1Sequence.getInstance(publicKey.getEncoded()))
+        );
+
+        KeyUsage keyUsage = new KeyUsage(KeyUsage.keyCertSign);
+        certBuilder.addExtension(Extension.keyUsage, true, keyUsage);
+        certBuilder.addExtension(createExtension(params, uid));
+
+        ContentSigner contentSigner;
+        if (Objects.equals(params.algorithm, Algorithm.EC)) {
+            contentSigner = new JcaContentSignerBuilder("SHA256withECDSA").build(
+                    KeyboxUtils.getPrivateKey(KeyProperties.KEY_ALGORITHM_EC));
+        } else {
+            contentSigner = new JcaContentSignerBuilder("SHA256withRSA").build(
+                    KeyboxUtils.getPrivateKey(KeyProperties.KEY_ALGORITHM_RSA));
+        }
+        X509CertificateHolder certHolder = certBuilder.build(contentSigner);
+        Certificate leaf = KeyboxUtils.getCertificateFromHolder(certHolder);
+        List<Certificate> chain = KeyboxUtils.getCertificateChain(leaf.getPublicKey().getAlgorithm());
+        chain.add(0, leaf);
+        return chain;
     }
 
     private static ASN1Encodable[] fromIntList(List<Integer> list) {
@@ -141,16 +185,11 @@ public final class KeyboxChainGenerator {
 
     private static Extension createExtension(KeyGenParameters params, int uid) {
         try {
-            SecureRandom random = new SecureRandom();
-
-            byte[] bytes1 = new byte[32];
-            byte[] bytes2 = new byte[32];
-
-            random.nextBytes(bytes1);
-            random.nextBytes(bytes2);
-
-            ASN1Encodable[] rootOfTrustEncodables = {new DEROctetString(bytes1), ASN1Boolean.TRUE,
-                    new ASN1Enumerated(0), new DEROctetString(bytes2)};
+            ASN1Encodable[] rootOfTrustEncodables = {
+                    new DEROctetString(VerifiedBootState.getVerifiedBootKeyBytes()),
+                    ASN1Boolean.TRUE,
+                    new ASN1Enumerated(0),
+                    new DEROctetString(VerifiedBootState.getVerifiedBootHashBytes())};
 
             ASN1Sequence rootOfTrustSeq = new DERSequence(rootOfTrustEncodables);
 
@@ -279,6 +318,9 @@ public final class KeyboxChainGenerator {
 
     private static DEROctetString createApplicationId(int uid) throws Throwable {
         Context context = ActivityThread.currentApplication();
+        if (context == null && ActivityThread.currentActivityThread() != null) {
+            context = ActivityThread.currentActivityThread().getSystemContext();
+        }
         if (context == null) {
             throw new IllegalStateException("createApplicationId: context not available from ActivityThread!");
         }
@@ -342,27 +384,44 @@ public final class KeyboxChainGenerator {
         }
     }
 
-    private static KeyPair buildECKeyPair(KeyGenParameters params) throws Exception {
+    private static KeyPair buildECKeyPair(KeyGenParameters params, byte[] entropy) throws Exception {
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
         Security.addProvider(new BouncyCastleProvider());
         ECGenParameterSpec spec = new ECGenParameterSpec(params.ecCurveName);
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", BouncyCastleProvider.PROVIDER_NAME);
-        kpg.initialize(spec);
+        kpg.initialize(spec, getSecureRandom(entropy));
         return kpg.generateKeyPair();
     }
 
-    private static KeyPair buildRSAKeyPair(KeyGenParameters params) throws Exception {
+    private static KeyPair buildRSAKeyPair(KeyGenParameters params, byte[] entropy) throws Exception {
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
         Security.addProvider(new BouncyCastleProvider());
         RSAKeyGenParameterSpec spec = new RSAKeyGenParameterSpec(
                 params.keySize, params.rsaPublicExponent);
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME);
-        kpg.initialize(spec);
+        kpg.initialize(spec, getSecureRandom(entropy));
         return kpg.generateKeyPair();
     }
 
+    private static SecureRandom getSecureRandom(byte[] entropy) {
+        SecureRandom secureRandom = new SecureRandom();
+        if (entropy != null && entropy.length > 0) {
+            secureRandom.setSeed(entropy);
+        }
+        return secureRandom;
+    }
     private static void dlog(String msg) {
         if (DEBUG) Log.d(TAG, msg);
+    }
+
+    public static final class GeneratedKeyMaterial {
+        public final KeyPair keyPair;
+        public final List<Certificate> certificateChain;
+
+        GeneratedKeyMaterial(KeyPair keyPair, List<Certificate> certificateChain) {
+            this.keyPair = keyPair;
+            this.certificateChain = certificateChain;
+        }
     }
 
     public static class KeyGenParameters {

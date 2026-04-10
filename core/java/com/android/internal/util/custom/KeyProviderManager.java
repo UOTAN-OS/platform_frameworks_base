@@ -154,11 +154,16 @@ public final class KeyProviderManager {
 
         private static Context getApplicationContext() {
             try {
-                return ActivityThread.currentApplication().getApplicationContext();
+                if (ActivityThread.currentApplication() != null) {
+                    return ActivityThread.currentApplication().getApplicationContext();
+                }
+                if (ActivityThread.currentActivityThread() != null) {
+                    return ActivityThread.currentActivityThread().getSystemContext();
+                }
             } catch (Exception e) {
                 Log.e(TAG, "Error getting application context", e);
-                return null;
             }
+            return null;
         }
 
         @Override
