@@ -80,7 +80,14 @@ public class KeyboxImitationHooks {
             KeyMetadata metadata = level.importKey(descriptor, null,
                     importArgs.toArray(new KeyParameter[importArgs.size()]), flags,
                     pkcs8EncodedPrivateKey);
-            return updateSubcomponents(metadata.key, keyMaterial.certificateChain);
+            try {
+                return updateSubcomponents(metadata.key, keyMaterial.certificateChain);
+            } catch (Exception e) {
+                cleanupImportedKey(metadata.key);
+                throw toKeyStoreException("Failed to finalize imported attestation key", e);
+            }
+        } catch (KeyStoreException e) {
+            throw new RuntimeKeyStoreException(e);
         } catch (Exception e) {
             Log.e(TAG, "Failed to generate key", e);
             return null;
@@ -153,6 +160,27 @@ public class KeyboxImitationHooks {
         keyStore.updateSubcomponents(descriptor, certificate, certificateChain);
         dlog("Imported generated key for alias: " + descriptor.alias);
         return keyStore.getKeyEntry(descriptor).metadata;
+    }
+
+    private static void cleanupImportedKey(KeyDescriptor descriptor) {
+        try {
+            KeyStore2.getInstance().deleteKey(descriptor);
+        } catch (KeyStoreException e) {
+            Log.w(TAG, "Failed to clean up imported key after attestation failure", e);
+        }
+    }
+
+    private static KeyStoreException toKeyStoreException(String message, Exception cause) {
+        KeyStoreException exception = new KeyStoreException(android.system.keystore2.ResponseCode.SYSTEM_ERROR,
+                message, cause.getMessage());
+        exception.initCause(cause);
+        return exception;
+    }
+
+    public static final class RuntimeKeyStoreException extends RuntimeException {
+        RuntimeKeyStoreException(KeyStoreException cause) {
+            super(cause);
+        }
     }
 
     private static void dlog(String msg) {
