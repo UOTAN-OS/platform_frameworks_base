@@ -39,7 +39,7 @@ public class KeyboxImitationHooks {
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     public static KeyMetadata generateKey(IKeystoreSecurityLevel level, KeyDescriptor descriptor,
-            Collection<KeyParameter> args) {
+            Collection<KeyParameter> args, int flags, byte[] entropy) {
         if (!KeyProviderManager.isKeyboxAvailable()) {
             return null;
         }
@@ -58,7 +58,7 @@ public class KeyboxImitationHooks {
         int uid = Binder.getCallingUid();
         try {
             GeneratedKeyMaterial keyMaterial = KeyboxChainGenerator.generateKeyMaterial(uid,
-                    descriptor, params);
+                    descriptor, params, entropy);
             if (keyMaterial == null || keyMaterial.certificateChain == null
                     || keyMaterial.certificateChain.isEmpty()) {
                 return null;
@@ -78,7 +78,7 @@ public class KeyboxImitationHooks {
             }
 
             KeyMetadata metadata = level.importKey(descriptor, null,
-                    importArgs.toArray(new KeyParameter[importArgs.size()]), 0,
+                    importArgs.toArray(new KeyParameter[importArgs.size()]), flags,
                     pkcs8EncodedPrivateKey);
             return updateSubcomponents(metadata.key, keyMaterial.certificateChain);
         } catch (Exception e) {
