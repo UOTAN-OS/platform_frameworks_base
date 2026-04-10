@@ -77,17 +77,21 @@ public class KeyboxImitationHooks {
                 return null;
             }
 
-            KeyMetadata metadata = level.importKey(descriptor, null,
-                    importArgs.toArray(new KeyParameter[importArgs.size()]), flags,
-                    pkcs8EncodedPrivateKey);
+            KeyMetadata metadata;
+            try {
+                metadata = level.importKey(descriptor, null,
+                        importArgs.toArray(new KeyParameter[importArgs.size()]), flags,
+                        pkcs8EncodedPrivateKey);
+            } catch (KeyStoreException e) {
+                Log.e(TAG, "Failed to import generated attestation key", e);
+                return null;
+            }
             try {
                 return updateSubcomponents(metadata.key, keyMaterial.certificateChain);
             } catch (Exception e) {
                 cleanupImportedKey(metadata.key);
                 throw toKeyStoreException("Failed to finalize imported attestation key", e);
             }
-        } catch (KeyStoreException e) {
-            throw new RuntimeKeyStoreException(e);
         } catch (Exception e) {
             Log.e(TAG, "Failed to generate key", e);
             return null;
