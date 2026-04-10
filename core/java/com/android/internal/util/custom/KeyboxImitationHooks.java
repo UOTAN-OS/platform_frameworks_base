@@ -12,6 +12,8 @@ import android.hardware.security.keymint.KeyParameter;
 import android.hardware.security.keymint.KeyParameterValue;
 import android.hardware.security.keymint.Tag;
 import android.os.Binder;
+import android.os.RemoteException;
+import android.os.ServiceSpecificException;
 import android.security.KeyStore2;
 import android.security.KeyStoreException;
 import android.system.keystore2.IKeystoreSecurityLevel;
@@ -82,7 +84,7 @@ public class KeyboxImitationHooks {
                 metadata = level.importKey(descriptor, null,
                         importArgs.toArray(new KeyParameter[importArgs.size()]), flags,
                         pkcs8EncodedPrivateKey);
-            } catch (KeyStoreException e) {
+            } catch (RemoteException | ServiceSpecificException e) {
                 Log.e(TAG, "Failed to import generated attestation key", e);
                 return null;
             }
