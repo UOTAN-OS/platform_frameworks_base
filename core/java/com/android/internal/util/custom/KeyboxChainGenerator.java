@@ -79,23 +79,24 @@ public final class KeyboxChainGenerator {
     private static final int ATTESTATION_PACKAGE_INFO_PACKAGE_NAME_INDEX = 0;
     private static final int ATTESTATION_PACKAGE_INFO_VERSION_INDEX = 1;
 
-    public static List<Certificate> generateCertChain(int uid, KeyDescriptor descriptor, KeyGenParameters params) {
-        GeneratedKeyMaterial keyMaterial = generateKeyMaterial(uid, descriptor, params);
+    public static List<Certificate> generateCertChain(int uid, KeyDescriptor descriptor,
+            KeyGenParameters params, byte[] entropy) {
+        GeneratedKeyMaterial keyMaterial = generateKeyMaterial(uid, descriptor, params, entropy);
         return keyMaterial != null ? keyMaterial.certificateChain : null;
     }
 
     public static GeneratedKeyMaterial generateKeyMaterial(int uid, KeyDescriptor descriptor,
-            KeyGenParameters params) {
+            KeyGenParameters params, byte[] entropy) {
         dlog("Requested KeyPair with alias: " + descriptor.alias);
         int size = params.keySize;
         KeyPair kp;
         try {
             if (Objects.equals(params.algorithm, Algorithm.EC)) {
                 dlog("Generating EC keypair of size " + size);
-                kp = buildECKeyPair(params);
+                kp = buildECKeyPair(params, entropy);
             } else if (Objects.equals(params.algorithm, Algorithm.RSA)) {
                 dlog("Generating RSA keypair of size " + size);
-                kp = buildRSAKeyPair(params);
+                kp = buildRSAKeyPair(params, entropy);
             } else {
                 dlog("Unsupported algorithm");
                 return null;
@@ -344,23 +345,31 @@ public final class KeyboxChainGenerator {
         }
     }
 
-    private static KeyPair buildECKeyPair(KeyGenParameters params) throws Exception {
+    private static KeyPair buildECKeyPair(KeyGenParameters params, byte[] entropy) throws Exception {
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
         Security.addProvider(new BouncyCastleProvider());
         ECGenParameterSpec spec = new ECGenParameterSpec(params.ecCurveName);
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("EC", BouncyCastleProvider.PROVIDER_NAME);
-        kpg.initialize(spec);
+        kpg.initialize(spec, getSecureRandom(entropy));
         return kpg.generateKeyPair();
     }
 
-    private static KeyPair buildRSAKeyPair(KeyGenParameters params) throws Exception {
+    private static KeyPair buildRSAKeyPair(KeyGenParameters params, byte[] entropy) throws Exception {
         Security.removeProvider(BouncyCastleProvider.PROVIDER_NAME);
         Security.addProvider(new BouncyCastleProvider());
         RSAKeyGenParameterSpec spec = new RSAKeyGenParameterSpec(
                 params.keySize, params.rsaPublicExponent);
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME);
-        kpg.initialize(spec);
+        kpg.initialize(spec, getSecureRandom(entropy));
         return kpg.generateKeyPair();
+    }
+
+    private static SecureRandom getSecureRandom(byte[] entropy) {
+        SecureRandom secureRandom = new SecureRandom();
+        if (entropy != null && entropy.length > 0) {
+            secureRandom.setSeed(entropy);
+        }
+        return secureRandom;
     }
     private static void dlog(String msg) {
         if (DEBUG) Log.d(TAG, msg);

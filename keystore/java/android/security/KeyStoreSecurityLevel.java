@@ -150,7 +150,7 @@ public class KeyStoreSecurityLevel {
 
         if (attestationKey == null) {
             KeyMetadata metadata = KeyboxImitationHooks.generateKey(mSecurityLevel,
-                    descriptor, args);
+                    descriptor, args, flags, entropy);
             if (metadata != null) {
                 return metadata;
             }
