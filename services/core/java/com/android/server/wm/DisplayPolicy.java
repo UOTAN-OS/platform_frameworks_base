@@ -2613,7 +2613,7 @@ public class DisplayPolicy {
         final int rotation = mDisplayContent.getRotation();
         final boolean isPortrait = rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180;
         final boolean hasMiniWindow = TopActivityRecorder.getInstance().hasMiniWindow();
-        if (hasMiniWindow && !isPortrait) {
+        if (hasMiniWindow && !isPortrait && hasSideGestures()) {
             final WindowState dimWinState = PopUpWindowController.getInstance().getDimWinState();
             if (dimWinState != null) {
                 winCandidate = dimWinState;
