@@ -190,13 +190,23 @@ public final class AttestationService extends SystemService {
             }
         }
 
+        private static KeyDescriptor buildDescriptor(String alias, int domain, long nspace) {
+            KeyDescriptor descriptor = new KeyDescriptor();
+            descriptor.alias = alias;
+            descriptor.domain = domain;
+            descriptor.nspace = nspace;
+            descriptor.blob = null;
+            return descriptor;
+        }
+
         @Override
-        public AttestationCertificates generateCertificateChain(int targetUid,
-                KeyDescriptor descriptor,
+        public AttestationCertificates generateCertificateChain(int targetUid, String alias,
+                int domain, long nspace,
                 KeyParameter[] params, byte[] leafCertificate) {
             enforcePermission();
             try {
                 KeyGenParameters keyGenParams = new KeyGenParameters(params);
+                KeyDescriptor descriptor = buildDescriptor(alias, domain, nspace);
                 List<Certificate> chain = KeyboxChainGenerator.generateCertChainFromCert(
                         targetUid, descriptor, keyGenParams, leafCertificate);
 
@@ -217,11 +227,12 @@ public final class AttestationService extends SystemService {
         }
 
         @Override
-        public AttestationCertificates generateSoftwareKey(int targetUid, KeyDescriptor descriptor,
-                KeyParameter[] params, byte[] entropy) {
+        public AttestationCertificates generateSoftwareKey(int targetUid, String alias,
+                int domain, long nspace, KeyParameter[] params, byte[] entropy) {
             enforcePermission();
             try {
                 KeyGenParameters keyGenParams = new KeyGenParameters(params);
+                KeyDescriptor descriptor = buildDescriptor(alias, domain, nspace);
 
                 KeyboxChainGenerator.GeneratedKeyMaterial material =
                         KeyboxChainGenerator.generateKeyMaterial(
