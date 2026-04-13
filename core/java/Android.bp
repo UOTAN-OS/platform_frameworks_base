@@ -209,12 +209,9 @@ aidl_interface {
 aidl_interface {
     name: "keybox_attestation_aidl",
     srcs: [
-        "android/security/keybox/AttestationCertificates.aidl",
-        "android/security/keybox/IKeyboxAttestationService.aidl",
-    ],
-    defaults: ["android.hardware.security.keymint-latest-defaults"],
-    imports: [
-        "android.hardware.security.keymint-V4",
+        "com/android/internal/security/keybox/AttestationCertificates.aidl",
+        "com/android/internal/security/keybox/IKeyboxAttestationService.aidl",
+        "com/android/internal/security/keybox/KeyboxKeyParameters.aidl",
     ],
     unstable: true,
     backend: {
