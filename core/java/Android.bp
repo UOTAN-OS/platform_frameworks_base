@@ -212,14 +212,25 @@ aidl_interface {
         "android/security/keybox/AttestationCertificates.aidl",
         "android/security/keybox/IKeyboxAttestationService.aidl",
     ],
+    defaults: ["android.hardware.security.keymint-latest-defaults"],
+    imports: [
+        "android.hardware.security.keymint-V4",
+    ],
     unstable: true,
     backend: {
         java: {
             enabled: true,
+            platform_apis: true,
         },
         rust: {
             enabled: true,
             apex_available: ["//apex_available:platform"],
+        },
+        cpp: {
+            enabled: false,
+        },
+        ndk: {
+            enabled: false,
         },
     },
 }
