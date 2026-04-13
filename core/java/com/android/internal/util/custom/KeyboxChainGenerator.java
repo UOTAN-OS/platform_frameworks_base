@@ -14,6 +14,7 @@ import android.hardware.security.keymint.Algorithm;
 import android.hardware.security.keymint.EcCurve;
 import android.hardware.security.keymint.KeyParameter;
 import android.hardware.security.keymint.Tag;
+import com.android.internal.security.keybox.KeyboxKeyParameters;
 import android.os.Binder;
 import android.os.Build;
 import android.security.keystore.KeyProperties;
@@ -478,6 +479,37 @@ public final class KeyboxChainGenerator {
                     case Tag.HARDWARE_TYPE -> securityLevel = kp.value.getSecurityLevel();
                 }
             }
+        }
+
+        public KeyGenParameters(KeyboxKeyParameters params) {
+            keySize = params.keySize;
+            algorithm = params.algorithm;
+            certificateSerial = params.certificateSerial != null
+                    ? new BigInteger(params.certificateSerial) : null;
+            certificateNotBefore = new Date(params.certificateNotBefore);
+            certificateNotAfter = new Date(params.certificateNotAfter);
+            certificateSubject = params.certificateSubject != null
+                    ? new X500Name(new X500Principal(params.certificateSubject).getName()) : null;
+            rsaPublicExponent = BigInteger.valueOf(params.rsaPublicExponent);
+            ecCurve = params.ecCurve;
+            ecCurveName = params.ecCurveName;
+            if (params.purpose != null) {
+                for (int value : params.purpose) {
+                    purpose.add(value);
+                }
+            }
+            if (params.digest != null) {
+                for (int value : params.digest) {
+                    digest.add(value);
+                }
+            }
+            attestationChallenge = params.attestationChallenge;
+            brand = params.brand;
+            device = params.device;
+            product = params.product;
+            manufacturer = params.manufacturer;
+            model = params.model;
+            securityLevel = params.securityLevel;
         }
 
         private static String getEcCurveName(int curve) {
