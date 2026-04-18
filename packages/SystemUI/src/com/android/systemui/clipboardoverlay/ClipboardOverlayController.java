@@ -91,6 +91,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private final ClipboardOverlayWindow mWindow;
     private final TimeoutHandler mTimeoutHandler;
     private final ClipboardOverlayUtils mClipboardUtils;
+    private final ClipboardAppSuggestionUtils mClipboardAppSuggestionUtils;
     private final Executor mBgExecutor;
     private final ClipboardImageLoader mClipboardImageLoader;
     private final ClipboardTransitionExecutor mTransitionExecutor;
@@ -133,6 +134,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
             ActivityStarter activityStarter,
             UserTracker userTracker,
             ClipboardOverlayUtils clipboardUtils,
+            ClipboardAppSuggestionUtils clipboardAppSuggestionUtils,
             @Background Executor bgExecutor,
             ClipboardImageLoader clipboardImageLoader,
             ClipboardTransitionExecutor transitionExecutor,
@@ -163,6 +165,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mTimeoutHandler.setDefaultTimeoutMillis(CLIPBOARD_DEFAULT_TIMEOUT_MILLIS);
 
         mClipboardUtils = clipboardUtils;
+        mClipboardAppSuggestionUtils = clipboardAppSuggestionUtils;
         mBgExecutor = bgExecutor;
 
         mView.setCallbacks(this);
@@ -260,12 +263,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mView.setMinimized(false);
         switch (model.getType()) {
             case TEXT:
-                if (model.isRemote() || DeviceConfig.getBoolean(
-                        DeviceConfig.NAMESPACE_SYSTEMUI, CLIPBOARD_OVERLAY_SHOW_ACTIONS, false)) {
-                    if (model.getTextLinks() != null) {
-                        classifyText(model);
-                    }
-                }
+                maybeShowTextAction(model);
                 if (model.isSensitive()) {
                     mView.showTextPreview(mContext.getString(R.string.clipboard_asterisks), true);
                 } else {
@@ -337,10 +335,18 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         }
     }
 
-    private void classifyText(ClipboardModel model) {
+    private void maybeShowTextAction(ClipboardModel model) {
         mBgExecutor.execute(() -> {
-            Optional<RemoteAction> remoteAction =
-                    mClipboardUtils.getAction(model.getTextLinks(), model.getSource());
+            Optional<RemoteAction> remoteAction = mClipboardAppSuggestionUtils.getAction(
+                    model.getText(), model.getSource());
+            if (remoteAction.isEmpty()
+                    && model.getTextLinks() != null
+                    && (model.isRemote() || DeviceConfig.getBoolean(
+                            DeviceConfig.NAMESPACE_SYSTEMUI,
+                            CLIPBOARD_OVERLAY_SHOW_ACTIONS,
+                            false))) {
+                remoteAction = mClipboardUtils.getAction(model.getTextLinks(), model.getSource());
+            }
             if (model.equals(mClipboardModel)) {
                 remoteAction.ifPresent(action -> {
                     mClipboardLogger.logUnguarded(CLIPBOARD_OVERLAY_ACTION_SHOWN);

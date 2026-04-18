@@ -98,6 +98,8 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
     @Mock
     private ClipboardOverlayUtils mClipboardUtils;
     @Mock
+    private ClipboardAppSuggestionUtils mClipboardAppSuggestionUtils;
+    @Mock
     private ClipboardImageLoader mClipboardImageLoader;
     @Mock
     private ClipboardTransitionExecutor mClipboardTransitionExecutor;
@@ -156,6 +158,8 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
         when(mClipboardOverlayView.getFadeOutAnimation()).thenReturn(mAnimator);
         when(mClipboardOverlayWindow.getWindowInsets()).thenReturn(
                 getImeInsets(new Rect(0, 0, 0, 0)));
+        when(mClipboardAppSuggestionUtils.getAction(any(), anyString()))
+                .thenReturn(Optional.empty());
 
         mSampleClipData = new ClipData("Test", new String[]{"text/plain"},
                 new ClipData.Item("Test Item"));
@@ -203,6 +207,7 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
                 mActivityStarter,
                 mFakeUserTracker,
                 mClipboardUtils,
+                mClipboardAppSuggestionUtils,
                 mExecutor,
                 mClipboardImageLoader,
                 mClipboardTransitionExecutor,
