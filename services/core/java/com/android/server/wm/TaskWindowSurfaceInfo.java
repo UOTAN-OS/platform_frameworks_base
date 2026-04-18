@@ -10,7 +10,7 @@ import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 
 import static com.android.server.wm.WindowResizingAlgorithm.BOUNDARY_GAP;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.app.WindowConfiguration;
 import android.content.pm.ActivityInfo;

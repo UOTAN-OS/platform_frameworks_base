@@ -6210,6 +6210,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         // In normal flow, systemReady is called before other system services are ready.
         // So it is better not to bind keyguard here.
         mKeyguardDelegate.onSystemReady();
+        //Ext add
+        updateGestureParams();
+        mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
 
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {

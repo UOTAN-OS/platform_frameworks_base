@@ -5,7 +5,7 @@
 
 package com.android.wm.shell.popupview;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.graphics.Point;
 import android.graphics.Rect;

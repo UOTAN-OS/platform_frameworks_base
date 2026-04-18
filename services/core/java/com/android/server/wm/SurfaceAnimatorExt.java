@@ -7,7 +7,7 @@ package com.android.server.wm;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.app.WindowConfiguration;
 import android.graphics.Point;
@@ -24,7 +24,7 @@ class SurfaceAnimatorExt {
 
     private static final String TAG = "SurfaceAnimatorExt";
 
-    static SurfaceControl createAnimationLeash(SurfaceAnimator.Animatable animatable, 
+    static SurfaceControl createAnimationLeash(SurfaceAnimator.Animatable animatable,
             SurfaceControl surface, SurfaceControl.Transaction t,
             int type, int width, int height, boolean hidden,
             Supplier<SurfaceControl.Transaction> transactionFactory,

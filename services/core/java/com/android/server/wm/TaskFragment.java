@@ -70,7 +70,7 @@ import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_WITH_CLAS
 import static com.android.server.wm.ActivityTaskManagerService.checkPermission;
 import static com.android.server.wm.ActivityTaskSupervisor.printThisActivity;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;

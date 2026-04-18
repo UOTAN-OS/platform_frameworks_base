@@ -82,6 +82,6 @@ class WindowManagerServiceExt {
     }
 
     private static int getDeviceType() {
-        return android.os.SystemProperties.getInt("ro.rising.display.resolution_switch", TYPE_DISABLED);
+        return android.os.SystemProperties.getInt("ro.uwuaosp.display.resolution_switch", TYPE_DISABLED);
     }
 }

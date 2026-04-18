@@ -161,7 +161,7 @@ import static com.android.window.flags.Flags.enableDeviceStateAutoRotateSettingR
 import static com.android.window.flags.Flags.multiCrop;
 import static com.android.window.flags.Flags.setScPropertiesInClient;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.Manifest;
 import android.Manifest.permission;

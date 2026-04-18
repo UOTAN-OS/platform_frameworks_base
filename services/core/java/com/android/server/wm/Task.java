@@ -114,7 +114,7 @@ import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 
 import static java.lang.Integer.MAX_VALUE;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -3018,7 +3018,7 @@ class Task extends TaskFragment {
         if (forceResizable) return true;
         if (mForceNonResizeOverride) return false;
 	return mForceResizeOverride || ActivityInfo.isResizeableMode(mResizeMode)
-        	|| getWindowConfiguration().isPopUpWindowMode()
+                || getWindowConfiguration().isPopUpWindowMode()
 	        || (mSupportsPictureInPicture && checkPictureInPictureSupport);
     }
 
