@@ -931,7 +931,7 @@ public class PopUpWindowController {
     /**
     * Mark mini window as having input focus (user tapped on it).
     */
-    private void setMiniWindowInputFocus(boolean hasFocus) {
+    void setMiniWindowInputFocus(boolean hasFocus) {
         if (mMiniWindowHasInputFocus != hasFocus) {
             mMiniWindowHasInputFocus = hasFocus;
             Slog.e(TAG, "Mini window input focus changed: " + hasFocus);
@@ -1001,7 +1001,8 @@ public class PopUpWindowController {
 
             if (inMiniWindow) {
                 DimmerWindowManager.getInstance().setActiveTask(touchedTask);
-                setMiniWindowInputFocus(true);
+                setMiniWindowInputFocus(
+                        DimmerWindowManager.getInstance().shouldTaskHandleInput(touchedTask));
             } else {
                 setMiniWindowInputFocus(false);
             }

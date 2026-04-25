@@ -7,6 +7,7 @@
 package com.android.server.wm;
 
 import static android.provider.Settings.System.POP_UP_NOTIFICATION_BLACKLIST;
+import static android.provider.Settings.System.POP_UP_VIEW_ALLOW_MULTIPLE;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -38,6 +39,7 @@ class PopUpSettingsConfig {
     private Context mContext;
     private Handler mHandler;
     private SettingsObserver mObserver;
+    private boolean mAllowMultiple = true;
 
     void init(Context context, Handler handler) {
         mContext = context;
@@ -66,19 +68,42 @@ class PopUpSettingsConfig {
         }
     }
 
+    private void updateAllowMultiple() {
+        if (mContext == null) {
+            Log.w(TAG, "Context is null, cannot update allow-multiple state");
+            return;
+        }
+        final boolean allowMultiple = Settings.System.getIntForUser(
+                mContext.getContentResolver(),
+                POP_UP_VIEW_ALLOW_MULTIPLE,
+                1,
+                UserHandle.USER_CURRENT) != 0;
+        final boolean changed = mAllowMultiple != allowMultiple;
+        mAllowMultiple = allowMultiple;
+        if (changed && !allowMultiple) {
+            PopUpWindowController.getInstance().enforceSinglePopUpPolicy();
+        }
+    }
+
     boolean inNotificationBlacklist(String packageName) {
         return PopUpViewManager.inSystemNotificationBlacklist(packageName) ||
                 mUserNotificationBlacklist.contains(packageName);
+    }
+
+    boolean isAllowMultipleEnabled() {
+        return mAllowMultiple;
     }
 
     void updateAll() {
         if (mHandler != null) {
             mHandler.post(() -> {
                 updateNotificationBlacklist();
+                updateAllowMultiple();
             });
         } else {
             Log.w(TAG, "Handler is null, updating settings synchronously");
             updateNotificationBlacklist();
+            updateAllowMultiple();
         }
     }
 
@@ -97,6 +122,9 @@ class PopUpSettingsConfig {
             resolver.registerContentObserver(
                     Settings.System.getUriFor(POP_UP_NOTIFICATION_BLACKLIST),
                     false, this, UserHandle.USER_ALL);
+            resolver.registerContentObserver(
+                    Settings.System.getUriFor(POP_UP_VIEW_ALLOW_MULTIPLE),
+                    false, this, UserHandle.USER_ALL);
         }
 
         @Override
@@ -104,6 +132,9 @@ class PopUpSettingsConfig {
             switch (uri.getLastPathSegment()) {
                 case POP_UP_NOTIFICATION_BLACKLIST:
                     updateNotificationBlacklist();
+                    break;
+                case POP_UP_VIEW_ALLOW_MULTIPLE:
+                    updateAllowMultiple();
                     break;
             }
         }

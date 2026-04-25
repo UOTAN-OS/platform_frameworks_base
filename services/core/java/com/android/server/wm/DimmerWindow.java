@@ -10,13 +10,10 @@ package com.android.server.wm;
 import static android.content.pm.ActivityInfo.CONFIG_DENSITY;
 import static android.content.pm.ActivityInfo.CONFIG_ORIENTATION;
 import static android.graphics.PixelFormat.TRANSLUCENT;
-import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static android.view.View.SYSTEM_UI_FLAG_FULLSCREEN;
 import static android.view.WindowManager.LayoutParams.TYPE_MINI_WINDOW_DIMMER;
 
 import static com.android.server.wm.PopUpWindowController.MOVE_TO_BACK_FROM_LEAVE_BUTTON;
-
-import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
 
 import android.app.ActivityThread;
 import android.content.Context;
@@ -28,12 +25,12 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
-import android.os.Looper;
 import android.util.Slog;
 import android.view.GestureDetector;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
@@ -42,15 +39,23 @@ import android.widget.FrameLayout;
 import com.android.server.UiThread;
 
 /**
- * Minimal decoration window with thin drag bar for Pop-Up View.
+ * Pop-Up View decoration window.
  */
 class DimmerWindow {
 
     private static final String TAG = "DimmerWindow";
     static final String WIN_TITLE = "MiniWindowDimmer";
 
-    private static final float MIN_SCALE = 0.3f;
     private static final float MAX_SCALE = 1.0f;
+    private static final int WINDOW_STATE_EXPANDED = 0;
+    private static final int WINDOW_STATE_MINIMIZED = 1;
+
+    private static final int LEGACY_DISMISS_TARGET_WIDTH_DP = 132;
+    private static final int LEGACY_DISMISS_TARGET_HEIGHT_DP = 36;
+    private static final int LEGACY_DISMISS_TARGET_TOP_MARGIN_DP = 24;
+    private static final float LEGACY_MINIMIZED_SCALE = 0.36f;
+    private static final int DEFAULT_TOP_BAR_LIGHT_COLOR = 0xFFFFFFFF;
+    private static final int DEFAULT_TOP_BAR_DARK_COLOR = 0xFF1C1C17;
 
     private final Context mUiContext = ActivityThread.currentActivityThread().getSystemUiContext();
     private final Handler mUiHandler = new Handler(UiThread.getHandler().getLooper());
@@ -70,6 +75,11 @@ class DimmerWindow {
     private int mPendingShowAttempts = 0;
     private boolean mPendingShow = false;
 
+    private static final float MIN_SCALE = LEGACY_MINIMIZED_SCALE;
+
+    private int mWindowState = WINDOW_STATE_EXPANDED;
+    private final Point mMinimizedCenter = new Point();
+
     private static final int MAX_SHOW_RETRY = 40;
     private static final long SHOW_RETRY_DELAY_MS = 50L;
 
@@ -77,13 +87,21 @@ class DimmerWindow {
         mTask = task;
     }
 
+    private boolean isMinimizedState() {
+        return mWindowState == WINDOW_STATE_MINIMIZED;
+    }
+
+    private boolean isExpandedState() {
+        return mWindowState == WINDOW_STATE_EXPANDED;
+    }
+
     private class DimView extends FrameLayout {
 
         final Rect mDrawingRect = new Rect();
         private View mTopBar;
         private View mTopBarTouchArea;
+        private View mLegacyDismissTarget;
 
-        // Four corner resize handles
         private View mResizeHandleBottomLeft;
         private View mResizeHandleBottomRight;
         private View mResizeHandleTopLeft;
@@ -93,7 +111,6 @@ class DimmerWindow {
 
         private int mTopBarHeight;
         private int mTopBarWidth;
-        // Constants
         private static final int BASE_TOP_BAR_HEIGHT_DP = 6;
         private static final int BASE_TOP_BAR_WIDTH_DP = 120;
 
@@ -106,9 +123,20 @@ class DimmerWindow {
         private boolean isOrientationChanged = false;
         private boolean mHasMoved = false;
 
+        private final int mTouchSlop;
+
+        private int mLegacyBarDownX;
+        private int mLegacyBarDownY;
+        private int mLegacyDragDownX;
+        private int mLegacyDragDownY;
+        private final Rect mLegacyDragStartBounds = new Rect();
+        private boolean mLegacyDragging;
+        private final Rect mDefaultDragStartBounds = new Rect();
 
         DimView(Context context, float initialScale) {
             super(context);
+            setWillNotDraw(false);
+            mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
             mOldConfig = new Configuration(context.getResources().getConfiguration());
             initUI(initialScale);
         }
@@ -118,7 +146,6 @@ class DimmerWindow {
             mTopBarHeight = (int) (dpToPx(BASE_TOP_BAR_HEIGHT_DP) * uiScale);
             mTopBarWidth = (int) (dpToPx(BASE_TOP_BAR_WIDTH_DP) * uiScale);
 
-            // Create pill-shaped visual top bar (small)
             mTopBar = new View(getContext());
             GradientDrawable topBarDrawable = new GradientDrawable();
             topBarDrawable.setColor(0xFFFFFFFF);
@@ -126,10 +153,16 @@ class DimmerWindow {
             mTopBar.setBackground(topBarDrawable);
             mTopBar.setAlpha(UNFOCUSED_ALPHA);
 
-            // Create larger invisible touch area
             mTopBarTouchArea = new View(getContext());
             mTopBarTouchArea.setBackgroundColor(Color.TRANSPARENT);
-            // Don't set background - completely invisible
+
+            mLegacyDismissTarget = new View(getContext());
+            GradientDrawable dismissDrawable = new GradientDrawable();
+            dismissDrawable.setColor(0xCCFFFFFF);
+            dismissDrawable.setCornerRadius(dpToPx(LEGACY_DISMISS_TARGET_HEIGHT_DP) / 2f);
+            mLegacyDismissTarget.setBackground(dismissDrawable);
+            mLegacyDismissTarget.setVisibility(GONE);
+            mLegacyDismissTarget.setAlpha(0.9f);
 
             mGestureDetector = new GestureDetector(getContext(),
                     new GestureDetector.SimpleOnGestureListener() {
@@ -140,14 +173,14 @@ class DimmerWindow {
 
                         @Override
                         public void onLongPress(MotionEvent e) {
-                            if (!mHasMoved) {
+                            if (isExpandedState() && !mHasMoved) {
                                 moveActivityTaskToBack();
                             }
                         }
 
                         @Override
                         public boolean onDoubleTap(MotionEvent e) {
-                            if (!mHasMoved) {
+                            if (isExpandedState() && !mHasMoved) {
                                 PopUpWindowController.getInstance().exitMiniWindowingMode(mTask);
                                 return true;
                             }
@@ -155,127 +188,94 @@ class DimmerWindow {
                         }
                     });
 
-            // Create 4 Resize Handles (all corners)
             mResizeHandleBottomLeft = new View(getContext());
             mResizeHandleBottomRight = new View(getContext());
             mResizeHandleTopLeft = new View(getContext());
             mResizeHandleTopRight = new View(getContext());
 
-            setupResizeHandle(mResizeHandleBottomLeft, true, false);   // Bottom-left
-            setupResizeHandle(mResizeHandleBottomRight, false, false); // Bottom-right
-            setupResizeHandle(mResizeHandleTopLeft, true, true);       // Top-left
-            setupResizeHandle(mResizeHandleTopRight, false, true);     // Top-right
+            setupResizeHandle(mResizeHandleBottomLeft, true, false);
+            setupResizeHandle(mResizeHandleBottomRight, false, false);
+            setupResizeHandle(mResizeHandleTopLeft, true, true);
+            setupResizeHandle(mResizeHandleTopRight, false, true);
 
-            // Add views - touch area first (below visual bar in z-order)
             addView(mTopBarTouchArea, new FrameLayout.LayoutParams(
                     dpToPx(BASE_TOP_BAR_WIDTH_DP + TOUCH_AREA_EXTRA_WIDTH_DP * 2),
                     dpToPx(TOUCH_AREA_HEIGHT_DP)));
             addView(mTopBar, new FrameLayout.LayoutParams(mTopBarWidth, mTopBarHeight));
+            addView(mLegacyDismissTarget, new FrameLayout.LayoutParams(
+                    dpToPx(LEGACY_DISMISS_TARGET_WIDTH_DP),
+                    dpToPx(LEGACY_DISMISS_TARGET_HEIGHT_DP)));
 
-            // Setup touch handling on LARGER touch area
             setupTopBarTouchListener();
+            getViewTreeObserver().addOnComputeInternalInsetsListener(this::updateTouchableRegion);
+        }
 
-            // Update Touch Region
-            getViewTreeObserver().addOnComputeInternalInsetsListener(info -> {
-                if (mTopBar.getVisibility() == VISIBLE) {
-                    Region region = new Region();
+        private void updateTouchableRegion(ViewTreeObserver.InternalInsetsInfo info) {
+            final Region region = new Region();
+            if (isMinimizedState()) {
+                addRectToRegion(region, mDrawingRect);
+                addViewBoundsToRegion(region, mLegacyDismissTarget);
+            } else if (mTopBar.getVisibility() == VISIBLE) {
+                addViewBoundsToRegion(region, mTopBarTouchArea);
+                addViewBoundsToRegion(region, mResizeHandleBottomLeft);
+                addViewBoundsToRegion(region, mResizeHandleBottomRight);
+                addViewBoundsToRegion(region, mResizeHandleTopLeft);
+                addViewBoundsToRegion(region, mResizeHandleTopRight);
+            }
+            info.touchableRegion.set(region);
+            info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
+        }
 
-                    // Add expanded touch area
-                    region.op(mTopBarTouchArea.getLeft(), mTopBarTouchArea.getTop(),
-                            mTopBarTouchArea.getRight(), mTopBarTouchArea.getBottom(),
-                            Region.Op.UNION);
+        private void addViewBoundsToRegion(Region region, View view) {
+            if (view != null && view.getVisibility() == VISIBLE) {
+                region.op(view.getLeft(), view.getTop(), view.getRight(), view.getBottom(),
+                        Region.Op.UNION);
+            }
+        }
 
-                    // Add Resize Handles
-                    addHandleToRegion(region, mResizeHandleBottomLeft);
-                    addHandleToRegion(region, mResizeHandleBottomRight);
-                    addHandleToRegion(region, mResizeHandleTopLeft);
-                    addHandleToRegion(region, mResizeHandleTopRight);
-
-                    info.touchableRegion.set(region);
-                    info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
-                } else {
-                    info.touchableRegion.setEmpty();
-                    info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
-                }
-            });
+        private void addRectToRegion(Region region, Rect rect) {
+            if (rect != null && !rect.isEmpty()) {
+                region.op(rect.left, rect.top, rect.right, rect.bottom, Region.Op.UNION);
+            }
         }
 
         private void setupTopBarTouchListener() {
-            mTopBarTouchArea.setOnTouchListener(new OnTouchListener() {
-                private int initX, initY; // Initial touch position
-                private int lastX, lastY; // Last touch position (to calculate movement)
-                private Rect startBounds;
-                private float moveDistance = 0; // Total moved distance in pixels
-
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (mGestureDetector != null) {
-                        mGestureDetector.onTouchEvent(event);
-                    }
-                    switch (event.getAction()) {
-                        case MotionEvent.ACTION_DOWN:
-                            DimmerWindowManager.getInstance().setActiveTask(mTask);
-                            initX = (int) event.getRawX();
-                            initY = (int) event.getRawY();
-                            lastX = initX; // Initialize last touch position
-                            lastY = initY;
-                            startBounds = new Rect(mDrawingRect);
-                            mHasMoved = false;
-                            PopUpWindowController.getInstance().triggerVibrate();
-                            moveDistance = 0; // Reset move distance
-                            return true;
-
-                        case MotionEvent.ACTION_MOVE:
-                            DimmerWindowManager.getInstance().hideMenus();
-                            int dx = (int) event.getRawX() - lastX;
-                            int dy = (int) event.getRawY() - lastY;
-
-                            float distance = (float) Math.sqrt(dx * dx + dy * dy); // Calculate real move distance
-                            moveDistance += distance; // Accumulate move distance
-
-                            // Vibrate if total moved >= mVibrateThreadhold pixels
-                            if (moveDistance >= mVibrateThreadhold) {
-                                PopUpWindowController.getInstance().triggerVibrate();
-                                moveDistance = 0; // Reset distance after vibration
-                            }
-
-                            lastX = (int) event.getRawX(); // Update last position
-                            lastY = (int) event.getRawY();
-
-                            if (Math.abs(lastX - initX) > 10 || Math.abs(lastY - initY) > 10) {
-                                mHasMoved = true;
-                            }
-
-                            if (startBounds != null && mHasMoved) {
-                                Rect newBounds = new Rect(startBounds);
-                                newBounds.offset(lastX - initX, lastY - initY);
-                                updateLayout(newBounds);
-                                moveTaskSurface(newBounds.centerX(), newBounds.centerY());
-                            }
-                            return true;
-
-                        case MotionEvent.ACTION_UP:
-                            startBounds = null;
-                            mHasMoved = false;
-                            moveDistance = 0; // Reset distance after drag ends
-                            return true;
-
-                        case MotionEvent.ACTION_CANCEL:
-                            startBounds = null;
-                            mHasMoved = false;
-                            moveDistance = 0; // Reset distance on cancel
-                            return true;
-                    }
-                    return false;
-                }
-            });
+            mTopBarTouchArea.setOnTouchListener((v, event) -> handleDefaultTopBarTouch(event));
         }
 
-        private void addHandleToRegion(Region region, View handle) {
-            if (handle.getVisibility() == VISIBLE) {
-                region.op(handle.getLeft(), handle.getTop(),
-                        handle.getRight(), handle.getBottom(),
-                        Region.Op.UNION);
+        private boolean handleDefaultTopBarTouch(MotionEvent event) {
+            if (mGestureDetector != null) {
+                mGestureDetector.onTouchEvent(event);
+            }
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    DimmerWindowManager.getInstance().setActiveTask(mTask);
+                    mLegacyBarDownX = (int) event.getRawX();
+                    mLegacyBarDownY = (int) event.getRawY();
+                    mDefaultDragStartBounds.set(mDrawingRect);
+                    mHasMoved = false;
+                    PopUpWindowController.getInstance().triggerVibrate();
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    DimmerWindowManager.getInstance().hideMenus();
+                    final int currentX = (int) event.getRawX();
+                    final int currentY = (int) event.getRawY();
+                    if (Math.abs(currentX - mLegacyBarDownX) > 10 || Math.abs(currentY - mLegacyBarDownY) > 10) {
+                        mHasMoved = true;
+                    }
+                    if (mHasMoved) {
+                        final Rect newBounds = new Rect(mDefaultDragStartBounds);
+                        newBounds.offset(currentX - mLegacyBarDownX, currentY - mLegacyBarDownY);
+                        updateLayout(newBounds);
+                        moveTaskSurface(newBounds.centerX(), newBounds.centerY());
+                    }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    mHasMoved = false;
+                    return true;
+                default:
+                    return false;
             }
         }
 
@@ -285,92 +285,75 @@ class DimmerWindow {
             handle.setOnTouchListener(new OnTouchListener() {
                 private float initialDistance;
                 private float initialScale;
-                private int centerX, centerY;
-                private float lastTouchX, lastTouchY;
+                private int centerX;
+                private int centerY;
+                private float lastTouchX;
+                private float lastTouchY;
                 private float resizeDistance = 0;
 
                 @Override
                 public boolean onTouch(View v, MotionEvent event) {
-                    switch (event.getAction()) {
+                    if (isMinimizedState()) {
+                        return false;
+                    }
+                    switch (event.getActionMasked()) {
                         case MotionEvent.ACTION_DOWN:
                             DimmerWindowManager.getInstance().setActiveTask(mTask);
-                            // Get current scale from task
                             if (mTask != null) {
                                 TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
                                         .getTaskWindowSurfaceInfo();
                                 if (info != null) {
                                     initialScale = info.getWindowSurfaceScale();
                                     mCurrentScale = initialScale;
-                                    if (DEBUG_POP_UP) {
-                                        Slog.d(TAG, "Resize started (" +
-                                                (isTop ? "top" : "bottom") + "-" +
-                                                (isLeft ? "left" : "right") +
-                                                ") with fresh scale: " + initialScale);
-                                    }
                                 } else {
                                     initialScale = mCurrentScale;
                                 }
                             } else {
                                 initialScale = mCurrentScale;
                             }
-
-                            // Store window center
                             centerX = mDrawingRect.centerX();
                             centerY = mDrawingRect.centerY();
-
-                            // Calculate initial distance
                             initialDistance = (float) Math.hypot(
                                     event.getRawX() - centerX,
                                     event.getRawY() - centerY);
-
-                            // Track touch position
                             lastTouchX = event.getRawX();
                             lastTouchY = event.getRawY();
                             resizeDistance = 0;
                             return true;
-
                         case MotionEvent.ACTION_MOVE:
                             float currentTouchX = event.getRawX();
                             float currentTouchY = event.getRawY();
-
-                            // Calculate touch movement distance for vibration
                             float dx = currentTouchX - lastTouchX;
                             float dy = currentTouchY - lastTouchY;
-                            float touchMoveDistance = (float) Math.sqrt(dx * dx + dy * dy);
-                            resizeDistance += touchMoveDistance;
-
-                            // Vibrate every mVibrateThreadhold pixels
+                            resizeDistance += (float) Math.sqrt(dx * dx + dy * dy);
                             if (resizeDistance >= mVibrateThreadhold) {
                                 PopUpWindowController.getInstance().triggerVibrate();
                                 resizeDistance = 0;
                             }
-
-                            // Update last touch position
                             lastTouchX = currentTouchX;
                             lastTouchY = currentTouchY;
-
-                            // Calculate scale
                             float currentDistance = (float) Math.hypot(
                                     currentTouchX - centerX,
                                     currentTouchY - centerY);
-
                             if (initialDistance > 0) {
                                 float scaleFactor = currentDistance / initialDistance;
                                 float newScale = initialScale * scaleFactor;
                                 newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
-
-                                // Pass corner information to resizeTask
+                                mCurrentScale = newScale;
                                 resizeTask(newScale, isLeft, isTop);
                                 updateBarScale(newScale);
                             }
                             return true;
-
                         case MotionEvent.ACTION_UP:
+                            resizeDistance = 0;
+                            maybeSwitchToMinimizedState();
+                            return true;
                         case MotionEvent.ACTION_CANCEL:
                             resizeDistance = 0;
                             return true;
+                        default:
+                            return false;
                     }
-                    return false;
                 }
             });
 
@@ -384,88 +367,34 @@ class DimmerWindow {
                     if (mTask == null) return;
                     TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
                             .getTaskWindowSurfaceInfo();
-                    if (info != null) {
-                        Rect displayBounds = new Rect();
-                        mTask.getDisplayContent().getBounds(displayBounds);
+                    if (info == null) {
+                        return;
+                    }
+                    Rect displayBounds = new Rect();
+                    mTask.getDisplayContent().getBounds(displayBounds);
 
-                        float oldScale = info.getWindowSurfaceScale();
-                        float scaleDiff = scale - oldScale;
-
-                        if (Math.abs(scaleDiff) > 0.001f) {
-                            Rect bounds = mTask.getBounds();
-                            float dW = bounds.width() * scaleDiff;
-                            float dH = bounds.height() * scaleDiff;
-
-                            Point currentCenter = info.getWindowCenterPosition();
-
-                            int dx, dy;
-
-                            if (isOrientationChanged) {
-                                // Landscape: Scale from center (no shift)
-                                dx = 0;
-                                dy = 0;
-                                if (DEBUG_POP_UP) {
-                                    Slog.d(TAG, "Landscape display resize: scaling from center");
-                                }
-                            } else if (mTask.getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                                // LANDSCAPE: Scale from center (no shift)
-                                dx = 0;
-                                dy = 0;
-                                if (DEBUG_POP_UP) {
-                                    Slog.d(TAG, "Landscape window resize: scaling from center");
-                                }
-                            } else {
-                                // PORTRAIT: Scale from opposite corner
-                                // Each handle anchors to its opposite corner
-
-                                // Horizontal offset: opposite of dragged side
-                                // If dragging left handle, anchor right
-                                // If dragging right handle, anchor left
-                                dx = (int) ((isLeft ? -1 : 1) * (dW / 2.0f));
-
-                                // Vertical offset: opposite of dragged side
-                                // If dragging top handle, anchor bottom
-                                // If dragging bottom handle, anchor top
-                                dy = (int) ((isTop ? -1 : 1) * (dH / 2.0f));
-                                if (DEBUG_POP_UP) {
-                                    Slog.d(TAG, "Portrait resize: anchor=" +
-                                            (isTop ? "bottom" : "top") + "-" +
-                                            (isLeft ? "right" : "left") +
-                                            ", dx=" + dx + ", dy=" + dy);
-                                }
-                            }
-
-                            info.setWindowCenterPosition(new Point(
-                                    currentCenter.x + dx, currentCenter.y + dy));
+                    float oldScale = info.getWindowSurfaceScale();
+                    float scaleDiff = scale - oldScale;
+                    if (Math.abs(scaleDiff) > 0.001f) {
+                        Rect bounds = mTask.getBounds();
+                        float dW = bounds.width() * scaleDiff;
+                        float dH = bounds.height() * scaleDiff;
+                        Point currentCenter = info.getWindowCenterPosition();
+                        int dx;
+                        int dy;
+                        if (isOrientationChanged || mTask.getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                            dx = 0;
+                            dy = 0;
+                        } else {
+                            dx = (int) ((isLeft ? -1 : 1) * (dW / 2.0f));
+                            dy = (int) ((isTop ? -1 : 1) * (dH / 2.0f));
                         }
-
-                        info.setWindowSurfaceScaleDrag(scale, displayBounds, isOrientationChanged);
-
-                        android.view.SurfaceControl.Transaction t =
-                                mTask.getSyncTransaction();
-                        PopUpWindowController.getInstance().onPrepareSurfaces(mTask, t);
-                        t.apply();
+                        info.setWindowCenterPosition(new Point(currentCenter.x + dx, currentCenter.y + dy));
                     }
-                }
-            });
-        }
-
-        private void moveTaskSurface(int centerX, int centerY) {
-            if (mTask == null) return;
-
-            mTask.mWmService.mH.post(() -> {
-                synchronized (mTask.mWmService.mGlobalLock) {
-                    if (mTask == null) return;
-                    TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                            .getTaskWindowSurfaceInfo();
-                    if (info != null) {
-                        info.setWindowCenterPosition(new Point(centerX, centerY));
-
-                        android.view.SurfaceControl.Transaction t =
-                                mTask.getSyncTransaction();
-                        PopUpWindowController.getInstance().onPrepareSurfaces(mTask, t);
-                        t.apply();
-                    }
+                    info.setWindowSurfaceScaleDrag(scale, displayBounds, isOrientationChanged);
+                    android.view.SurfaceControl.Transaction t = mTask.getSyncTransaction();
+                    PopUpWindowController.getInstance().onPrepareSurfaces(mTask, t);
+                    t.apply();
                 }
             });
         }
@@ -476,12 +405,8 @@ class DimmerWindow {
 
         void updateLayout(Rect taskBounds) {
             if (taskBounds == null || taskBounds.isEmpty()) return;
-            if (DEBUG_POP_UP) {
-                Slog.d(TAG, "updateLayout called with bounds: " + taskBounds);
-            }
             mDrawingRect.set(taskBounds);
 
-            // Position visual bar
             FrameLayout.LayoutParams lpBar = (FrameLayout.LayoutParams) mTopBar.getLayoutParams();
             lpBar.width = mTopBarWidth;
             lpBar.height = mTopBarHeight;
@@ -489,10 +414,8 @@ class DimmerWindow {
             lpBar.topMargin = taskBounds.bottom + dpToPx(4);
             mTopBar.setLayoutParams(lpBar);
 
-            // Position touch area
             int touchHeight = dpToPx(TOUCH_AREA_HEIGHT_DP);
             int touchWidth = mTopBarWidth + dpToPx(TOUCH_AREA_EXTRA_WIDTH_DP * 2);
-
             FrameLayout.LayoutParams lpTouch = (FrameLayout.LayoutParams) mTopBarTouchArea.getLayoutParams();
             lpTouch.width = touchWidth;
             lpTouch.height = touchHeight;
@@ -500,38 +423,39 @@ class DimmerWindow {
             lpTouch.topMargin = lpBar.topMargin - (touchHeight - mTopBarHeight) / 2;
             mTopBarTouchArea.setLayoutParams(lpTouch);
 
-            // Position ALL FOUR Resize Handles
-            int handleSize = dpToPx(40);
+            FrameLayout.LayoutParams dismissLp = (FrameLayout.LayoutParams) mLegacyDismissTarget.getLayoutParams();
+            dismissLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+            dismissLp.topMargin = dpToPx(LEGACY_DISMISS_TARGET_TOP_MARGIN_DP);
+            mLegacyDismissTarget.setLayoutParams(dismissLp);
 
-            // Bottom-Left Handle
-            FrameLayout.LayoutParams lpBottomLeft =
-                    (FrameLayout.LayoutParams) mResizeHandleBottomLeft.getLayoutParams();
+            if (isMinimizedState()) {
+                setMinimizedViewVisibility();
+                requestLayout();
+                invalidate();
+                return;
+            }
+
+            int handleSize = dpToPx(40);
+            FrameLayout.LayoutParams lpBottomLeft = (FrameLayout.LayoutParams) mResizeHandleBottomLeft.getLayoutParams();
             lpBottomLeft.leftMargin = taskBounds.left - (handleSize / 2);
             lpBottomLeft.topMargin = taskBounds.bottom - (handleSize / 2);
             mResizeHandleBottomLeft.setLayoutParams(lpBottomLeft);
 
-            // Bottom-Right Handle
-            FrameLayout.LayoutParams lpBottomRight =
-                    (FrameLayout.LayoutParams) mResizeHandleBottomRight.getLayoutParams();
+            FrameLayout.LayoutParams lpBottomRight = (FrameLayout.LayoutParams) mResizeHandleBottomRight.getLayoutParams();
             lpBottomRight.leftMargin = taskBounds.right - (handleSize / 2);
             lpBottomRight.topMargin = taskBounds.bottom - (handleSize / 2);
             mResizeHandleBottomRight.setLayoutParams(lpBottomRight);
 
-            // Top-Left Handle
-            FrameLayout.LayoutParams lpTopLeft =
-                    (FrameLayout.LayoutParams) mResizeHandleTopLeft.getLayoutParams();
+            FrameLayout.LayoutParams lpTopLeft = (FrameLayout.LayoutParams) mResizeHandleTopLeft.getLayoutParams();
             lpTopLeft.leftMargin = taskBounds.left - (handleSize / 2);
             lpTopLeft.topMargin = taskBounds.top - (handleSize / 2);
             mResizeHandleTopLeft.setLayoutParams(lpTopLeft);
 
-            // Top-Right Handle
-            FrameLayout.LayoutParams lpTopRight =
-                    (FrameLayout.LayoutParams) mResizeHandleTopRight.getLayoutParams();
+            FrameLayout.LayoutParams lpTopRight = (FrameLayout.LayoutParams) mResizeHandleTopRight.getLayoutParams();
             lpTopRight.leftMargin = taskBounds.right - (handleSize / 2);
             lpTopRight.topMargin = taskBounds.top - (handleSize / 2);
             mResizeHandleTopRight.setLayoutParams(lpTopRight);
 
-            // Set visibility
             mTopBar.setVisibility(VISIBLE);
             mTopBarTouchArea.setVisibility(VISIBLE);
             mResizeHandleBottomLeft.setVisibility(VISIBLE);
@@ -539,47 +463,40 @@ class DimmerWindow {
             mResizeHandleTopLeft.setVisibility(VISIBLE);
             mResizeHandleTopRight.setVisibility(VISIBLE);
 
-            // Force views to update
-            mTopBar.requestLayout();
-            mTopBarTouchArea.requestLayout();
-            mResizeHandleBottomLeft.requestLayout();
-            mResizeHandleBottomRight.requestLayout();
-            mResizeHandleTopLeft.requestLayout();
-            mResizeHandleTopRight.requestLayout();
-
             requestLayout();
+        }
+
+        private void setMinimizedViewVisibility() {
+            mTopBar.setVisibility(GONE);
+            mTopBarTouchArea.setVisibility(GONE);
+            mResizeHandleBottomLeft.setVisibility(GONE);
+            mResizeHandleBottomRight.setVisibility(GONE);
+            mResizeHandleTopLeft.setVisibility(GONE);
+            mResizeHandleTopRight.setVisibility(GONE);
         }
 
         void updateBarScale(float scale) {
             float uiScale = Math.max(0.6f, scale);
-
             mTopBarHeight = (int) (dpToPx(BASE_TOP_BAR_HEIGHT_DP) * uiScale);
             mTopBarWidth = (int) (dpToPx(BASE_TOP_BAR_WIDTH_DP) * uiScale);
 
-            // Update visual bar
             GradientDrawable topBarDrawable = new GradientDrawable();
             topBarDrawable.setColor(0xFFFFFFFF);
             topBarDrawable.setCornerRadius(mTopBarHeight / 2f);
             mTopBar.setBackground(topBarDrawable);
 
-            float currentAlpha = mTopBar.getAlpha();
-            mTopBar.setAlpha(currentAlpha);
-
-            // Update layout dimensions
             FrameLayout.LayoutParams lpBar = (FrameLayout.LayoutParams) mTopBar.getLayoutParams();
             lpBar.width = mTopBarWidth;
             lpBar.height = mTopBarHeight;
             mTopBar.setLayoutParams(lpBar);
 
-            // Update touch area dimensions
             int touchWidth = mTopBarWidth + dpToPx(TOUCH_AREA_EXTRA_WIDTH_DP * 2);
             FrameLayout.LayoutParams lpTouch = (FrameLayout.LayoutParams) mTopBarTouchArea.getLayoutParams();
             lpTouch.width = touchWidth;
             mTopBarTouchArea.setLayoutParams(lpTouch);
 
             if (mTask != null) {
-                TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                        .getTaskWindowSurfaceInfo();
+                TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
                 if (info != null) {
                     updateLayout(info.getTaskWindowSurfaceBounds());
                 }
@@ -588,60 +505,146 @@ class DimmerWindow {
 
         void updateTopBarFocus(boolean hasFocus) {
             if (mTopBar != null) {
-                mTopBar.animate()
-                        .alpha(hasFocus ? FOCUSED_ALPHA : UNFOCUSED_ALPHA)
-                        .setDuration(150)
-                        .start();
+                final float targetAlpha = hasFocus ? FOCUSED_ALPHA : UNFOCUSED_ALPHA;
+                mTopBar.animate().alpha(targetAlpha).setDuration(150).start();
+            }
+        }
+
+        void onWindowStateChanged() {
+            if (isMinimizedState()) {
+                setMinimizedViewVisibility();
+            }
+            setLegacyDismissTargetVisible(false, false);
+            invalidate();
+            requestLayout();
+        }
+
+        private void setLegacyDismissTargetVisible(boolean visible, boolean highlighted) {
+            if (mLegacyDismissTarget == null) {
+                return;
+            }
+            mLegacyDismissTarget.setVisibility(visible ? VISIBLE : GONE);
+            GradientDrawable drawable = (GradientDrawable) mLegacyDismissTarget.getBackground();
+            drawable.setColor(highlighted ? 0xFFE53935 : 0xCCFFFFFF);
+            mLegacyDismissTarget.setAlpha(highlighted ? 1.0f : 0.9f);
+            invalidate();
+        }
+
+        private boolean isInLegacyDismissTarget(float rawX, float rawY) {
+            return mLegacyDismissTarget.getVisibility() == VISIBLE
+                    && rawX >= mLegacyDismissTarget.getLeft()
+                    && rawX <= mLegacyDismissTarget.getRight()
+                    && rawY >= mLegacyDismissTarget.getTop()
+                    && rawY <= mLegacyDismissTarget.getBottom();
+        }
+
+        private void maybeSwitchToMinimizedState() {
+            if (mCurrentScale > MIN_SCALE + 0.001f || mDrawingRect.isEmpty()) {
+                return;
+            }
+            rememberMinimizedCenter(mDrawingRect.centerX(), mDrawingRect.centerY());
+            switchToWindowState(WINDOW_STATE_MINIMIZED);
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (isExpandedState()) {
+                return super.onTouchEvent(event);
+            }
+            return handleMinimizedTouch(event);
+        }
+
+        private boolean handleMinimizedTouch(MotionEvent event) {
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    DimmerWindowManager.getInstance().setActiveTask(mTask);
+                    mLegacyDragDownX = (int) event.getRawX();
+                    mLegacyDragDownY = (int) event.getRawY();
+                    mLegacyDragStartBounds.set(mDrawingRect);
+                    mLegacyDragging = false;
+                    return true;
+                case MotionEvent.ACTION_MOVE:
+                    final int moveX = (int) event.getRawX();
+                    final int moveY = (int) event.getRawY();
+                    if (!mLegacyDragging) {
+                        if (Math.abs(moveX - mLegacyDragDownX) > mTouchSlop
+                                || Math.abs(moveY - mLegacyDragDownY) > mTouchSlop) {
+                            mLegacyDragging = true;
+                            setLegacyDismissTargetVisible(true, false);
+                        }
+                    }
+                    if (mLegacyDragging) {
+                        final Rect newBounds = new Rect(mLegacyDragStartBounds);
+                        newBounds.offset(moveX - mLegacyDragDownX, moveY - mLegacyDragDownY);
+                        updateLayout(newBounds);
+                        moveTaskSurface(newBounds.centerX(), newBounds.centerY());
+                        setLegacyDismissTargetVisible(true,
+                                isInLegacyDismissTarget(event.getRawX(), event.getRawY()));
+                    }
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    if (mLegacyDragging) {
+                        final boolean dismiss = isInLegacyDismissTarget(event.getRawX(), event.getRawY());
+                        setLegacyDismissTargetVisible(false, false);
+                        mLegacyDragging = false;
+                        if (dismiss) {
+                            moveActivityTaskToBack();
+                        } else {
+                            rememberMinimizedCenter(mDrawingRect.centerX(), mDrawingRect.centerY());
+                            PopUpWindowController.getInstance().setMiniWindowInputFocus(false);
+                        }
+                    } else {
+                        switchToWindowState(WINDOW_STATE_EXPANDED);
+                    }
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    setLegacyDismissTargetVisible(false, false);
+                    mLegacyDragging = false;
+                    return true;
+                default:
+                    return false;
             }
         }
 
         @Override
         public void onConfigurationChanged(Configuration newConfig) {
             super.onConfigurationChanged(newConfig);
-
             int configChanges = newConfig.diff(mOldConfig);
             if ((configChanges & CONFIG_DENSITY) != 0) {
                 onDensityChanged();
             }
-
             if ((configChanges & CONFIG_ORIENTATION) != 0) {
                 onOrientationChanged();
             }
             mOldConfig.setTo(newConfig);
         }
 
-
         private void onOrientationChanged() {
-            // Force layout update with current task bounds
-            if (mTask != null) {
-                post(() -> {
-                    TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                            .getTaskWindowSurfaceInfo();
-                    if (info != null) {
-                        if (DEBUG_POP_UP) {
-                            Slog.d(TAG, "Updating layout after orientation change");
-                        }
-                        // Sync mCurrentScale
-                        float taskScale = info.getWindowSurfaceScale();
-                        mCurrentScale = taskScale;
-                        if (DEBUG_POP_UP) {
-                            Slog.d(TAG, "Synced mCurrentScale to: " + mCurrentScale);
-                        }
-                        updateLayout(info.getTaskWindowSurfaceBounds());
-
-                        // Force touch region recalculation
-                        requestLayout();
-                        invalidate();
-
-                        isOrientationChanged = !isOrientationChanged;
-                    }
-                });
+            if (mTask == null) {
+                return;
             }
+            post(() -> {
+                TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                if (info == null) {
+                    return;
+                }
+                if (isMinimizedState()) {
+                    applyWindowState(false);
+                } else {
+                    mCurrentScale = info.getWindowSurfaceScale();
+                    updateLayout(info.getTaskWindowSurfaceBounds());
+                }
+                isOrientationChanged = !isOrientationChanged;
+            });
         }
     }
 
     Task getTask() {
         return mTask;
+    }
+
+    boolean shouldHandleInput() {
+        return isExpandedState();
     }
 
     void show() {
@@ -651,8 +654,7 @@ class DimmerWindow {
         }
         mPendingShowAttempts = 0;
         if (mTask != null && mTask.mWindowContainerExt.getTaskWindowSurfaceInfo() != null) {
-            mCurrentScale = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo()
-                    .getWindowSurfaceScale();
+            mCurrentScale = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo().getWindowSurfaceScale();
         }
         updateWindowState(true);
     }
@@ -680,8 +682,7 @@ class DimmerWindow {
         if (mTask == null) {
             return;
         }
-        PopUpWindowController.getInstance().moveActivityTaskToBack(
-                mTask, MOVE_TO_BACK_FROM_LEAVE_BUTTON);
+        PopUpWindowController.getInstance().moveActivityTaskToBack(mTask, MOVE_TO_BACK_FROM_LEAVE_BUTTON);
     }
 
     private void updateWindowState(boolean show) {
@@ -692,8 +693,7 @@ class DimmerWindow {
                     return;
                 }
                 try {
-                    TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                            .getTaskWindowSurfaceInfo();
+                    TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
                     if (info != null && mDimView != null) {
                         mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
                     }
@@ -738,7 +738,6 @@ class DimmerWindow {
         PopUpWindowController.getInstance().findAndExitAllPopUp();
     }
 
-
     void onDragResizeChanged(float scale, Rect taskWindowSurfaceBound, boolean isLandscape) {
         mCurrentScale = scale;
         mUiHandler.post(() -> {
@@ -750,88 +749,98 @@ class DimmerWindow {
     }
 
     void onResizeChanged() {
-        if (mDimView != null && mTask != null) {
-             try {
-                 TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                         .getTaskWindowSurfaceInfo();
-                 if (info != null) {
-                     mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
-                 }
-             } catch (Exception e) {}
+        if (mDimView == null || mTask == null) {
+            return;
+        }
+        try {
+            TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+            if (info == null) {
+                return;
+            }
+            if (isMinimizedState()) {
+                applyWindowState(false);
+            } else {
+                mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
+            }
+        } catch (Exception e) {
+            Slog.w(TAG, "Error updating pop-up layout", e);
         }
     }
 
     private void addDimmerWin() {
-        if (getWindowManager() != null) {
-            mWindowParams.type = TYPE_MINI_WINDOW_DIMMER;
-            mWindowParams.format = TRANSLUCENT;
-            mWindowParams.flags = LayoutParams.FLAG_NOT_TOUCH_MODAL |
-                                  LayoutParams.FLAG_NOT_FOCUSABLE |
-                                  LayoutParams.FLAG_ALT_FOCUSABLE_IM |
-                                  LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH |
-                                  LayoutParams.FLAG_FULLSCREEN;
-            mWindowParams.privateFlags = LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS |
-                                        LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
-            mWindowParams.layoutInDisplayCutoutMode =
-                    LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
-            mWindowParams.setFitInsetsTypes(0);
-            mWindowParams.dimAmount = 0;
-            mWindowParams.gravity = Gravity.LEFT | Gravity.TOP;
-            mWindowParams.x = 0;
-            mWindowParams.y = 0;
-            if (mTask != null) {
-                mWindowParams.setTitle(WIN_TITLE + "#" + mTask.mTaskId);
-            } else {
-                mWindowParams.setTitle(WIN_TITLE);
-            }
-            mWindowParams.width = LayoutParams.MATCH_PARENT;
-            mWindowParams.height = LayoutParams.MATCH_PARENT;
-            mWindowParams.windowAnimations = 0;
-
-            mDimView = new DimView(
-                    mUiContext.createWindowContext(TYPE_MINI_WINDOW_DIMMER, null), mCurrentScale);
-            mDimView.setAlpha(1.0f);
-
-            if (mTask != null) {
-                 try {
-                     TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                             .getTaskWindowSurfaceInfo();
-                     if (info != null) {
-                         mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
-                     }
-                 } catch (Exception e) {}
-            }
-
-            mWindowManager.addView(mDimView, mWindowParams);
-            mIsWindowAdded = true;
-            mShowing = true;
-            mDimView.setSystemUiVisibility(SYSTEM_UI_FLAG_FULLSCREEN);
+        if (getWindowManager() == null) {
+            return;
         }
+        mWindowParams.type = TYPE_MINI_WINDOW_DIMMER;
+        mWindowParams.format = TRANSLUCENT;
+        mWindowParams.flags = LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | LayoutParams.FLAG_NOT_FOCUSABLE
+                | LayoutParams.FLAG_ALT_FOCUSABLE_IM
+                | LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+                | LayoutParams.FLAG_FULLSCREEN;
+        mWindowParams.privateFlags = LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS
+                | LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
+        mWindowParams.layoutInDisplayCutoutMode = LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        mWindowParams.setFitInsetsTypes(0);
+        mWindowParams.dimAmount = 0;
+        mWindowParams.gravity = Gravity.LEFT | Gravity.TOP;
+        mWindowParams.x = 0;
+        mWindowParams.y = 0;
+        mWindowParams.setTitle(mTask != null ? WIN_TITLE + "#" + mTask.mTaskId : WIN_TITLE);
+        mWindowParams.width = LayoutParams.MATCH_PARENT;
+        mWindowParams.height = LayoutParams.MATCH_PARENT;
+        mWindowParams.windowAnimations = 0;
+
+        mDimView = new DimView(mUiContext.createWindowContext(TYPE_MINI_WINDOW_DIMMER, null), mCurrentScale);
+        mDimView.setAlpha(1.0f);
+
+        if (mTask != null) {
+            try {
+                TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                if (info != null) {
+                    if (isMinimizedState()) {
+                        applyWindowState(false);
+                    } else {
+                        mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
+                    }
+                }
+            } catch (Exception e) {
+                Slog.w(TAG, "Error preparing pop-up decor", e);
+            }
+        }
+
+        getWindowManager().addView(mDimView, mWindowParams);
+        mIsWindowAdded = true;
+        mShowing = true;
+        mDimView.setSystemUiVisibility(SYSTEM_UI_FLAG_FULLSCREEN);
     }
 
     private void updateDimmerWin(boolean show) {
-        if (getWindowManager() != null && mDimView != null && mShowing != show) {
-            if (show) {
-                if (mTask != null) {
-                     try {
-                         TaskWindowSurfaceInfo info = mTask.mWindowContainerExt
-                                 .getTaskWindowSurfaceInfo();
-                         if (info != null) {
-                             mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
-                         }
-                     } catch (Exception e) {}
-                }
-                mWindowParams.flags &= ~LayoutParams.FLAG_NOT_TOUCHABLE;
-            } else {
-                mWindowParams.flags |= LayoutParams.FLAG_NOT_TOUCHABLE;
-            }
-            mWindowManager.updateViewLayout(mDimView, mWindowParams);
-            mDimView.setVisibility(show ? View.VISIBLE : View.GONE);
-            mShowing = show;
-            if (DEBUG_POP_UP) {
-                Slog.d(TAG, "updateDimmerWin: show=" + show);
-            }
+        if (getWindowManager() == null || mDimView == null || mShowing == show) {
+            return;
         }
+        if (show) {
+            if (mTask != null) {
+                try {
+                    TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                    if (info != null) {
+                        if (isMinimizedState()) {
+                            applyWindowState(false);
+                        } else {
+                            mDimView.updateLayout(info.getTaskWindowSurfaceBounds());
+                        }
+                    }
+                } catch (Exception e) {
+                    Slog.w(TAG, "Error updating pop-up decor", e);
+                }
+            }
+            mWindowParams.flags &= ~LayoutParams.FLAG_NOT_TOUCHABLE;
+        } else {
+            mWindowParams.flags |= LayoutParams.FLAG_NOT_TOUCHABLE;
+        }
+        mWindowManager.updateViewLayout(mDimView, mWindowParams);
+        mDimView.setVisibility(show ? View.VISIBLE : View.GONE);
+        mShowing = show;
     }
 
     private WindowManager getWindowManager() {
@@ -841,79 +850,28 @@ class DimmerWindow {
         return mWindowManager;
     }
 
-    /**
-    * Get the full bounds of the DimmerWindow including expanded touch area and resize handles.
-    */
     public Rect getBounds() {
         if (mDimView == null || mDimView.mDrawingRect.isEmpty()) {
             return null;
         }
+        if (isMinimizedState()) {
+            return new Rect(mDimView.mDrawingRect);
+        }
 
-        // Include expanded touch area for focus tracking
         final Rect decoratedBounds = new Rect(mDimView.mDrawingRect);
-
-        // Get current bar dimensions (they scale with window)
         int barWidth = mDimView.mTopBarWidth;
         int barHeight = mDimView.mTopBarHeight;
-
-        // Touch area dimensions (larger)
         int touchHeight = dpToPx(DimView.TOUCH_AREA_HEIGHT_DP);
         int extraWidth = dpToPx(DimView.TOUCH_AREA_EXTRA_WIDTH_DP);
-
-        // Expand bottom to include the expanded touch area
-        int barVisualTop = mDimView.mDrawingRect.bottom + dpToPx(4); // Visual bar position
-        int touchTop = barVisualTop - (touchHeight - barHeight) / 2; // Center touch area on visual
+        int barVisualTop = mDimView.mDrawingRect.bottom + dpToPx(4);
+        int touchTop = barVisualTop - (touchHeight - barHeight) / 2;
         int touchBottom = touchTop + touchHeight;
         decoratedBounds.bottom = Math.max(decoratedBounds.bottom, touchBottom);
-
-        // Expand left/right to include extra width
         int taskCenterX = mDimView.mDrawingRect.centerX();
         int touchLeft = taskCenterX - (barWidth / 2) - extraWidth;
         int touchRight = taskCenterX + (barWidth / 2) + extraWidth;
-
         decoratedBounds.left = Math.min(decoratedBounds.left, touchLeft);
         decoratedBounds.right = Math.max(decoratedBounds.right, touchRight);
-
-        // Add 4 resize handles
-        int handleSize = dpToPx(40);
-        int handleRadius = handleSize / 2;
-
-        Rect taskBounds = mDimView.mDrawingRect;
-
-        // Bottom-Left Handle
-        int bottomLeftHandleLeft = taskBounds.left - handleRadius;
-        int bottomLeftHandleTop = taskBounds.bottom - handleRadius;
-        int bottomLeftHandleRight = taskBounds.left + handleRadius;
-        int bottomLeftHandleBottom = taskBounds.bottom + handleRadius;
-
-        // Bottom-Right Handle
-        int bottomRightHandleLeft = taskBounds.right - handleRadius;
-        int bottomRightHandleTop = taskBounds.bottom - handleRadius;
-        int bottomRightHandleRight = taskBounds.right + handleRadius;
-        int bottomRightHandleBottom = taskBounds.bottom + handleRadius;
-
-        // Top-Left Handle
-        int topLeftHandleLeft = taskBounds.left - handleRadius;
-        int topLeftHandleTop = taskBounds.top - handleRadius;
-        int topLeftHandleRight = taskBounds.left + handleRadius;
-        int topLeftHandleBottom = taskBounds.top + handleRadius;
-
-        // Top-Right Handle
-        int topRightHandleLeft = taskBounds.right - handleRadius;
-        int topRightHandleTop = taskBounds.top - handleRadius;
-        int topRightHandleRight = taskBounds.right + handleRadius;
-        int topRightHandleBottom = taskBounds.top + handleRadius;
-
-        // Expand bounds to include all handles
-        decoratedBounds.left = Math.min(decoratedBounds.left,
-                Math.min(bottomLeftHandleLeft, topLeftHandleLeft));
-        decoratedBounds.right = Math.max(decoratedBounds.right,
-                Math.max(bottomRightHandleRight, topRightHandleRight));
-        decoratedBounds.top = Math.min(decoratedBounds.top,
-                Math.min(topLeftHandleTop, topRightHandleTop));
-        decoratedBounds.bottom = Math.max(decoratedBounds.bottom,
-                Math.max(bottomLeftHandleBottom, bottomRightHandleBottom));
-
         return decoratedBounds;
     }
 
@@ -931,5 +889,98 @@ class DimmerWindow {
 
     private int dpToPx(int dp) {
         return (int) (dp * mUiContext.getResources().getDisplayMetrics().density);
+    }
+
+    private void switchToWindowState(int targetState) {
+        mWindowState = targetState;
+        applyWindowState(true);
+    }
+
+    private void applyWindowState(boolean animate) {
+        if (mTask == null) {
+            return;
+        }
+        final int targetState = mWindowState;
+        mTask.mWmService.mH.post(() -> {
+            synchronized (mTask.mWmService.mGlobalLock) {
+                final TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                if (info == null || mTask.mDisplayContent == null) {
+                    return;
+                }
+                final Rect displayBounds = new Rect();
+                mTask.mDisplayContent.getBounds(displayBounds);
+                final Point targetCenter = new Point(displayBounds.centerX(), displayBounds.centerY());
+                final float targetScale;
+                if (targetState == WINDOW_STATE_EXPANDED) {
+                    targetScale = WindowResizingAlgorithm.getDefaultMiniWindowScale(
+                            mTask.getConfiguration().orientation,
+                            mTask.mDisplayContent.getRotation());
+                } else {
+                    targetScale = LEGACY_MINIMIZED_SCALE;
+                    if (mMinimizedCenter.x != 0 || mMinimizedCenter.y != 0) {
+                        targetCenter.set(mMinimizedCenter.x, mMinimizedCenter.y);
+                    } else {
+                        targetCenter.set(info.getWindowCenterPosition());
+                    }
+                }
+
+                final Rect beforeBounds = info.getTaskWindowSurfaceBounds();
+                final float beforeScale = info.getWindowSurfaceRealScale();
+
+                info.setWindowCenterPosition(targetCenter);
+                info.setWindowSurfaceScale(targetScale);
+                mCurrentScale = targetScale;
+                if (targetState == WINDOW_STATE_MINIMIZED) {
+                    mMinimizedCenter.set(targetCenter.x, targetCenter.y);
+                }
+                final Rect afterBounds = info.getTaskWindowSurfaceBounds();
+                final float afterScale = info.getWindowSurfaceRealScale();
+                final android.view.SurfaceControl.Transaction t = mTask.getSyncTransaction();
+                if (animate && beforeBounds != null && !beforeBounds.isEmpty()
+                        && afterBounds != null && !afterBounds.isEmpty()) {
+                    info.playToggleResizeWindowAnimation(
+                            new Point(beforeBounds.left, beforeBounds.top),
+                            new Point(afterBounds.left, afterBounds.top),
+                            beforeScale,
+                            afterScale,
+                            () -> { });
+                } else {
+                    PopUpWindowController.getInstance().onPrepareSurfaces(mTask, t);
+                    t.apply();
+                }
+                PopUpWindowController.getInstance().setMiniWindowInputFocus(
+                        targetState == WINDOW_STATE_EXPANDED);
+                mUiHandler.post(() -> {
+                    if (mDimView != null) {
+                        mDimView.onWindowStateChanged();
+                        mDimView.updateLayout(afterBounds);
+                    }
+                });
+            }
+        });
+    }
+
+    private void rememberMinimizedCenter(int centerX, int centerY) {
+        mMinimizedCenter.set(centerX, centerY);
+    }
+
+    private void moveTaskSurface(int centerX, int centerY) {
+        if (mTask == null) return;
+        rememberMinimizedCenter(centerX, centerY);
+        mTask.mWmService.mH.post(() -> {
+            synchronized (mTask.mWmService.mGlobalLock) {
+                if (mTask == null) {
+                    return;
+                }
+                TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                if (info == null) {
+                    return;
+                }
+                info.setWindowCenterPosition(new Point(centerX, centerY));
+                android.view.SurfaceControl.Transaction t = mTask.getSyncTransaction();
+                PopUpWindowController.getInstance().onPrepareSurfaces(mTask, t);
+                t.apply();
+            }
+        });
     }
 }
