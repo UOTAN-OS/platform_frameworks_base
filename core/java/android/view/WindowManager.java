@@ -642,7 +642,7 @@ public interface WindowManager extends ViewManager {
      * Transition flag: Indicates that task is moved to back.
      * @hide
      */
-    int TRANSIT_FLAG_MOVE_TASK_TO_BACK = (1 << 15); // 0x8000
+    int TRANSIT_FLAG_MOVE_TASK_TO_BACK = (1 << 18); // 0x40000
 
     /**
      * Display IME Policy: The IME should appear on a fallback display.
