@@ -349,6 +349,13 @@ public abstract class InputMethodManagerInternal {
             @UserIdInt int userId, int displayId);
 
     /**
+     * Provides the active input connection for a display.
+     */
+    @Nullable
+    public abstract IRemoteComputerControlInputConnection getActiveInputConnection(
+            @UserIdInt int userId, int displayId);
+
+    /**
      * Fake implementation of {@link InputMethodManagerInternal}. All the methods do nothing.
      */
     private static final InputMethodManagerInternal NOP =
@@ -477,6 +484,13 @@ public abstract class InputMethodManagerInternal {
                 @Override
                 public IRemoteComputerControlInputConnection getComputerControlInputConnection(
                         @UserIdInt int userId,  int displayId) {
+                    return null;
+                }
+
+                @Nullable
+                @Override
+                public IRemoteComputerControlInputConnection getActiveInputConnection(
+                        @UserIdInt int userId, int displayId) {
                     return null;
                 }
             };

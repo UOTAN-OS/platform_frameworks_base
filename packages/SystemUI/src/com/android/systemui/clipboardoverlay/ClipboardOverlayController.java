@@ -40,11 +40,15 @@ import android.app.ActivityOptions;
 import android.app.RemoteAction;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Icon;
+import android.os.PersistableBundle;
 import android.provider.DeviceConfig;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.WindowInsets;
@@ -54,6 +58,7 @@ import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.logging.UiEventLogger;
+import com.android.internal.statusbar.IStatusBarService;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.broadcast.BroadcastSender;
 import com.android.systemui.clipboardoverlay.dagger.ClipboardOverlayModule.OverlayWindowContext;
@@ -77,6 +82,7 @@ import javax.inject.Inject;
 public class ClipboardOverlayController implements ClipboardListener.ClipboardOverlay,
         ClipboardOverlayView.ClipboardOverlayCallbacks {
     private static final String TAG = "ClipboardOverlayCtrlr";
+    private static final String SMS_CLIP_SOURCE = "uwuaosp_sms";
 
     /** Constants for screenshot/copy deconflicting */
     public static final String SCREENSHOT_ACTION = "com.android.systemui.SCREENSHOT";
@@ -98,6 +104,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private final ClipboardInputEventReceiver mClipboardInputEventReceiver;
     private final ActivityStarter mActivityStarter;
     private final UserTracker mUserTracker;
+    private final IStatusBarService mStatusBarService;
 
 
     private final ClipboardOverlayView mView;
@@ -117,12 +124,19 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private boolean mShowingUi;
     private boolean mIsMinimized;
     private ClipboardModel mClipboardModel;
+    @Nullable private String mVerificationCode;
+    private OverlayMode mOverlayMode = OverlayMode.CLIPBOARD;
     private ClipboardIndicationCallback mIndicationCallback = new ClipboardIndicationCallback() {
         @Override
         public void onIndicationTextChanged(@NonNull CharSequence text) {
             mView.setIndicationText(text);
         }
     };
+
+    private enum OverlayMode {
+        CLIPBOARD,
+        VERIFICATION_CODE,
+    }
 
     @Inject
     public ClipboardOverlayController(@OverlayWindowContext Context context,
@@ -141,6 +155,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
             ClipboardInputEventReceiver clipboardInputEventReceiver,
             ClipboardIndicationProvider clipboardIndicationProvider,
             UiEventLogger uiEventLogger,
+            IStatusBarService statusBarService,
             IntentCreator intentCreator) {
         mContext = context;
         mBroadcastDispatcher = broadcastDispatcher;
@@ -150,6 +165,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mClipboardIndicationProvider = clipboardIndicationProvider;
         mActivityStarter = activityStarter;
         mUserTracker = userTracker;
+        mStatusBarService = statusBarService;
 
         mClipboardLogger = new ClipboardLogger(uiEventLogger);
         mIntentCreator = intentCreator;
@@ -220,6 +236,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     @Override // ClipboardListener.ClipboardOverlay
     public void setClipData(ClipData data, String source) {
+        mOverlayMode = OverlayMode.CLIPBOARD;
+        mVerificationCode = null;
         ClipboardModel model = ClipboardModel.fromClipData(mContext, mClipboardUtils, data, source);
         boolean wasExiting = (mExitAnimator != null && mExitAnimator.isRunning());
         if (wasExiting) {
@@ -256,6 +274,30 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
             mOnUiUpdate = mTimeoutHandler::resetTimeout;
             mOnUiUpdate.run();
         }
+    }
+
+    public void setVerificationCode(String code) {
+        mOverlayMode = OverlayMode.VERIFICATION_CODE;
+        mClipboardModel = null;
+        boolean wasExiting = (mExitAnimator != null && mExitAnimator.isRunning());
+        if (wasExiting) {
+            mExitAnimator.cancel();
+        }
+        boolean shouldAnimate = !TextUtils.equals(code, mVerificationCode) || wasExiting;
+        mVerificationCode = code;
+        mClipboardLogger.setClipSource(SMS_CLIP_SOURCE);
+        if (shouldAnimate) {
+            reset();
+            mClipboardLogger.setClipSource(SMS_CLIP_SOURCE);
+            mClipboardLogger.logUnguarded(CLIPBOARD_OVERLAY_SHOWN_EXPANDED);
+            setVerificationCodeView(() ->
+                    animateInWithAnnouncement(
+                            mContext.getString(R.string.uwu_sms_code_overlay_announcement)));
+        } else {
+            setVerificationCodeView(() -> { });
+        }
+        mOnUiUpdate = mTimeoutHandler::resetTimeout;
+        mOnUiUpdate.run();
     }
 
     private void setExpandedView(Runnable onViewReady) {
@@ -302,8 +344,53 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         }
     }
 
+    private void setVerificationCodeView(Runnable onViewReady) {
+        final String code = mVerificationCode;
+        if (TextUtils.isEmpty(code)) {
+            return;
+        }
+        mView.setMinimized(false);
+        mView.resetActionChips();
+        mView.setRemoteCopyVisibility(false);
+        mView.showTextPreview(code, false);
+        mView.addActionChip(
+                Icon.createWithResource(mContext, com.android.internal.R.drawable.ic_menu_copy_material)
+                        .loadDrawable(mContext),
+                null,
+                mContext.getString(R.string.uwu_sms_code_copy),
+                () -> {
+                    ClipboardManager clipboardManager =
+                            mContext.getSystemService(ClipboardManager.class);
+                    if (clipboardManager != null) {
+                        ClipData clipData = ClipData.newPlainText(null, code);
+                        PersistableBundle extras = new PersistableBundle();
+                        extras.putBoolean(ClipboardListener.EXTRA_SUPPRESS_OVERLAY, true);
+                        clipData.getDescription().setExtras(extras);
+                        clipboardManager.setPrimaryClipAsPackage(clipData, ClipboardListener.SHELL_PACKAGE);
+                    }
+                    finish(CLIPBOARD_OVERLAY_ACTION_TAPPED);
+                });
+        mView.addActionChip(
+                Icon.createWithResource(mContext, R.drawable.ic_arrow_up_24dp)
+                        .loadDrawable(mContext),
+                null,
+                mContext.getString(R.string.uwu_sms_code_fill_in),
+                true,
+                () -> {
+                    try {
+                        if (mStatusBarService.commitTextToFocusedInput(code, mContext.getDisplayId())) {
+                            finish(CLIPBOARD_OVERLAY_ACTION_TAPPED);
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Failed to commit verification code", e);
+                    }
+                });
+        onViewReady.run();
+    }
+
     private boolean shouldShowMinimized(WindowInsets insets) {
-        return insets.getInsets(WindowInsets.Type.ime()).bottom > 0;
+        return mOverlayMode == OverlayMode.CLIPBOARD
+                && insets.getInsets(WindowInsets.Type.ime()).bottom > 0;
     }
 
     private void animateFromMinimized() {
@@ -319,7 +406,11 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
                     mClipboardLogger.logUnguarded(CLIPBOARD_OVERLAY_EXPANDED_FROM_MINIMIZED);
                     mIsMinimized = false;
                 }
-                setExpandedView(() -> animateIn());
+                if (mOverlayMode == OverlayMode.VERIFICATION_CODE) {
+                    setVerificationCodeView(() -> animateIn());
+                } else {
+                    setExpandedView(() -> animateIn());
+                }
             }
         });
         mEnterAnimator.start();
@@ -391,12 +482,16 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     }
 
     private void animateInWithAnnouncement(ClipboardModel.Type type) {
+        animateInWithAnnouncement(getAccessibilityAnnouncement(type));
+    }
+
+    private void animateInWithAnnouncement(CharSequence announcement) {
         Animator entrance = animateIn();
         entrance.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationEnd(Animator animation) {
                 super.onAnimationEnd(animation);
-                mView.announce(getAccessibilityAnnouncement(type));
+                mView.announce(announcement);
             }
         });
     }
@@ -503,6 +598,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     private void reset() {
         mShowingUi = false;
+        mIsMinimized = false;
         mView.reset();
         mTimeoutHandler.cancelTimeout();
         mClipboardLogger.reset();

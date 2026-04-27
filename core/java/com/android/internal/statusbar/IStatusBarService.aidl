@@ -254,4 +254,9 @@ interface IStatusBarService
      * Toggles flashlight of the device
      */
     void toggleCameraFlash();
+
+    /**
+     * Commits text into the currently focused editor on the given display.
+     */
+    boolean commitTextToFocusedInput(in CharSequence text, int displayId);
 }

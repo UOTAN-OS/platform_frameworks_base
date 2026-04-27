@@ -110,6 +110,13 @@ final class UserData {
             new HashMap<>();
 
     /**
+     * The map of active input connections keyed by display.
+     */
+    @NonNull
+    Map<Integer, IRemoteComputerControlInputConnection> mActiveInputConnectionMap =
+            new HashMap<>();
+
+    /**
      * The {@link ResultReceiver} last provided by the current client to
      * receive {@link android.window.OnBackInvokedCallback}s forwarded from IME.
      */

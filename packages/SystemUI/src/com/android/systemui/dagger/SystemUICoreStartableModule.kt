@@ -63,6 +63,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
+import org.uwuaosp.systemui.sms.SmsCodeSuggestionStartable
 
 /**
  * DEPRECATED: DO NOT ADD THINGS TO THIS FILE. b/427499553
@@ -88,6 +89,12 @@ abstract class SystemUICoreStartableModule {
     @IntoMap
     @ClassKey(ClipboardListener::class)
     abstract fun bindClipboardListener(sysui: ClipboardListener): CoreStartable
+
+    /** Inject into SmsCodeSuggestionStartable. */
+    @Binds
+    @IntoMap
+    @ClassKey(SmsCodeSuggestionStartable::class)
+    abstract fun bindSmsCodeSuggestionStartable(startable: SmsCodeSuggestionStartable): CoreStartable
 
     /** Inject into GlobalActionsComponent. */
     @Binds
