@@ -27,7 +27,6 @@ import android.animation.ObjectAnimator;
 import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.annotation.Nullable;
-import android.app.PendingIntent;
 import android.app.RemoteAction;
 import android.content.Context;
 import android.content.res.Resources;
@@ -36,6 +35,7 @@ import android.graphics.Insets;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Region;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
@@ -491,8 +491,37 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
     }
 
     void setActionChip(RemoteAction action, Runnable onFinish) {
+        addActionChip(
+                action.getIcon().loadDrawable(mContext),
+                action.getTitle(),
+                action.getTitle(),
+                false,
+                () -> {
+                    try {
+                        action.getActionIntent().send();
+                        onFinish.run();
+                    } catch (PendingIntent.CanceledException e) {
+                        Log.e(TAG, "Failed to send intent");
+                    }
+                });
+    }
+
+    void addActionChip(
+            Drawable icon,
+            @Nullable CharSequence label,
+            CharSequence description,
+            Runnable action) {
+        addActionChip(icon, label, description, false, action);
+    }
+
+    void addActionChip(
+            Drawable icon,
+            @Nullable CharSequence label,
+            CharSequence description,
+            boolean tint,
+            Runnable action) {
         mActionContainerBackground.setVisibility(View.VISIBLE);
-        View chip = constructShelfActionChip(action, onFinish);
+        View chip = constructShelfActionChip(icon, label, description, tint, action);
         mActionContainer.addView(chip);
         mActionChips.add(chip);
     }
@@ -505,20 +534,19 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         v.setVisibility(View.VISIBLE);
     }
 
-    private View constructShelfActionChip(RemoteAction action, Runnable onFinish) {
+    private View constructShelfActionChip(
+            Drawable icon,
+            @Nullable CharSequence label,
+            CharSequence description,
+            boolean tint,
+            Runnable onClick) {
         View chip = LayoutInflater.from(mContext).inflate(
                 R.layout.shelf_action_chip, mActionContainer, false);
         mActionButtonViewBinder.bind(chip, ActionButtonViewModel.Companion.withNextId(
-                new ActionButtonAppearance(action.getIcon().loadDrawable(mContext),
-                        action.getTitle(), action.getTitle(), false), new Function0<>() {
+                new ActionButtonAppearance(icon, label, description, tint), new Function0<>() {
                     @Override
                     public Unit invoke() {
-                        try {
-                            action.getActionIntent().send();
-                            onFinish.run();
-                        } catch (PendingIntent.CanceledException e) {
-                            Log.e(TAG, "Failed to send intent");
-                        }
+                        onClick.run();
                         return null;
                     }
                 }));

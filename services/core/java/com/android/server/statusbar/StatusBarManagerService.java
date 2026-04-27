@@ -112,6 +112,8 @@ import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.infra.AndroidFuture;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
+import com.android.internal.inputmethod.InputConnectionCommandHeader;
 import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.logging.InstanceId;
 import com.android.internal.os.TransferPipe;
@@ -2587,6 +2589,30 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
             } catch (RemoteException e) {
                 Slog.e(TAG, "toggleRecentApps", e);
             }
+        }
+    }
+
+    @Override
+    public boolean commitTextToFocusedInput(CharSequence text, int displayId) {
+        enforceStatusBarService();
+        if (TextUtils.isEmpty(text)) {
+            return false;
+        }
+
+        final int userId = mUserManagerInternal.getUserAssignedToDisplay(displayId);
+        final IRemoteComputerControlInputConnection inputConnection =
+                InputMethodManagerInternal.get().getActiveInputConnection(userId, displayId);
+        if (inputConnection == null) {
+            return false;
+        }
+
+        try {
+            inputConnection.commitText(new InputConnectionCommandHeader(0), text,
+                    1 /* newCursorPosition */);
+            return true;
+        } catch (RemoteException e) {
+            Slog.w(TAG, "Unable to commit text to focused input", e);
+            return false;
         }
     }
 

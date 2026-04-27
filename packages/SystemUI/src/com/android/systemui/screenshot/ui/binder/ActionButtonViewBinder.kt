@@ -42,6 +42,8 @@ class ActionButtonViewBinder @Inject constructor() {
             iconView.setImageTintList(null)
         }
         textView.text = viewModel.appearance.label
+        textView.visibility =
+            if (viewModel.appearance.label.isNullOrEmpty()) View.GONE else View.VISIBLE
 
         viewModel.appearance.customBackground?.also {
             if (it.canApplyTheme()) {

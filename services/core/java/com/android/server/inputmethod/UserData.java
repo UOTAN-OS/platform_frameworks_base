@@ -29,6 +29,7 @@ import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 
 import java.util.HashMap;
@@ -113,6 +114,13 @@ final class UserData {
     @NonNull
     Map<Integer, InputMethodManagerInternal.ComputerControlInputConnectionData>
             mComputerControlInputConnectionMap = new HashMap<>();
+
+    /**
+     * The map of active input connections keyed by display.
+     */
+    @NonNull
+    Map<Integer, IRemoteComputerControlInputConnection> mActiveInputConnectionMap =
+            new HashMap<>();
 
     /**
      * The {@link ResultReceiver} last provided by the current client to

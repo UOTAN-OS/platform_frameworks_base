@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ Copyright (C) 2026 The uwuAOSP Project
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+-->
+<resources>
+    <!-- Accessibility announcement for a detected SMS verification code. [CHAR LIMIT=NONE] -->
+    <string name="uwu_sms_code_overlay_announcement">Verification code available</string>
+    <!-- Action label for copying a verification code. [CHAR LIMIT=20] -->
+    <string name="uwu_sms_code_copy">Copy</string>
+    <!-- Action label for inserting a verification code into the current editor. [CHAR LIMIT=20] -->
+    <string name="uwu_sms_code_fill_in">Fill in</string>
+</resources>

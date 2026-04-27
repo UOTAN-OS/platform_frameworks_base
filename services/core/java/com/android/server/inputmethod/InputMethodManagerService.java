@@ -2067,6 +2067,7 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
             }
         }
         userData.mComputerControlInputConnectionMap.remove(client.mSelfReportedDisplayId);
+        userData.mActiveInputConnectionMap.remove(client.mSelfReportedDisplayId);
     }
 
     @VisibleForTesting
@@ -4007,6 +4008,12 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
                 }
                 // Keep track on computer control input connection that was last provided by the
                 // client on a particular display.
+                if (remoteComputerControlInputConnection != null) {
+                    userData.mActiveInputConnectionMap.put(cs.mSelfReportedDisplayId,
+                            remoteComputerControlInputConnection);
+                } else {
+                    userData.mActiveInputConnectionMap.remove(cs.mSelfReportedDisplayId);
+                }
                 if (mVdmInternal == null) {
                     mVdmInternal = LocalServices.getService(VirtualDeviceManagerInternal.class);
                 }
@@ -6462,6 +6469,16 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
             synchronized (ImfLock.class) {
                 final UserData userData = getUserData(userId);
                 return userData.mComputerControlInputConnectionMap.get(displayId);
+            }
+        }
+
+        @Nullable
+        @Override
+        public IRemoteComputerControlInputConnection getActiveInputConnection(
+                @UserIdInt int userId, int displayId) {
+            synchronized (ImfLock.class) {
+                final UserData userData = getUserData(userId);
+                return userData.mActiveInputConnectionMap.get(displayId);
             }
         }
     }

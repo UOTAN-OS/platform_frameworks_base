@@ -279,4 +279,9 @@ interface IStatusBarService
      * Toggle recent apps.
      */
     void toggleRecentApps();
+
+    /**
+     * Commits text into the currently focused editor on the given display.
+     */
+    boolean commitTextToFocusedInput(in CharSequence text, int displayId);
 }
