@@ -427,6 +427,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     private static final float TRIGGER_MIN_DISTANCE_DP = 30.0f; 
     private static final float TRIGGER_MAX_ANGLE_RAD = (float) Math.toRadians(80.0); 
 
+    private boolean mPopupViewQuickMenuGestureEnabled;
     private boolean mIsTrackingSystemGesture = false; 
     private boolean mIsTrackingSideGesture = false;
     private boolean mGestureTriggered = false;
@@ -991,6 +992,15 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.THREE_FINGER_GESTURE), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_ENABLED), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_WIDTH_DP), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.System.getUriFor(
+                    Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_HEIGHT_DP), false, this,
                     UserHandle.USER_ALL);
             updateSettings();
         }
@@ -3120,6 +3130,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     Settings.System.THREE_FINGER_GESTURE, 0, UserHandle.USER_CURRENT) == 1;
             enableSwipeThreeFingerGesture(threeFingerGesture);
 
+            mPopupViewQuickMenuGestureEnabled = Settings.System.getIntForUser(resolver,
+                    Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_ENABLED,
+                    0, UserHandle.USER_CURRENT) == 1;
+
             // Configure wake gesture.
             boolean wakeGestureEnabledSetting = Settings.Secure.getIntForUser(resolver,
                     Settings.Secure.WAKE_GESTURE_ENABLED, 0,
@@ -3222,6 +3236,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         if (updateKidsModeSettings) {
             updateKidsModeSettings(kidsModeEnabled);
         }
+        updateGestureParams();
         if (updateRotation) {
             updateRotation(true);
         }
@@ -5577,19 +5592,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     };
 
-    BroadcastReceiver mGestureSettingsReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if ("org.uwuaosp.freeformsettings.UPDATE_GESTURE_SETTINGS".equals(
-                    intent.getAction())) {
-                if (GESTURE_DEBUG) {
-                    Slog.d(TAG_GESTURE, "Received gesture settings update broadcast");
-                }
-                updateGestureParams();
-            }
-        }
-    };
-
     @Override
     public void startedWakingUpGlobal(@WakeReason int reason) {
 
@@ -6257,8 +6259,7 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     @Override
     public int interceptMotionBeforeQueueing(MotionEvent event) {
-        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", false);
-        if(!isPopupViewEnable){
+        if (!mPopupViewQuickMenuGestureEnabled) {
             return SYSTEM_GESTURE_NONE;
         }
         final int action = event.getActionMasked();
@@ -6395,11 +6396,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mDisplayWidth = size.x;
             mDisplayHeight = size.y;
         }
+        final ContentResolver resolver = mContext.getContentResolver();
         float density = mContext.getResources().getDisplayMetrics().density;
-        GESTURE_AREA_HEIGHT_DP = Float.parseFloat(
-        SystemProperties.get("persist.avium.gesture_area_height_dp", String.valueOf(GESTURE_AREA_HEIGHT_DP)));
-        GESTURE_AREA_WIDTH_DP = Float.parseFloat(
-            SystemProperties.get("persist.avium.gesture_area_width_dp", String.valueOf(GESTURE_AREA_WIDTH_DP)));
+        GESTURE_AREA_HEIGHT_DP = Settings.System.getFloatForUser(resolver,
+                Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_HEIGHT_DP,
+                GESTURE_AREA_HEIGHT_DP, UserHandle.USER_CURRENT);
+        GESTURE_AREA_WIDTH_DP = Settings.System.getFloatForUser(resolver,
+                Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_WIDTH_DP,
+                GESTURE_AREA_WIDTH_DP, UserHandle.USER_CURRENT);
         mMinGestureDistancePx = TRIGGER_MIN_DISTANCE_DP * density;
         mGestureAreaHeightPx  = GESTURE_AREA_HEIGHT_DP  * density;
         mGestureAreaWidthPx   = GESTURE_AREA_WIDTH_DP   * density;
@@ -6415,10 +6419,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mKeyguardDelegate.onSystemReady();
         //Ext add
         updateGestureParams();
-        IntentFilter gestureSettingsFilter =
-                new IntentFilter("org.uwuaosp.freeformsettings.UPDATE_GESTURE_SETTINGS");
-        mContext.registerReceiver(mGestureSettingsReceiver, gestureSettingsFilter,
-                Context.RECEIVER_NOT_EXPORTED);
         mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {

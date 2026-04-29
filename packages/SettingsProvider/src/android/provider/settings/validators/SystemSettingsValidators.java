@@ -163,8 +163,22 @@ public class SystemSettingsValidators {
         VALIDATORS.put(System.AUTO_TIME, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.AUTO_TIME_ZONE, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.SHOW_GTALK_SERVICE_STATUS, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_VIEW_QUICK_MENU_GESTURE_ENABLED, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_VIEW_QUICK_MENU_SELECTED_APPS, ANY_STRING_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_WIDTH_DP,
+                new InclusiveFloatRangeValidator(20f, 100f));
+        VALIDATORS.put(System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_HEIGHT_DP,
+                new InclusiveFloatRangeValidator(20f, 100f));
+        VALIDATORS.put(System.POP_UP_NOTIFICATION_ENTRY_ENABLED, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_NOTIFICATION_LAUNCH_MODE,
+                new DiscreteValueValidator(new String[] {
+                        "bubble", "popup_view", "free_window", "free window", null
+                }));
         VALIDATORS.put(System.POP_UP_NOTIFICATION_JUMP_PORTRAIT, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.POP_UP_NOTIFICATION_JUMP_LANDSCAPE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_NOTIFICATION_BLACKLIST, ANY_STRING_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_VIEW_ALLOW_MULTIPLE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.POP_UP_VIEW_UI_MODE, new InclusiveIntegerRangeValidator(0, 1));
         VALIDATORS.put(
                 System.WALLPAPER_ACTIVITY,
                 new Validator() {

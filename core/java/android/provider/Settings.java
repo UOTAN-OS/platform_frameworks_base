@@ -5369,22 +5369,74 @@ public final class Settings {
         public static final String PEAK_REFRESH_RATE = "peak_refresh_rate";
 
         /**
+         * Whether the quick menu gesture for Pop-Up View is enabled.
+         * @hide
+         */
+        public static final String POP_UP_VIEW_QUICK_MENU_GESTURE_ENABLED =
+                "pop_up_view_quick_menu_gesture_enabled";
+
+        /**
+         * Selected quick menu apps for Pop-Up View, encoded as a package-name list.
+         * @hide
+         */
+        public static final String POP_UP_VIEW_QUICK_MENU_SELECTED_APPS =
+                "pop_up_view_quick_menu_selected_apps";
+
+        /**
+         * Width of the quick menu gesture trigger area in dp.
+         * @hide
+         */
+        public static final String POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_WIDTH_DP =
+                "pop_up_view_quick_menu_gesture_area_width_dp";
+
+        /**
+         * Height of the quick menu gesture trigger area in dp.
+         * @hide
+         */
+        public static final String POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_HEIGHT_DP =
+                "pop_up_view_quick_menu_gesture_area_height_dp";
+
+        /**
+         * Whether the Pop-Up View entry is shown in notifications.
+         * @hide
+         */
+        public static final String POP_UP_NOTIFICATION_ENTRY_ENABLED =
+                "pop_up_notification_entry_enabled";
+
+        /**
+         * Launch mode used by the notification Pop-Up View entry.
+         * @hide
+         */
+        public static final String POP_UP_NOTIFICATION_LAUNCH_MODE =
+                "pop_up_notification_launch_mode";
+
+        /**
          * Whether to use Pop-Up Window for notification app jump in portrait mode
          * @hide
          */
-        public static final String POP_UP_NOTIFICATION_JUMP_PORTRAIT = "pop_up_notification_jump_portrait";
+        public static final String POP_UP_NOTIFICATION_JUMP_PORTRAIT =
+                "pop_up_notification_jump_portrait";
 
         /**
          * Whether to use Pop-Up Window for notification app jump in landscape mode
          * @hide
          */
-        public static final String POP_UP_NOTIFICATION_JUMP_LANDSCAPE = "pop_up_notification_jump_landscape";
+        public static final String POP_UP_NOTIFICATION_JUMP_LANDSCAPE =
+                "pop_up_notification_jump_landscape";
 
         /**
          * Blacklist apps that disallow from opening notification in Pop-Up View
          * @hide
          */
-        public static final String POP_UP_NOTIFICATION_BLACKLIST = "pop_up_notification_blacklist";
+        public static final String POP_UP_NOTIFICATION_BLACKLIST =
+                "pop_up_notification_blacklist";
+
+        /**
+         * Whether multiple Pop-Up Views can stay visible at the same time.
+         * @hide
+         */
+        public static final String POP_UP_VIEW_ALLOW_MULTIPLE =
+                "pop_up_view_allow_multiple";
 
         /**
          * Controls the Pop-Up View interaction UI mode.
