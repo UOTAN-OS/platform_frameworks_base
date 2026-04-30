@@ -10897,6 +10897,13 @@
                   android:excludeFromRecents="true">
         </activity>
 
+        <activity android:name="com.android.internal.app.AppJumpPromptActivity"
+                  android:theme="@style/Theme.Dialog.Confirmation"
+                  android:excludeFromRecents="true"
+                  android:process=":ui"
+                  android:exported="false">
+        </activity>
+
         <activity android:name="com.android.internal.app.HarmfulAppWarningActivity"
                   android:theme="@style/Theme.Dialog.Confirmation"
                   android:excludeFromRecents="true"

@@ -46,6 +46,7 @@ import static android.content.pm.PackageManager.RESTRICTION_CONFIRM_WITH_SPEEDBU
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityTaskManager;
 import android.app.ActivityOptions;
 import android.app.KeyguardManager;
 import android.app.TaskInfo;
@@ -56,6 +57,7 @@ import android.content.IIntentSender;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.content.pm.SuspendDialogInfo;
@@ -63,6 +65,7 @@ import android.content.pm.UserInfo;
 import android.content.pm.UserPackage;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
@@ -75,6 +78,7 @@ import android.view.Display;
 import com.android.window.flags.Flags;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.app.AppJumpPromptActivity;
 import com.android.internal.app.BlockedAppActivity;
 import com.android.internal.app.HarmfulAppWarningActivity;
 import com.android.internal.app.LockedAppActivity;
@@ -93,6 +97,18 @@ import com.android.server.wm.ActivityInterceptorCallback.ActivityInterceptResult
  */
 class ActivityStartInterceptor {
     private static final String TAG = "ActivityStartInterceptor";
+    private static final String EXTRA_APP_JUMP_BYPASS_TOKEN =
+            "com.android.server.wm.extra.APP_JUMP_BYPASS_TOKEN";
+    private static final String DOCUMENTS_UI_PACKAGE_NAME = "com.android.documentsui";
+    private static final String DOCUMENTS_UI_PICKER_CLASS_PREFIX =
+            "com.android.documentsui.picker.";
+    private static final String MEDIA_PROVIDER_PACKAGE_NAME = "com.android.providers.media.module";
+    private static final String PHOTO_PICKER_CLASS_PREFIX =
+            "com.android.providers.media.photopicker.";
+    private static final String INTENT_RESOLVER_PACKAGE_NAME = "com.android.intentresolver";
+    private static final String PERMISSION_CONTROLLER_PACKAGE_NAME =
+            "com.android.permissioncontroller";
+    private static final String VPN_DIALOGS_PACKAGE_NAME = "com.android.vpndialogs";
 
     private final ActivityTaskManagerService mService;
     private final ActivityTaskSupervisor mSupervisor;
@@ -141,6 +157,11 @@ class ActivityStartInterceptor {
      */
     boolean mComponentSpecified;
 
+    /**
+     * Whether the original launch expects a result to be delivered back to the caller.
+     */
+    boolean mIsResultExpected;
+
     ActivityStartInterceptor(
             ActivityTaskManagerService service, ActivityTaskSupervisor supervisor) {
         this(service, supervisor, service.mContext);
@@ -170,10 +191,15 @@ class ActivityStartInterceptor {
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
-        return createIntentSenderForOriginalIntent(callingUid, flags, Display.INVALID_DISPLAY);
+        return createIntentSenderForIntent(mIntent, callingUid, flags, Display.INVALID_DISPLAY);
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags,
+            int displayId) {
+        return createIntentSenderForIntent(mIntent, callingUid, flags, displayId);
+    }
+
+    private IntentSender createIntentSenderForIntent(Intent intent, int callingUid, int flags,
             int displayId) {
         ActivityOptions activityOptions = deferCrossProfileAppsAnimationIfNecessary();
         activityOptions.setPendingIntentCreatorBackgroundActivityStartMode(
@@ -190,7 +216,7 @@ class ActivityStartInterceptor {
         final IIntentSender target = mService.getIntentSenderLocked(
                 INTENT_SENDER_ACTIVITY, mCallingPackage, mCallingFeatureId, callingUid, mUserId,
                 null /*token*/, null /*resultCode*/, 0 /*requestCode*/,
-                new Intent[] { mIntent }, new String[] { mResolvedType },
+                new Intent[] { intent }, new String[] { mResolvedType },
                 flags, activityOptions.toBundle());
         return new IntentSender(target);
     }
@@ -220,7 +246,7 @@ class ActivityStartInterceptor {
             Task inTask, TaskFragment inTaskFragment, int callingPid, int callingUid,
             ActivityOptions activityOptions, TaskDisplayArea presumableLaunchDisplayArea) {
         return intercept(intent, rInfo, aInfo, resolvedType, inTask, inTaskFragment, callingPid,
-                callingUid, activityOptions, presumableLaunchDisplayArea, false);
+                callingUid, activityOptions, presumableLaunchDisplayArea, false, false);
     }
 
     /**
@@ -232,7 +258,7 @@ class ActivityStartInterceptor {
     boolean intercept(Intent intent, ResolveInfo rInfo, ActivityInfo aInfo, String resolvedType,
             Task inTask, TaskFragment inTaskFragment, int callingPid, int callingUid,
             ActivityOptions activityOptions, TaskDisplayArea presumableLaunchDisplayArea,
-            boolean componentSpecified) {
+            boolean isResultExpected, boolean componentSpecified) {
         mUserManager = UserManager.get(mServiceContext);
 
         mIntent = intent;
@@ -245,7 +271,12 @@ class ActivityStartInterceptor {
         mInTaskFragment = inTaskFragment;
         mActivityOptions = activityOptions;
         mPresumableLaunchDisplayArea = presumableLaunchDisplayArea;
+        mIsResultExpected = isResultExpected;
         mComponentSpecified = componentSpecified;
+
+        if (consumeAppJumpBypassTokenIfNeeded()) {
+            return false;
+        }
 
         if (interceptQuietProfileIfNeeded()) {
             // If work profile is turned off, skip the work challenge since the profile can only
@@ -289,6 +320,10 @@ class ActivityStartInterceptor {
             return true;
         }
 
+        if (interceptUserAppJumpIfNeeded()) {
+            return true;
+        }
+
         final SparseArray<ActivityInterceptorCallback> callbacks =
                 mService.getActivityInterceptorCallbacks();
         final ActivityInterceptorCallback.ActivityInterceptorInfo interceptorInfo =
@@ -321,6 +356,137 @@ class ActivityStartInterceptor {
             return true;
         }
         return false;
+    }
+
+    private boolean consumeAppJumpBypassTokenIfNeeded() {
+        final String bypassToken = mIntent.getStringExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
+        if (bypassToken == null) {
+            return false;
+        }
+        mIntent.removeExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
+        final AppJumpBlockPolicy policy = mService.getAppJumpBlockPolicyLocked();
+        return policy != null && policy.consumeBypassToken(bypassToken);
+    }
+
+    private boolean interceptUserAppJumpIfNeeded() {
+        if (!shouldInterceptUserAppJump()) {
+            return false;
+        }
+        final AppJumpBlockPolicy policy = mService.getAppJumpBlockPolicyLocked();
+        if (policy == null) {
+            return false;
+        }
+
+        final String targetPackage = mAInfo.packageName;
+        if (targetPackage == null) {
+            return false;
+        }
+        final int pairMode = policy.getPairMode(mUserId, mCallingPackage, targetPackage);
+        final int effectiveMode = pairMode != ActivityTaskManager.APP_JUMP_PAIR_MODE_INHERIT
+                ? pairMode
+                : resolveAppJumpMode(
+                        policy.getSourceMode(mUserId, mCallingPackage),
+                        policy.getTargetMode(mUserId, targetPackage));
+        if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW) {
+            return false;
+        }
+        final IntentSender target = createAppJumpTargetIntentSender(policy);
+        if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK) {
+            mIntent = AppJumpPromptActivity.createBlockedIntent(mServiceContext, mUserId,
+                    mCallingPackage, targetPackage, target);
+        } else {
+            mIntent = AppJumpPromptActivity.createConfirmIntent(mServiceContext, mUserId,
+                    mCallingPackage, targetPackage, target);
+        }
+
+        mCallingPid = mRealCallingPid;
+        mCallingUid = mRealCallingUid;
+        mResolvedType = null;
+        mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, mUserId, 0,
+                mRealCallingUid, mRealCallingPid);
+        mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /* profilerInfo*/);
+        return true;
+    }
+
+    private IntentSender createAppJumpTargetIntentSender(AppJumpBlockPolicy policy) {
+        final Intent forwardIntent = new Intent(mIntent);
+        forwardIntent.putExtra(EXTRA_APP_JUMP_BYPASS_TOKEN, policy.createBypassToken());
+        final int displayId = mPresumableLaunchDisplayArea != null
+                ? mPresumableLaunchDisplayArea.getDisplayId()
+                : Display.INVALID_DISPLAY;
+        return createIntentSenderForIntent(forwardIntent, mCallingUid,
+                FLAG_CANCEL_CURRENT | FLAG_ONE_SHOT | FLAG_IMMUTABLE, displayId);
+    }
+
+    private static int resolveAppJumpMode(int sourceMode, int targetMode) {
+        if (sourceMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK
+                || targetMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK) {
+            return ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK;
+        }
+        if (sourceMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK
+                || targetMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK) {
+            return ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK;
+        }
+        return ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW;
+    }
+
+    private boolean shouldInterceptUserAppJump() {
+        if (mCallingPackage == null || mAInfo == null || mAInfo.applicationInfo == null) {
+            return false;
+        }
+        // Result-returning launches must preserve the original caller identity so the target can
+        // deliver results and URI grants back to the requesting app.
+        if (mIsResultExpected) {
+            return false;
+        }
+        if (mCallingPackage.equals(mAInfo.packageName)) {
+            return false;
+        }
+        if (!Process.isApplicationUid(mRealCallingUid)) {
+            return false;
+        }
+        if (isAllowedSystemMediatorTarget(mAInfo)) {
+            return false;
+        }
+
+        final PackageManagerInternal pmi = mService.getPackageManagerInternalLocked();
+        if (pmi == null) {
+            return false;
+        }
+        final ApplicationInfo callingAppInfo = pmi.getApplicationInfo(mCallingPackage,
+                0 /* flags */, Process.SYSTEM_UID, mUserId);
+        return isUserApp(callingAppInfo);
+    }
+
+    private static boolean isAllowedSystemMediatorTarget(ActivityInfo activityInfo) {
+        final String packageName = activityInfo.packageName;
+        final String className = activityInfo.name;
+        if (packageName == null || className == null) {
+            return false;
+        }
+        if (INTENT_RESOLVER_PACKAGE_NAME.equals(packageName)) {
+            return true;
+        }
+        if (PERMISSION_CONTROLLER_PACKAGE_NAME.equals(packageName)) {
+            return true;
+        }
+        if (VPN_DIALOGS_PACKAGE_NAME.equals(packageName)) {
+            return true;
+        }
+        if (MEDIA_PROVIDER_PACKAGE_NAME.equals(packageName)
+                && className.startsWith(PHOTO_PICKER_CLASS_PREFIX)) {
+            return true;
+        }
+        return DOCUMENTS_UI_PACKAGE_NAME.equals(packageName)
+                && className.startsWith(DOCUMENTS_UI_PICKER_CLASS_PREFIX);
+    }
+
+    private static boolean isUserApp(@Nullable ApplicationInfo appInfo) {
+        if (appInfo == null) {
+            return false;
+        }
+        return (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0
+                && (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
     }
 
     private boolean hasCrossProfileAnimation() {

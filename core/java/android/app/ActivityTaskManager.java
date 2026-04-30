@@ -127,6 +127,18 @@ public class ActivityTaskManager {
     /** The minimal size of a display's long-edge needed to support split-screen multi-window. */
     public static final int DEFAULT_MINIMAL_SPLIT_SCREEN_DISPLAY_SIZE_DP = 440;
 
+    /** @hide */
+    public static final int APP_JUMP_SOURCE_MODE_ASK = 0;
+
+    /** @hide */
+    public static final int APP_JUMP_SOURCE_MODE_ALLOW = 1;
+
+    /** @hide */
+    public static final int APP_JUMP_SOURCE_MODE_BLOCK = 2;
+
+    /** @hide */
+    public static final int APP_JUMP_PAIR_MODE_INHERIT = -1;
+
     private static int sMaxRecentTasks = -1;
 
     private static final Singleton<ActivityTaskManager> sInstance =

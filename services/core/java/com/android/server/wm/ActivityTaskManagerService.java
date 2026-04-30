@@ -810,6 +810,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
     AppTimeTracker mCurAppTimeTracker;
 
     AppWarnings mAppWarnings;
+    AppJumpBlockPolicy mAppJumpBlockPolicy;
 
     /**
      * Packages that the user has asked to have run in screen size
@@ -1035,6 +1036,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         mIntentFirewall = intentFirewall;
         final File systemDir = SystemServiceManager.ensureSystemDir();
         mAppWarnings = createAppWarnings(mUiContext, mH, mUiHandler, systemDir);
+        mAppJumpBlockPolicy = new AppJumpBlockPolicy();
         mCompatModePackages = new CompatModePackages(this, systemDir, mH);
         mPendingIntentController = intentController;
         mActivityStateUpdater = processStateController.createActivityStateAsyncUpdater(looper);
@@ -2608,6 +2610,166 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         }
     }
 
+    private void enforceManageAppJumpCaller(String methodName) {
+        if (Binder.getCallingUid() == SYSTEM_UID) {
+            return;
+        }
+        mAmInternal.enforceCallingPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS,
+                methodName);
+    }
+
+    private static boolean isValidAppJumpDefaultMode(int mode) {
+        return mode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK
+                || mode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW
+                || mode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK;
+    }
+
+    private static boolean isValidAppJumpPairMode(int mode) {
+        return mode == ActivityTaskManager.APP_JUMP_PAIR_MODE_INHERIT
+                || isValidAppJumpDefaultMode(mode);
+    }
+
+    @Override
+    public void setAppJumpSourceMode(String sourcePackage, int userId, int mode) {
+        enforceManageAppJumpCaller("setAppJumpSourceMode()");
+        if (sourcePackage == null || sourcePackage.isEmpty()) {
+            throw new IllegalArgumentException("sourcePackage must not be empty");
+        }
+        if (!isValidAppJumpDefaultMode(mode)) {
+            throw new IllegalArgumentException("invalid app jump source mode: " + mode);
+        }
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpSourceMode()");
+        synchronized (mGlobalLock) {
+            if (mAppJumpBlockPolicy == null) {
+                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
+            }
+            mAppJumpBlockPolicy.setSourceMode(userId, sourcePackage, mode);
+        }
+    }
+
+    @Override
+    public int getAppJumpSourceMode(String sourcePackage, int userId) {
+        enforceManageAppJumpCaller("getAppJumpSourceMode()");
+        if (sourcePackage == null || sourcePackage.isEmpty()) {
+            throw new IllegalArgumentException("sourcePackage must not be empty");
+        }
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "getAppJumpSourceMode()");
+        synchronized (mGlobalLock) {
+            return mAppJumpBlockPolicy == null
+                    ? ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK
+                    : mAppJumpBlockPolicy.getSourceMode(userId, sourcePackage);
+        }
+    }
+
+    @Override
+    public void setAppJumpPairMode(String sourcePackage, String targetPackage, int userId,
+            int mode) {
+        enforceManageAppJumpCaller("setAppJumpPairMode()");
+        if (sourcePackage == null || sourcePackage.isEmpty()) {
+            throw new IllegalArgumentException("sourcePackage must not be empty");
+        }
+        if (targetPackage == null || targetPackage.isEmpty()) {
+            throw new IllegalArgumentException("targetPackage must not be empty");
+        }
+        if (!isValidAppJumpPairMode(mode)) {
+            throw new IllegalArgumentException("invalid app jump pair mode: " + mode);
+        }
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpPairMode()");
+        synchronized (mGlobalLock) {
+            if (mAppJumpBlockPolicy == null) {
+                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
+            }
+            mAppJumpBlockPolicy.setPairMode(userId, sourcePackage, targetPackage, mode);
+        }
+    }
+
+    @Override
+    public int getAppJumpPairMode(String sourcePackage, String targetPackage, int userId) {
+        enforceManageAppJumpCaller("getAppJumpPairMode()");
+        if (sourcePackage == null || sourcePackage.isEmpty()) {
+            throw new IllegalArgumentException("sourcePackage must not be empty");
+        }
+        if (targetPackage == null || targetPackage.isEmpty()) {
+            throw new IllegalArgumentException("targetPackage must not be empty");
+        }
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "getAppJumpPairMode()");
+        synchronized (mGlobalLock) {
+            return mAppJumpBlockPolicy == null
+                    ? ActivityTaskManager.APP_JUMP_PAIR_MODE_INHERIT
+                    : mAppJumpBlockPolicy.getPairMode(userId, sourcePackage, targetPackage);
+        }
+    }
+
+    @Override
+    public void setAppJumpTargetMode(String targetPackage, int userId, int mode) {
+        enforceManageAppJumpCaller("setAppJumpTargetMode()");
+        if (targetPackage == null || targetPackage.isEmpty()) {
+            throw new IllegalArgumentException("targetPackage must not be empty");
+        }
+        if (!isValidAppJumpDefaultMode(mode)) {
+            throw new IllegalArgumentException("invalid app jump target mode: " + mode);
+        }
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpTargetMode()");
+        synchronized (mGlobalLock) {
+            if (mAppJumpBlockPolicy == null) {
+                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
+            }
+            mAppJumpBlockPolicy.setTargetMode(userId, targetPackage, mode);
+        }
+    }
+
+    @Override
+    public int getAppJumpTargetMode(String targetPackage, int userId) {
+        enforceManageAppJumpCaller("getAppJumpTargetMode()");
+        if (targetPackage == null || targetPackage.isEmpty()) {
+            throw new IllegalArgumentException("targetPackage must not be empty");
+        }
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "getAppJumpTargetMode()");
+        synchronized (mGlobalLock) {
+            return mAppJumpBlockPolicy == null
+                    ? ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK
+                    : mAppJumpBlockPolicy.getTargetMode(userId, targetPackage);
+        }
+    }
+
+    @Override
+    public void setAppJumpBlocked(String sourcePackage, int userId, boolean blocked) {
+        setAppJumpSourceMode(sourcePackage, userId, blocked
+                ? ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK
+                : ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK);
+    }
+
+    @Override
+    public boolean isAppJumpBlocked(String sourcePackage, int userId) {
+        return getAppJumpSourceMode(sourcePackage, userId)
+                == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK;
+    }
+
+    @Override
+    public void setAppJumpTargetAllowed(String targetPackage, int userId, boolean allowed) {
+        setAppJumpTargetMode(targetPackage, userId, allowed
+                ? ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW
+                : ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK);
+    }
+
+    @Override
+    public boolean isAppJumpTargetAllowed(String targetPackage, int userId) {
+        return getAppJumpTargetMode(targetPackage, userId)
+                == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW;
+    }
+
     public boolean isControllerAMonkey() {
         synchronized (mGlobalLock) {
             return mController != null && mControllerIsAMonkey;
@@ -3803,6 +3965,13 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
                 + Binder.getCallingUid() + " requires android.permission.MANAGE_ACTIVITY_TASKS";
         Slog.w(TAG, msg);
         throw new SecurityException(msg);
+    }
+
+    private static void enforceSystemUidCaller(String func) {
+        if (UserHandle.getAppId(Binder.getCallingUid()) == SYSTEM_UID) {
+            return;
+        }
+        throw new SecurityException(func + " requires the system UID");
     }
 
     static int checkPermission(String permission, int pid, int uid) {
@@ -6242,6 +6411,10 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
 
     AppWarnings getAppWarningsLocked() {
         return mAppWarnings;
+    }
+
+    AppJumpBlockPolicy getAppJumpBlockPolicyLocked() {
+        return mAppJumpBlockPolicy;
     }
 
     Intent getHomeIntent() {

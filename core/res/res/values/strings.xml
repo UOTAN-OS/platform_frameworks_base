@@ -6061,7 +6061,6 @@
     <string name="app_blocked_message">
         <xliff:g id="app_name" example="Gmail">%1$s</xliff:g> is not available right now.
     </string>
-
     <!-- Title of the dialog shown when an app is blocked from being streamed to a remote device. [CHAR LIMIT=NONE] -->
     <string name="app_streaming_blocked_title"><xliff:g id="activity" example="Permission dialog">%1$s</xliff:g> unavailable</string>
     <!-- Title of the dialog shown when the permissioncontroller is blocked from being streamed to a remote device. [CHAR LIMIT=NONE] -->

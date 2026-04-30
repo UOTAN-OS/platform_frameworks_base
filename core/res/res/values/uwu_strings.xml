@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2026 The uwuAOSP Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_jump_prompt_title">Allow opening other apps?</string>
+    <string name="app_jump_prompt_message">
+        This will let <xliff:g id="source_app" example="Browser">%1$s</xliff:g> open
+        <xliff:g id="target_app" example="Maps">%2$s</xliff:g>.
+    </string>
+    <string name="app_jump_allow">Allow</string>
+    <string name="app_jump_deny">Don’t allow</string>
+    <string name="app_jump_allow_once">Allow once</string>
+    <string name="app_jump_remember_choice">Remember my choice</string>
+    <string name="app_jump_footer_message">You can change app jump permissions any time in Settings.</string>
+    <string name="app_jump_blocked_title">Opening other apps is blocked</string>
+    <string name="app_jump_blocked_message">
+        <xliff:g id="source_app" example="Browser">%1$s</xliff:g> is blocked from opening
+        <xliff:g id="target_app" example="Maps">%2$s</xliff:g>. You can still allow this once.
+    </string>
+</resources>

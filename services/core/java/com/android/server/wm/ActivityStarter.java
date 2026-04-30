@@ -1413,12 +1413,16 @@ class ActivityStarter {
 
         final int sourceDisplayId =
                 sourceRecord != null ? sourceRecord.getDisplayId() : INVALID_DISPLAY;
+        final TaskDisplayArea suggestedLaunchDisplayArea =
+                computeSuggestedLaunchDisplayArea(inTask, sourceRecord, checkedOptions);
+        final boolean isResultExpected = resultRecord != null;
         mInterceptor.setStates(userId, realCallingPid, realCallingUid, startFlags,
                 callingPackage,
                 callingFeatureId,
                 sourceDisplayId);
         if (mInterceptor.intercept(intent, rInfo, aInfo, resolvedType, inTask, inTaskFragment,
                 callingPid, callingUid, checkedOptions, suggestedLaunchDisplayArea,
+                isResultExpected,
                 request.componentSpecified)) {
             // activity start was intercepted, e.g. because the target user is currently in quiet
             // mode (turn off work) or the target application is suspended

@@ -295,6 +295,16 @@ interface IActivityTaskManager {
     void stopAppSwitches();
     void resumeAppSwitches();
     void setActivityController(in IActivityController watcher, boolean imAMonkey);
+    void setAppJumpSourceMode(in String sourcePackage, int userId, int mode);
+    int getAppJumpSourceMode(in String sourcePackage, int userId);
+    void setAppJumpPairMode(in String sourcePackage, in String targetPackage, int userId, int mode);
+    int getAppJumpPairMode(in String sourcePackage, in String targetPackage, int userId);
+    void setAppJumpTargetMode(in String targetPackage, int userId, int mode);
+    int getAppJumpTargetMode(in String targetPackage, int userId);
+    void setAppJumpBlocked(in String sourcePackage, int userId, boolean blocked);
+    boolean isAppJumpBlocked(in String sourcePackage, int userId);
+    void setAppJumpTargetAllowed(in String targetPackage, int userId, boolean allowed);
+    boolean isAppJumpTargetAllowed(in String targetPackage, int userId);
     void setVoiceKeepAwake(in IVoiceInteractionSession session, boolean keepAwake);
 
     int getPackageScreenCompatMode(in String packageName);
