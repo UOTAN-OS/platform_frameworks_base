@@ -314,8 +314,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         } else {
             setVerificationCodeView(() -> { });
         }
-        mOnUiUpdate = mTimeoutHandler::resetTimeout;
-        mOnUiUpdate.run();
+        mTimeoutHandler.cancelTimeout();
+        mOnUiUpdate = null;
     }
 
     public void setTorchSuggestion() {
@@ -606,7 +606,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     }
 
     private boolean shouldDismissOnOutsideTap() {
-        return mOverlayMode != OverlayMode.TORCH_SUGGESTION
+        return mOverlayMode != OverlayMode.VERIFICATION_CODE
+                && mOverlayMode != OverlayMode.TORCH_SUGGESTION
                 && mOverlayMode != OverlayMode.MUSIC_SUGGESTION;
     }
 
@@ -785,7 +786,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     @Override
     public void onInteraction() {
-        if (mOverlayMode == OverlayMode.TORCH_SUGGESTION
+        if (mOverlayMode == OverlayMode.VERIFICATION_CODE
+                || mOverlayMode == OverlayMode.TORCH_SUGGESTION
                 || mOverlayMode == OverlayMode.MUSIC_SUGGESTION) {
             return;
         }
