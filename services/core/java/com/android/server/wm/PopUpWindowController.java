@@ -21,8 +21,8 @@ import static android.window.TransitionInfo.FLAG_SCHEDULE_POP_UP_VIEW;
 
 import static com.android.server.wm.Transition.ChangeInfo.FLAG_CHANGE_SHOULD_SKIP_TRANSITIONS;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
-import static org.rising.view.PopUpViewManager.FEATURE_SUPPORTED;
+import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
+import static com.android.internal.util.android.PopUpViewManager.FEATURE_SUPPORTED;
 
 import android.app.ActivityOptions;
 import android.app.WindowConfiguration;
@@ -65,13 +65,12 @@ import java.lang.annotation.RetentionPolicy;
 
 import java.util.ArrayList;
 
-import org.rising.view.PopUpViewManager;
+import com.android.internal.util.android.PopUpViewManager;
 
 
 public class PopUpWindowController {
 
     private static final String TAG = "PopUpWindowController";
-
     private static final String PACKAGE_NAME_PIXEL_LAUNCHER_OVERLAY =
             "com.google.android.apps.nexuslauncher.pop_up.overlay";
 
@@ -293,7 +292,7 @@ public class PopUpWindowController {
         synchronized (mService.mGlobalLock) {
             final long ident = Binder.clearCallingIdentity();
             try {
-                final WindowState win = mService.windowForClientLocked(session, window, false);
+                final WindowState win = mService.windowForClient(session, window);
                 if (offsets != null && offsets.length == 4) {
                     offsets[0] = 0.0f;
                     offsets[1] = 0.0f;
@@ -581,23 +580,30 @@ public class PopUpWindowController {
     }
 
     private void setWindowingModePopUpView(Task task, int windowingMode) {
-        if (task != null) {
-            if (!task.getWindowConfiguration().isPopUpWindowMode()) {
-                capturePopUpViewTaskSnapshot(task);
-                task.mWindowContainerExt.prepareTransition();
-                task.setWindowingMode(windowingMode);
-            }
-            final Task rootTask = task.getRootTask();
-            if (rootTask != null) {
-                final Rect bounds = new Rect();
-                rootTask.mWindowContainerExt.getTaskWindowSurfaceInfo().resetWindowBoundaryGapToOrigin();
-                rootTask.getBounds(bounds);
-                WindowResizingAlgorithm.getPopUpViewDefalutBounds(bounds);
-                rootTask.setAlwaysOnTop(true);
-                rootTask.setBounds(bounds);
-            }
-            task.mWindowContainerExt.scheduleTransition();
+        if (task == null) {
+            return;
         }
+
+        final Task rootTask = task.getRootTask();
+        final Task targetTask = rootTask != null ? rootTask : task;
+
+        if (!targetTask.getWindowConfiguration().isPopUpWindowMode()) {
+            capturePopUpViewTaskSnapshot(targetTask);
+            targetTask.mWindowContainerExt.prepareTransition();
+            targetTask.setWindowingMode(windowingMode);
+        }
+
+        final Task boundsTask = rootTask != null ? rootTask : task;
+        final Rect bounds = new Rect();
+        boundsTask.mWindowContainerExt.getTaskWindowSurfaceInfo().resetWindowBoundaryGapToOrigin();
+        boundsTask.getBounds(bounds);
+        WindowResizingAlgorithm.getPopUpViewDefalutBounds(bounds);
+        boundsTask.setAlwaysOnTop(true);
+        boundsTask.setBounds(bounds);
+
+        targetTask.mWindowContainerExt.scheduleTransition();
+        boundsTask.moveToFront("popUpView");
+        boundsTask.resumeNextFocusAfterReparent();
     }
 
     void triggerVibrate() {
