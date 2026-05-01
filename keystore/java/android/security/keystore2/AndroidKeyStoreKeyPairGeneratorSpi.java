@@ -97,6 +97,7 @@ import java.util.function.Predicate;
  */
 public abstract class AndroidKeyStoreKeyPairGeneratorSpi extends KeyPairGeneratorSpi {
     private static final String TAG = "AndroidKeyStoreKeyPairGeneratorSpi";
+    private static final int MAX_ATTESTATION_CHALLENGE_SIZE_BYTES = 128;
 
     public static class RSA extends AndroidKeyStoreKeyPairGeneratorSpi {
         public RSA() {
@@ -736,10 +737,17 @@ public abstract class AndroidKeyStoreKeyPairGeneratorSpi extends KeyPairGenerato
     @RequiresPermission(value = android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
             conditional = true)
     private void addAttestationParameters(@NonNull List<KeyParameter> params)
-            throws ProviderException, IllegalArgumentException, DeviceIdAttestationException {
+            throws ProviderException, IllegalArgumentException, DeviceIdAttestationException,
+            InvalidAlgorithmParameterException {
         byte[] challenge = mSpec.getAttestationChallenge();
 
         if (challenge != null) {
+            if (challenge.length > MAX_ATTESTATION_CHALLENGE_SIZE_BYTES) {
+                throw new InvalidAlgorithmParameterException(
+                        "Attestation challenge length must be <= "
+                                + MAX_ATTESTATION_CHALLENGE_SIZE_BYTES
+                                + " bytes");
+            }
             params.add(KeyStore2ParameterUtils.makeBytes(
                     KeymasterDefs.KM_TAG_ATTESTATION_CHALLENGE, challenge
             ));

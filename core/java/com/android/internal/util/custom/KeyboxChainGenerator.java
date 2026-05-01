@@ -485,14 +485,18 @@ public final class KeyboxChainGenerator {
             keySize = params.keySize;
             algorithm = params.algorithm;
             certificateSerial = params.certificateSerial != null
+                    && params.certificateSerial.length > 0
                     ? new BigInteger(params.certificateSerial) : null;
             certificateNotBefore = new Date(params.certificateNotBefore);
             certificateNotAfter = new Date(params.certificateNotAfter);
             certificateSubject = params.certificateSubject != null
+                    && params.certificateSubject.length > 0
                     ? new X500Name(new X500Principal(params.certificateSubject).getName()) : null;
             rsaPublicExponent = BigInteger.valueOf(params.rsaPublicExponent);
             ecCurve = params.ecCurve;
-            ecCurveName = params.ecCurveName;
+            ecCurveName = (params.ecCurveName != null && !params.ecCurveName.isEmpty())
+                    ? params.ecCurveName
+                    : (ecCurve != 0 ? getEcCurveName(ecCurve) : null);
             if (params.purpose != null) {
                 for (int value : params.purpose) {
                     purpose.add(value);
