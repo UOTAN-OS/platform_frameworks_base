@@ -490,6 +490,16 @@ public class ActivityOptions extends ComponentOptions {
     private static final String KEY_ALLOW_PASS_THROUGH_ON_TOUCH_OUTSIDE =
             "android.activity.allowPassThroughOnTouchOutside";
 
+    /** See {@link #setPopUpViewLaunchPoint(int, int, float)}. */
+    private static final String KEY_POP_UP_VIEW_LAUNCH_POINT_X =
+            "android.activity.popUpViewLaunchPointX";
+    /** See {@link #setPopUpViewLaunchPoint(int, int, float)}. */
+    private static final String KEY_POP_UP_VIEW_LAUNCH_POINT_Y =
+            "android.activity.popUpViewLaunchPointY";
+    /** See {@link #setPopUpViewLaunchPoint(int, int, float)}. */
+    private static final String KEY_POP_UP_VIEW_LAUNCH_PROGRESS =
+            "android.activity.popUpViewLaunchProgress";
+
     private static final String KEY_FLEXIBLE_LAUNCH_SIZE = "android.activity.flexibleLaunchSize";
 
     /**
@@ -632,6 +642,9 @@ public class ActivityOptions extends ComponentOptions {
             MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED;
     private boolean mFlexibleLaunchSize = false;
     private boolean mDisableStartingWindow;
+    private int mPopUpViewLaunchPointX = INVALID_DISPLAY;
+    private int mPopUpViewLaunchPointY = INVALID_DISPLAY;
+    private float mPopUpViewLaunchProgress = Float.NaN;
     private boolean mAllowPassThroughOnTouchOutside;
     @WindowingLayer
     private int mWindowingLayer = WINDOWING_LAYER_UNDEFINED;
@@ -1479,6 +1492,9 @@ public class ActivityOptions extends ComponentOptions {
                 MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED);
         mFlexibleLaunchSize = opts.getBoolean(KEY_FLEXIBLE_LAUNCH_SIZE, /* defaultValue = */ false);
         mDisableStartingWindow = opts.getBoolean(KEY_DISABLE_STARTING_WINDOW);
+        mPopUpViewLaunchPointX = opts.getInt(KEY_POP_UP_VIEW_LAUNCH_POINT_X, INVALID_DISPLAY);
+        mPopUpViewLaunchPointY = opts.getInt(KEY_POP_UP_VIEW_LAUNCH_POINT_Y, INVALID_DISPLAY);
+        mPopUpViewLaunchProgress = opts.getFloat(KEY_POP_UP_VIEW_LAUNCH_PROGRESS, Float.NaN);
         mAllowPassThroughOnTouchOutside = opts.getBoolean(KEY_ALLOW_PASS_THROUGH_ON_TOUCH_OUTSIDE);
         mAnimationAbortListener = IRemoteCallback.Stub.asInterface(
                 opts.getBinder(KEY_ANIM_ABORT_LISTENER));
@@ -1986,6 +2002,29 @@ public class ActivityOptions extends ComponentOptions {
      */
     public boolean getDisableStartingWindow() {
         return mDisableStartingWindow;
+    }
+
+    /** Sets the touch anchor used for Pop-Up View gesture launch handoff. @hide */
+    @RequiresPermission(START_TASKS_FROM_RECENTS)
+    public void setPopUpViewLaunchPoint(int pointX, int pointY, float progress) {
+        mPopUpViewLaunchPointX = pointX;
+        mPopUpViewLaunchPointY = pointY;
+        mPopUpViewLaunchProgress = progress;
+    }
+
+    /** @hide */
+    public int getPopUpViewLaunchPointX() {
+        return mPopUpViewLaunchPointX;
+    }
+
+    /** @hide */
+    public int getPopUpViewLaunchPointY() {
+        return mPopUpViewLaunchPointY;
+    }
+
+    /** @hide */
+    public float getPopUpViewLaunchProgress() {
+        return mPopUpViewLaunchProgress;
     }
 
     /**
@@ -2510,6 +2549,9 @@ public class ActivityOptions extends ComponentOptions {
         mLaunchIntoPipParams = otherOptions.mLaunchIntoPipParams;
         mLaunchDisplayId = otherOptions.mLaunchDisplayId;
         mIsEligibleForLegacyPermissionPrompt = otherOptions.mIsEligibleForLegacyPermissionPrompt;
+        mPopUpViewLaunchPointX = otherOptions.mPopUpViewLaunchPointX;
+        mPopUpViewLaunchPointY = otherOptions.mPopUpViewLaunchPointY;
+        mPopUpViewLaunchProgress = otherOptions.mPopUpViewLaunchProgress;
 
         sendResultIgnoreErrors(mAnimationAbortListener, null);
         mAnimationAbortListener = otherOptions.mAnimationAbortListener;
@@ -2716,6 +2758,13 @@ public class ActivityOptions extends ComponentOptions {
         }
         if (mDisableStartingWindow) {
             b.putBoolean(KEY_DISABLE_STARTING_WINDOW, mDisableStartingWindow);
+        }
+        if (mPopUpViewLaunchPointX != INVALID_DISPLAY
+                && mPopUpViewLaunchPointY != INVALID_DISPLAY
+                && !Float.isNaN(mPopUpViewLaunchProgress)) {
+            b.putInt(KEY_POP_UP_VIEW_LAUNCH_POINT_X, mPopUpViewLaunchPointX);
+            b.putInt(KEY_POP_UP_VIEW_LAUNCH_POINT_Y, mPopUpViewLaunchPointY);
+            b.putFloat(KEY_POP_UP_VIEW_LAUNCH_PROGRESS, mPopUpViewLaunchProgress);
         }
         if (mAllowPassThroughOnTouchOutside) {
             b.putBoolean(KEY_ALLOW_PASS_THROUGH_ON_TOUCH_OUTSIDE,

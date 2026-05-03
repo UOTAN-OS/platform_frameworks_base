@@ -8,6 +8,7 @@ package com.android.wm.shell.popupview;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
 import static android.window.TransitionInfo.FLAG_EXIT_POP_UP_VIEW_BY_DRAG;
+import static android.window.TransitionInfo.FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE;
 import static android.window.TransitionInfo.FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS;
 import static android.window.TransitionInfo.FLAG_POP_UP_VIEW;
 
@@ -115,7 +116,13 @@ class PopUpViewTransitionAnimationRunner {
                 if (DEBUG_POP_UP) {
                     Slog.d(TAG, "createAnimationAdapters, change.mPopUpView=" + change.mPopUpView);
                 }
-                if ((flags & FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS) != 0) {
+                if ((flags & FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE) != 0) {
+                    if (DEBUG_POP_UP) {
+                        Slog.d(TAG, "createAnimationAdapters, launch from gesture");
+                    }
+                    adapters.add(new PopUpViewTransitionAnimationAdapter(
+                            mAnimationSpec.createAnimation(change), change));
+                } else if ((flags & FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS) != 0) {
                     if (DEBUG_POP_UP) {
                         Slog.d(TAG, "createAnimationAdapters, launch from recents");
                     }
