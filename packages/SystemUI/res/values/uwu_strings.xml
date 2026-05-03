@@ -15,5 +15,6 @@
     <string name="uwu_sms_code_copy">Copy</string>
     <!-- Action label for inserting a verification code into the current editor. [CHAR LIMIT=20] -->
     <string name="uwu_sms_code_fill_in">Fill in</string>
+    <string name="uwu_music_suggestion_chip_content_description">Open selected music app</string>
     <string name="uwu_torch_suggestion_chip_content_description">Turn off flashlight</string>
 </resources>

@@ -45,6 +45,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.os.PersistableBundle;
 import android.provider.DeviceConfig;
@@ -85,6 +86,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private static final String TAG = "ClipboardOverlayCtrlr";
     private static final String SMS_CLIP_SOURCE = "uwuaosp_sms";
     private static final String TORCH_CLIP_SOURCE = "uwuaosp_torch";
+    private static final String MUSIC_CLIP_SOURCE = "uwuaosp_music";
 
     /** Constants for screenshot/copy deconflicting */
     public static final String SCREENSHOT_ACTION = "com.android.systemui.SCREENSHOT";
@@ -128,6 +130,9 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private boolean mIsMinimized;
     private ClipboardModel mClipboardModel;
     @Nullable private String mVerificationCode;
+    @Nullable private Drawable mMusicSuggestionIcon;
+    @Nullable private Intent mMusicSuggestionIntent;
+    @Nullable private CharSequence mMusicSuggestionDescription;
     private OverlayMode mOverlayMode = OverlayMode.CLIPBOARD;
     private ClipboardIndicationCallback mIndicationCallback = new ClipboardIndicationCallback() {
         @Override
@@ -140,6 +145,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         CLIPBOARD,
         VERIFICATION_CODE,
         TORCH_SUGGESTION,
+        MUSIC_SUGGESTION,
     }
 
     @Inject
@@ -172,6 +178,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mUserTracker = userTracker;
         mStatusBarService = statusBarService;
         mFlashlightController = flashlightController;
+
         mClipboardLogger = new ClipboardLogger(uiEventLogger);
         mIntentCreator = intentCreator;
 
@@ -243,6 +250,9 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     public void setClipData(ClipData data, String source) {
         mOverlayMode = OverlayMode.CLIPBOARD;
         mVerificationCode = null;
+        mMusicSuggestionIcon = null;
+        mMusicSuggestionIntent = null;
+        mMusicSuggestionDescription = null;
         ClipboardModel model = ClipboardModel.fromClipData(mContext, mClipboardUtils, data, source);
         boolean wasExiting = (mExitAnimator != null && mExitAnimator.isRunning());
         if (wasExiting) {
@@ -284,6 +294,9 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     public void setVerificationCode(String code) {
         mOverlayMode = OverlayMode.VERIFICATION_CODE;
         mClipboardModel = null;
+        mMusicSuggestionIcon = null;
+        mMusicSuggestionIntent = null;
+        mMusicSuggestionDescription = null;
         boolean wasExiting = (mExitAnimator != null && mExitAnimator.isRunning());
         if (wasExiting) {
             mExitAnimator.cancel();
@@ -327,6 +340,37 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
                                     R.string.uwu_torch_suggestion_chip_content_description)));
         } else {
             setTorchSuggestionView(() -> { });
+        }
+        mTimeoutHandler.cancelTimeout();
+        mOnUiUpdate = null;
+    }
+
+    public void setMusicSuggestion(
+            Drawable icon, CharSequence description, Intent launchIntent) {
+        OverlayMode previousMode = mOverlayMode;
+        mOverlayMode = OverlayMode.MUSIC_SUGGESTION;
+        mClipboardModel = null;
+        mVerificationCode = null;
+        mMusicSuggestionIcon = icon;
+        mMusicSuggestionIntent = new Intent(launchIntent);
+        mMusicSuggestionDescription = description;
+        boolean wasExiting = (mExitAnimator != null && mExitAnimator.isRunning());
+        if (wasExiting) {
+            mExitAnimator.cancel();
+        }
+        boolean shouldAnimate =
+                previousMode != OverlayMode.MUSIC_SUGGESTION || wasExiting || !mShowingUi;
+        mClipboardLogger.setClipSource(MUSIC_CLIP_SOURCE);
+        if (shouldAnimate) {
+            reset();
+            mClipboardLogger.setClipSource(MUSIC_CLIP_SOURCE);
+            mClipboardLogger.logUnguarded(CLIPBOARD_OVERLAY_SHOWN_EXPANDED);
+            setMusicSuggestionView(() ->
+                    animateInWithAnnouncement(
+                            mContext.getString(
+                                    R.string.uwu_music_suggestion_chip_content_description)));
+        } else {
+            setMusicSuggestionView(() -> { });
         }
         mTimeoutHandler.cancelTimeout();
         mOnUiUpdate = null;
@@ -443,6 +487,26 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         onViewReady.run();
     }
 
+    private void setMusicSuggestionView(Runnable onViewReady) {
+        if (mMusicSuggestionIcon == null
+                || mMusicSuggestionIntent == null
+                || TextUtils.isEmpty(mMusicSuggestionDescription)) {
+            return;
+        }
+        mView.setMinimized(false);
+        mView.setPreviewVisible(false);
+        mView.resetActionChips();
+        mView.setRemoteCopyVisibility(false);
+        mView.addActionChip(
+                mMusicSuggestionIcon,
+                null,
+                mMusicSuggestionDescription,
+                () -> finish(
+                        CLIPBOARD_OVERLAY_ACTION_TAPPED,
+                        new Intent(mMusicSuggestionIntent)));
+        onViewReady.run();
+    }
+
     private boolean shouldShowMinimized(WindowInsets insets) {
         return mOverlayMode == OverlayMode.CLIPBOARD
                 && insets.getInsets(WindowInsets.Type.ime()).bottom > 0;
@@ -465,6 +529,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
                     setVerificationCodeView(() -> animateIn());
                 } else if (mOverlayMode == OverlayMode.TORCH_SUGGESTION) {
                     setTorchSuggestionView(() -> animateIn());
+                } else if (mOverlayMode == OverlayMode.MUSIC_SUGGESTION) {
+                    setMusicSuggestionView(() -> animateIn());
                 } else {
                     setExpandedView(() -> animateIn());
                 }
@@ -540,7 +606,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     }
 
     private boolean shouldDismissOnOutsideTap() {
-        return mOverlayMode != OverlayMode.TORCH_SUGGESTION;
+        return mOverlayMode != OverlayMode.TORCH_SUGGESTION
+                && mOverlayMode != OverlayMode.MUSIC_SUGGESTION;
     }
 
     private void animateInWithAnnouncement(ClipboardModel.Type type) {
@@ -718,7 +785,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     @Override
     public void onInteraction() {
-        if (mOverlayMode == OverlayMode.TORCH_SUGGESTION) {
+        if (mOverlayMode == OverlayMode.TORCH_SUGGESTION
+                || mOverlayMode == OverlayMode.MUSIC_SUGGESTION) {
             return;
         }
         if (mOverlayMode != OverlayMode.CLIPBOARD || mClipboardModel == null) {

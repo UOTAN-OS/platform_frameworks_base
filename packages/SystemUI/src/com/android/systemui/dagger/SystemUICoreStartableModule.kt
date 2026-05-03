@@ -64,6 +64,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
+import org.uwuaosp.systemui.music.MusicSuggestionStartable
 import org.uwuaosp.systemui.sms.SmsCodeSuggestionStartable
 import org.uwuaosp.systemui.torch.TorchSuggestionStartable
 
@@ -103,6 +104,12 @@ abstract class SystemUICoreStartableModule {
     @IntoMap
     @ClassKey(TorchSuggestionStartable::class)
     abstract fun bindTorchSuggestionStartable(startable: TorchSuggestionStartable): CoreStartable
+
+    /** Inject into MusicSuggestionStartable. */
+    @Binds
+    @IntoMap
+    @ClassKey(MusicSuggestionStartable::class)
+    abstract fun bindMusicSuggestionStartable(startable: MusicSuggestionStartable): CoreStartable
 
     /** Inject into GlobalActionsComponent. */
     @Binds
