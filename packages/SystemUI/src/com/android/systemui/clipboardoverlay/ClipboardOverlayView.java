@@ -27,6 +27,7 @@ import android.animation.ObjectAnimator;
 import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.annotation.Nullable;
+import android.app.PendingIntent;
 import android.app.RemoteAction;
 import android.content.Context;
 import android.content.res.Resources;
@@ -334,6 +335,12 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         mActionContainerBackground.setVisibility(View.VISIBLE);
     }
 
+    void setPreviewVisible(boolean visible) {
+        int visibility = visible ? View.VISIBLE : View.GONE;
+        mClipboardPreview.setVisibility(visibility);
+        mPreviewBorder.setVisibility(visibility);
+    }
+
     void reset() {
         setTranslationX(0);
         setAlpha(0);
@@ -342,6 +349,7 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         mShareChip.setVisibility(View.GONE);
         mRemoteCopyChip.setVisibility(View.GONE);
         setEditAccessibilityAction(false);
+        setPreviewVisible(true);
         resetActionChips();
     }
 

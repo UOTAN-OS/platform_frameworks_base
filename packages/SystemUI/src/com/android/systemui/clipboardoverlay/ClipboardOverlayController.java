@@ -68,6 +68,7 @@ import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.res.R;
 import com.android.systemui.screenshot.TimeoutHandler;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.statusbar.policy.FlashlightController;
 
 import kotlin.Unit;
 
@@ -83,6 +84,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         ClipboardOverlayView.ClipboardOverlayCallbacks {
     private static final String TAG = "ClipboardOverlayCtrlr";
     private static final String SMS_CLIP_SOURCE = "uwuaosp_sms";
+    private static final String TORCH_CLIP_SOURCE = "uwuaosp_torch";
 
     /** Constants for screenshot/copy deconflicting */
     public static final String SCREENSHOT_ACTION = "com.android.systemui.SCREENSHOT";
@@ -105,6 +107,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private final ActivityStarter mActivityStarter;
     private final UserTracker mUserTracker;
     private final IStatusBarService mStatusBarService;
+    private final FlashlightController mFlashlightController;
 
 
     private final ClipboardOverlayView mView;
@@ -136,6 +139,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private enum OverlayMode {
         CLIPBOARD,
         VERIFICATION_CODE,
+        TORCH_SUGGESTION,
     }
 
     @Inject
@@ -156,6 +160,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
             ClipboardIndicationProvider clipboardIndicationProvider,
             UiEventLogger uiEventLogger,
             IStatusBarService statusBarService,
+            FlashlightController flashlightController,
             IntentCreator intentCreator) {
         mContext = context;
         mBroadcastDispatcher = broadcastDispatcher;
@@ -166,7 +171,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mActivityStarter = activityStarter;
         mUserTracker = userTracker;
         mStatusBarService = statusBarService;
-
+        mFlashlightController = flashlightController;
         mClipboardLogger = new ClipboardLogger(uiEventLogger);
         mIntentCreator = intentCreator;
 
@@ -300,6 +305,39 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mOnUiUpdate.run();
     }
 
+    public void setTorchSuggestion() {
+        OverlayMode previousMode = mOverlayMode;
+        mOverlayMode = OverlayMode.TORCH_SUGGESTION;
+        mClipboardModel = null;
+        mVerificationCode = null;
+        boolean wasExiting = (mExitAnimator != null && mExitAnimator.isRunning());
+        if (wasExiting) {
+            mExitAnimator.cancel();
+        }
+        boolean shouldAnimate =
+                previousMode != OverlayMode.TORCH_SUGGESTION || wasExiting || !mShowingUi;
+        mClipboardLogger.setClipSource(TORCH_CLIP_SOURCE);
+        if (shouldAnimate) {
+            reset();
+            mClipboardLogger.setClipSource(TORCH_CLIP_SOURCE);
+            mClipboardLogger.logUnguarded(CLIPBOARD_OVERLAY_SHOWN_EXPANDED);
+            setTorchSuggestionView(() ->
+                    animateInWithAnnouncement(
+                            mContext.getString(
+                                    R.string.uwu_torch_suggestion_chip_content_description)));
+        } else {
+            setTorchSuggestionView(() -> { });
+        }
+        mTimeoutHandler.cancelTimeout();
+        mOnUiUpdate = null;
+    }
+
+    public void dismissSuggestion() {
+        if (mShowingUi || (mEnterAnimator != null && mEnterAnimator.isRunning())) {
+            finish(CLIPBOARD_OVERLAY_DISMISSED_OTHER);
+        }
+    }
+
     private void setExpandedView(Runnable onViewReady) {
         final ClipboardModel model = mClipboardModel;
         mView.setMinimized(false);
@@ -350,6 +388,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
             return;
         }
         mView.setMinimized(false);
+        mView.setPreviewVisible(true);
         mView.resetActionChips();
         mView.setRemoteCopyVisibility(false);
         mView.showTextPreview(code, false);
@@ -388,6 +427,22 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         onViewReady.run();
     }
 
+    private void setTorchSuggestionView(Runnable onViewReady) {
+        mView.setMinimized(false);
+        mView.setPreviewVisible(false);
+        mView.resetActionChips();
+        mView.setRemoteCopyVisibility(false);
+        mView.addActionChip(
+                Icon.createWithResource(mContext, R.drawable.vd_flashlight_off).loadDrawable(mContext),
+                null,
+                mContext.getString(R.string.uwu_torch_suggestion_chip_content_description),
+                () -> {
+                    mFlashlightController.setFlashlight(false);
+                    finish(CLIPBOARD_OVERLAY_ACTION_TAPPED);
+                });
+        onViewReady.run();
+    }
+
     private boolean shouldShowMinimized(WindowInsets insets) {
         return mOverlayMode == OverlayMode.CLIPBOARD
                 && insets.getInsets(WindowInsets.Type.ime()).bottom > 0;
@@ -408,6 +463,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
                 }
                 if (mOverlayMode == OverlayMode.VERIFICATION_CODE) {
                     setVerificationCodeView(() -> animateIn());
+                } else if (mOverlayMode == OverlayMode.TORCH_SUGGESTION) {
+                    setTorchSuggestionView(() -> animateIn());
                 } else {
                     setExpandedView(() -> animateIn());
                 }
@@ -471,7 +528,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mClipboardInputEventReceiver.monitorOutsideTouches(event -> {
             if (mShowingUi && event instanceof MotionEvent motionEvent) {
                 if (motionEvent.getActionMasked() == MotionEvent.ACTION_DOWN) {
-                    if (!mView.isInTouchRegion(
+                    if (shouldDismissOnOutsideTap()
+                            && !mView.isInTouchRegion(
                             (int) motionEvent.getRawX(), (int) motionEvent.getRawY())) {
                         finish(CLIPBOARD_OVERLAY_TAP_OUTSIDE);
                     }
@@ -479,6 +537,10 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
             }
             return Unit.INSTANCE;
         });
+    }
+
+    private boolean shouldDismissOnOutsideTap() {
+        return mOverlayMode != OverlayMode.TORCH_SUGGESTION;
     }
 
     private void animateInWithAnnouncement(ClipboardModel.Type type) {
@@ -629,6 +691,9 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     @Override
     public void onPreviewTapped() {
+        if (mOverlayMode != OverlayMode.CLIPBOARD || mClipboardModel == null) {
+            return;
+        }
         switch (mClipboardModel.getType()) {
             case TEXT:
                 finish(CLIPBOARD_OVERLAY_EDIT_TAPPED,
@@ -653,6 +718,13 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     @Override
     public void onInteraction() {
+        if (mOverlayMode == OverlayMode.TORCH_SUGGESTION) {
+            return;
+        }
+        if (mOverlayMode != OverlayMode.CLIPBOARD || mClipboardModel == null) {
+            mTimeoutHandler.resetTimeout();
+            return;
+        }
         if (!mClipboardModel.isRemote()) {
             mTimeoutHandler.resetTimeout();
         }
