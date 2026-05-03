@@ -65,6 +65,7 @@ import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import org.uwuaosp.systemui.sms.SmsCodeSuggestionStartable
+import org.uwuaosp.systemui.torch.TorchSuggestionStartable
 
 /**
  * DEPRECATED: DO NOT ADD THINGS TO THIS FILE. b/427499553
@@ -96,6 +97,12 @@ abstract class SystemUICoreStartableModule {
     @IntoMap
     @ClassKey(SmsCodeSuggestionStartable::class)
     abstract fun bindSmsCodeSuggestionStartable(startable: SmsCodeSuggestionStartable): CoreStartable
+
+    /** Inject into TorchSuggestionStartable. */
+    @Binds
+    @IntoMap
+    @ClassKey(TorchSuggestionStartable::class)
+    abstract fun bindTorchSuggestionStartable(startable: TorchSuggestionStartable): CoreStartable
 
     /** Inject into GlobalActionsComponent. */
     @Binds

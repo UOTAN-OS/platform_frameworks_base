@@ -12,4 +12,5 @@
     <string name="uwu_sms_code_overlay_announcement">"验证码可用"</string>
     <string name="uwu_sms_code_copy">"复制"</string>
     <string name="uwu_sms_code_fill_in">"填入"</string>
+    <string name="uwu_torch_suggestion_chip_content_description">关闭手电筒</string>
 </resources>

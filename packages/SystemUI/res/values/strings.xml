@@ -3016,7 +3016,6 @@
 
     <!-- Accessibility description of headset icon [CHAR LIMIT=NONE] -->
     <string name="accessibility_status_bar_headset">Headset connected</string>
-
     <!-- Label for quick settings tile for data saver [CHAR LIMIT=30] -->
     <string name="data_saver">Data Saver</string>
 
