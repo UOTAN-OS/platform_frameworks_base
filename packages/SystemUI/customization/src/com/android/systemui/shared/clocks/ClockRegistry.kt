@@ -66,6 +66,8 @@ private val KNOWN_PLUGINS =
         "com.android.systemui.clocks.metro" to listOf(ClockMetadata("DIGITAL_CLOCK_METRO")),
         "com.android.systemui.clocks.numoverlap" to
             listOf(ClockMetadata("DIGITAL_CLOCK_NUMBEROVERLAP")),
+        "org.uwuaosp.clock" to
+            listOf(ClockMetadata("UWU_CLOCK"), ClockMetadata("UWU_CLOCK_HORIZONTAL")),
         "com.android.systemui.clocks.weather" to listOf(ClockMetadata("DIGITAL_CLOCK_WEATHER")),
     )
 private val TRACE_CLOCK_CHANGE = "LOCKSCREEN_CLOCK_CHANGE"
