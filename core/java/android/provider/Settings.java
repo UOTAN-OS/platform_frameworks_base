@@ -13162,6 +13162,25 @@ public final class Settings {
         public static final String NAVIGATIONBAR_KEY_ORDER = "navigationbar_key_order";
 
         /**
+         * Indicates whether the gestural navigation handle hint should be shown.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String NAVIGATION_BAR_HINT = "navigation_bar_hint";
+
+        /**
+         * Indicates whether themed icons should also be used in the all apps drawer.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String LAUNCHER_ALLAPPS_THEMED_ICONS =
+                "launcher_allapps_themed_icons";
+
+        /**
          * Navigation bar mode.
          *  0 = 3 button
          *  1 = 2 button
