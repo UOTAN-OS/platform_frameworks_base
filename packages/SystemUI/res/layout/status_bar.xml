@@ -113,6 +113,8 @@
                         android:id="@+id/ongoing_activity_chip_secondary"
                         android:visibility="gone"/>
 
+                    <include layout="@layout/status_bar_lyric_inline" />
+
                     <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
                         android:id="@+id/notification_icon_area"
                         android:layout_width="wrap_content"

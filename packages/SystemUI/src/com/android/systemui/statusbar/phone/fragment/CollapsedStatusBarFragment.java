@@ -137,6 +137,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
     private View mClockView;
     private View mPrimaryOngoingActivityChip;
     private View mSecondaryOngoingActivityChip;
+    private View mNotificationIconArea;
     private View mNotificationIconAreaInner;
     // Visibilities come in from external system callers via disable flags, but we also sometimes
     // modify the visibilities internally. We need to store both so that we don't accidentally
@@ -409,7 +410,11 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         mSystemEventAnimator = getSystemEventAnimator();
         mLyricController = new LyricController(getContext(), mStatusBar);
         mHomeStatusBarComponent.getHeadsUpAppearanceController().setLyricViewController(mLyricController);
-        Dependency.get(TunerService.class).addTunable(this, Settings.Secure.STATUS_BAR_SHOW_LYRIC);
+        Dependency.get(TunerService.class).addTunable(
+                this,
+                Settings.Secure.STATUS_BAR_SHOW_LYRIC,
+                Settings.Secure.STATUS_BAR_LYRIC_POSITION,
+                Settings.Secure.STATUS_BAR_LYRIC_HIDE_ICON_CLOCK_RIGHT);
         mCarrierConfigTracker.addCallback(mCarrierConfigCallback);
         mCarrierConfigTracker.addDefaultDataSubscriptionChangedListener(mDefaultDataListener);
 
@@ -549,6 +554,17 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
             if (mLyricController != null) {
                 mLyricController.setEnabled(TunerService.parseIntegerSwitch(newValue, false));
             }
+        } else if (key.equals(Settings.Secure.STATUS_BAR_LYRIC_POSITION)) {
+            if (mLyricController != null) {
+                mLyricController.setLyricPosition(
+                        TunerService.parseInteger(
+                                newValue, LyricViewController.LYRIC_POSITION_OVERLAY));
+            }
+        } else if (key.equals(Settings.Secure.STATUS_BAR_LYRIC_HIDE_ICON_CLOCK_RIGHT)) {
+            if (mLyricController != null) {
+                mLyricController.setHideIconOnClockRight(
+                        TunerService.parseIntegerSwitch(newValue, false));
+            }
         }
     }
 
@@ -556,6 +572,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
     public void initNotificationIconArea() {
         Trace.beginSection("CollapsedStatusBarFragment#initNotifIconArea");
         ViewGroup notificationIconArea = mStatusBar.requireViewById(R.id.notification_icon_area);
+        mNotificationIconArea = notificationIconArea;
         LayoutInflater.from(getContext())
                 .inflate(R.layout.notification_icon_area, notificationIconArea, true);
         NotificationIconContainer notificationIcons =
@@ -910,12 +927,12 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
 
     public void hideNotificationIconArea(boolean animate) {
         StatusBarRootModernization.assertInLegacyMode();
-        animateHide(mNotificationIconAreaInner, animate);
+        animateHide(mNotificationIconArea, animate);
     }
 
     public void showNotificationIconArea(boolean animate) {
         StatusBarRootModernization.assertInLegacyMode();
-        animateShow(mNotificationIconAreaInner, animate);
+        animateShow(mNotificationIconArea, animate);
     }
 
     public void hideOperatorName(boolean animate) {
@@ -1091,21 +1108,55 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         }
 
         public void showLyricView(boolean animate) {
-            StatusBarVisibilityModel visibilityModel = mLastModifiedVisibility;
+            if (!shouldShowLyricInCurrentState() || !isLyricStarted()) {
+                return;
+            }
+            if (isClockRightMode()) {
+                animateHiddenState(mNotificationIconArea, View.GONE, animate);
+            } else {
+                animateHide(mLeftSide, animate);
+            }
+            animateShow(getLyricView(), animate);
+        }
 
+        public void hideLyricView(boolean animate) {
+            hideLyricContainer(getLyricView(), animate);
+            if (isClockRightMode()) {
+                if (shouldShowLyricInCurrentState()) {
+                    animateShow(mNotificationIconArea, animate);
+                }
+            } else {
+                animateShow(mLeftSide, animate);
+            }
+        }
+
+        @Override
+        protected void onLyricPositionChanged() {
+            hideLyricContainer(getOverlayLyricView(), false);
+            View inlineLyricView = getInlineLyricView();
+            if (inlineLyricView != null) {
+                hideLyricContainer(inlineLyricView, false);
+            }
+            animateShow(mLeftSide, false);
+            if (shouldShowLyricInCurrentState()) {
+                animateShow(mNotificationIconArea, false);
+                showLyricView(false);
+            } else {
+                hideNotificationIconArea(false);
+            }
+        }
+
+        private boolean shouldShowLyricInCurrentState() {
+            StatusBarVisibilityModel visibilityModel = mLastModifiedVisibility;
             boolean disableNotifications = !visibilityModel.getShowNotificationIcons();
             boolean hasOngoingActivity =
                     visibilityModel.getShowPrimaryOngoingActivityChip()
                     || visibilityModel.getShowSecondaryOngoingActivityChip();
-            if (!disableNotifications && !hasOngoingActivity && isLyricStarted()) {
-                animateHide(mLeftSide, animate);
-                animateShow(getView(), animate);
-            }
+            return !disableNotifications && !hasOngoingActivity;
         }
 
-        public void hideLyricView(boolean animate) {
-            animateHide(getView(), animate);
-            animateShow(mLeftSide, animate);
+        private void hideLyricContainer(View view, boolean animate) {
+            animateHiddenState(view, View.GONE, animate);
         }
     }
 }

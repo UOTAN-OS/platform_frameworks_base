@@ -206,6 +206,8 @@ interface HomeStatusBarViewModel : Activatable {
     val isLyricVisible: Flow<VisibilityModel>
 
     val isLyricEnabled: Flow<Boolean>
+    val isLyricClockRightMode: Flow<Boolean>
+    val isLyricClockRightHideIcon: Flow<Boolean>
 
     /**
      * Pair of (system info visibility, event animation state). The animation state can be used to
@@ -729,6 +731,18 @@ constructor(
     override val isLyricEnabled: Flow<Boolean> =
         secureSettingsRepository
             .boolSetting(Settings.Secure.STATUS_BAR_SHOW_LYRIC, false)
+            .flowOn(bgDispatcher)
+
+    override val isLyricClockRightMode: Flow<Boolean> =
+        secureSettingsRepository
+            .intSetting(Settings.Secure.STATUS_BAR_LYRIC_POSITION, 0)
+            .map { it == com.android.systemui.statusbar.phone.LyricViewController.LYRIC_POSITION_CLOCK_RIGHT }
+            .distinctUntilChanged()
+            .flowOn(bgDispatcher)
+
+    override val isLyricClockRightHideIcon: Flow<Boolean> =
+        secureSettingsRepository
+            .boolSetting(Settings.Secure.STATUS_BAR_LYRIC_HIDE_ICON_CLOCK_RIGHT, false)
             .flowOn(bgDispatcher)
 
     private val isSystemInfoVisible =
