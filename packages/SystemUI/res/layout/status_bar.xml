@@ -109,6 +109,7 @@
                         android:id="@+id/start_side_notif_and_chip_container"
                         android:layout_height="match_parent"
                         android:layout_width="wrap_content">
+                        <include layout="@layout/status_bar_lyric_inline" />
                         <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
                             android:id="@+id/notification_icon_area"
                             android:layout_width="wrap_content"

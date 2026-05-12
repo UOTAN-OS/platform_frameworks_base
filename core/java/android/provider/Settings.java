@@ -14628,6 +14628,31 @@ public final class Settings {
         public static final String STATUS_BAR_SHOW_LYRIC = "status_bar_show_lyric";
 
         /**
+         * Controls where status bar lyric is shown when playing music.
+         * <ul>
+         *    <li> 0 = replace the start-side status bar content </li>
+         *    <li> 1 = show to the right of the clock, replacing notification app icons </li>
+         * </ul>
+         *
+         * @hide
+         */
+        @Readable
+        public static final String STATUS_BAR_LYRIC_POSITION = "status_bar_lyric_position";
+
+        /**
+         * Controls whether the music app icon is hidden in clock-right lyric mode.
+         * <ul>
+         *    <li> 0 = show icon </li>
+         *    <li> 1 = hide icon </li>
+         * </ul>
+         *
+         * @hide
+         */
+        @Readable
+        public static final String STATUS_BAR_LYRIC_HIDE_ICON_CLOCK_RIGHT =
+                "status_bar_lyric_hide_icon_clock_right";
+
+        /**
          * Integer property which determines whether advanced protection is on or not.
          * @hide
          */
