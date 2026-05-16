@@ -52,6 +52,7 @@ public abstract class LyricViewController implements
     public static final int LYRIC_POSITION_CLOCK_RIGHT = 1;
 
     private static final String EXTRA_TICKER_ICON = "ticker_icon";
+    private static final String EXTRA_TICKER_ICON_PACKAGE = "ticker_icon_package";
     private static final String EXTRA_TICKER_ICON_SWITCH = "ticker_icon_switch";
     private static final String EXTRA_TICKER_TRANSLATION = "ticker_translation";
 
@@ -202,11 +203,7 @@ public abstract class LyricViewController implements
             }
             if (!isCurrentNotification || !mStarted ||
                     notification.extras.getBoolean(EXTRA_TICKER_ICON_SWITCH, false)) {
-                int iconId = notification.extras.getInt(EXTRA_TICKER_ICON, -1);
-                Drawable icon = iconId == -1 ? notification.getSmallIcon().loadDrawable(mContext) :
-                        StatusBarIconView.getIcon(mContext, sbn.getPackageContext(mContext),
-                                new StatusBarIcon(sbn.getPackageName(), sbn.getUser(),
-                                    iconId, notification.iconLevel, 0, null, StatusBarIcon.Type.NotifSmallIcon));
+                Drawable icon = resolveLyricIcon(sbn, notification);
                 setIconForAllHolders(icon);
             }
             startLyric();
@@ -383,6 +380,22 @@ public abstract class LyricViewController implements
             setSubtitle(mInlineLyricViewHolder, null);
         }
         postApplyTextTint();
+    }
+
+    private Drawable resolveLyricIcon(StatusBarNotification sbn, Notification notification) {
+        String iconPackage = notification.extras.getString(EXTRA_TICKER_ICON_PACKAGE);
+        if (!TextUtils.isEmpty(iconPackage)) {
+            try {
+                return mContext.getPackageManager().getApplicationIcon(iconPackage);
+            } catch (Exception ignored) {
+            }
+        }
+        int iconId = notification.extras.getInt(EXTRA_TICKER_ICON, -1);
+        return iconId == -1 ? notification.getSmallIcon().loadDrawable(mContext) :
+                StatusBarIconView.getIcon(mContext, sbn.getPackageContext(mContext),
+                        new StatusBarIcon(sbn.getPackageName(), sbn.getUser(),
+                            iconId, notification.iconLevel, 0, null,
+                            StatusBarIcon.Type.NotifSmallIcon));
     }
 
     private CharSequence getVisibleTranslatedText() {
