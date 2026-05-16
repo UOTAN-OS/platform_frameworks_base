@@ -48,40 +48,51 @@ import java.util.ArrayList;
 public abstract class LyricViewController implements
     DarkIconDispatcher.DarkReceiver,
     NotificationListener.NotificationHandler {
-
     public static final int LYRIC_POSITION_OVERLAY = 0;
     public static final int LYRIC_POSITION_CLOCK_RIGHT = 1;
 
     private static final String EXTRA_TICKER_ICON = "ticker_icon";
     private static final String EXTRA_TICKER_ICON_SWITCH = "ticker_icon_switch";
+    private static final String EXTRA_TICKER_TRANSLATION = "ticker_translation";
 
     private static final int HIDE_LYRIC_DELAY = 1200;
 
     private final Context mContext;
     private final LyricViewHolder mOverlayLyricViewHolder;
     private final LyricViewHolder mInlineLyricViewHolder;
+    private final View mTintReferenceView;
 
     private final ContrastColorUtil mNotificationColorUtil;
 
     private boolean mEnabled;
     private boolean mStarted;
     private boolean mShowOnClockRight;
+    private boolean mShowTranslation;
     private boolean mHideIconOnClockRight;
 
     private String mCurrentNotificationPackage = null;
+    private CharSequence mCurrentTranslatedText;
     private int mCurrentNotificationId;
 
-    private ColorStateList mTintColorStateList;
+    private int mOverlayTintColor = DarkIconDispatcher.DEFAULT_ICON_TINT;
+    private int mInlineTintColor = DarkIconDispatcher.DEFAULT_ICON_TINT;
 
-    public LyricViewController(Context context, View statusBar) {
+    public LyricViewController(Context context, View statusBar, View tintReferenceView) {
         mContext = context;
+        mTintReferenceView = tintReferenceView;
         mOverlayLyricViewHolder = createLyricViewHolder(
-                statusBar, R.id.lyric_container, R.id.lyric_icon, R.id.lyric_text, true);
+                statusBar,
+                R.id.lyric_container,
+                R.id.lyric_icon,
+                R.id.lyric_text,
+                R.id.lyric_translation,
+                true);
         mInlineLyricViewHolder = createLyricViewHolder(
                 statusBar,
                 R.id.lyric_inline_container,
                 R.id.lyric_inline_icon,
                 R.id.lyric_inline_text,
+                View.NO_ID,
                 false);
 
         mNotificationColorUtil = ContrastColorUtil.getInstance(mContext);
@@ -137,6 +148,7 @@ public abstract class LyricViewController implements
         syncHolderContent(previousHolder, getActiveLyricViewHolder());
         updateIconVisibility();
         hideInactiveLyricViewsImmediately();
+        postApplyTextTint();
         if (mStarted) {
             onLyricPositionChanged();
         }
@@ -148,6 +160,15 @@ public abstract class LyricViewController implements
         }
         mHideIconOnClockRight = hideIconOnClockRight;
         updateIconVisibility();
+        postApplyTextTint();
+    }
+
+    public void setShowTranslation(boolean showTranslation) {
+        if (mShowTranslation == showTranslation) {
+            return;
+        }
+        mShowTranslation = showTranslation;
+        setSubtitle(mOverlayLyricViewHolder, getVisibleTranslatedText());
     }
 
     protected void onLyricPositionChanged() {
@@ -189,7 +210,9 @@ public abstract class LyricViewController implements
                 setIconForAllHolders(icon);
             }
             startLyric();
-            setTextForAllHolders(notification.tickerText);
+            setTextForAllHolders(
+                    notification.tickerText,
+                    notification.extras.getString(EXTRA_TICKER_TRANSLATION));
         }
     }
 
@@ -218,6 +241,7 @@ public abstract class LyricViewController implements
         if (!mStarted) {
             mStarted = true;
             showLyricView(true);
+            postApplyTextTint();
         }
     }
 
@@ -251,27 +275,29 @@ public abstract class LyricViewController implements
     }
 
     private void updateIconTint() {
-        updateIconTint(mOverlayLyricViewHolder);
+        updateIconTint(mOverlayLyricViewHolder, mOverlayTintColor);
         if (mInlineLyricViewHolder != null) {
-            updateIconTint(mInlineLyricViewHolder);
+            updateIconTint(mInlineLyricViewHolder, mInlineTintColor);
         }
     }
 
     @Override
     public void onDarkChanged(ArrayList<Rect> area, float darkIntensity, int tint) {
-        int tintColor = DarkIconDispatcher.getTint(area, getLyricView(), tint);
-
-        updateTextTint(mOverlayLyricViewHolder, tintColor);
-        if (mInlineLyricViewHolder != null) {
-            updateTextTint(mInlineLyricViewHolder, tintColor);
-        }
-
-        mTintColorStateList = ColorStateList.valueOf(tintColor);
-        updateIconTint();
+        int textTint = mTintReferenceView != null
+                ? DarkIconDispatcher.getTint(area, mTintReferenceView, tint)
+                : tint;
+        mOverlayTintColor = textTint;
+        mInlineTintColor = textTint;
+        applyTextTint();
     }
 
     private LyricViewHolder createLyricViewHolder(
-            View statusBar, int containerId, int iconId, int textId, boolean required) {
+            View statusBar,
+            int containerId,
+            int iconId,
+            int textId,
+            int subtitleTextId,
+            boolean required) {
         View lyricContainer = statusBar.findViewById(containerId);
         if (lyricContainer == null) {
             if (required) {
@@ -279,10 +305,13 @@ public abstract class LyricViewController implements
             }
             return null;
         }
+        TextSwitcher subtitleTextSwitcher =
+                subtitleTextId != View.NO_ID ? lyricContainer.findViewById(subtitleTextId) : null;
         return new LyricViewHolder(
                 lyricContainer,
                 lyricContainer.requireViewById(iconId),
-                lyricContainer.requireViewById(textId));
+                lyricContainer.requireViewById(textId),
+                subtitleTextSwitcher);
     }
 
     private void setUpAnimations(
@@ -291,6 +320,10 @@ public abstract class LyricViewController implements
         lyricViewHolder.mTextSwitcher.setOutAnimation(animationOut);
         lyricViewHolder.mIconSwitcher.setInAnimation(animationIn);
         lyricViewHolder.mIconSwitcher.setOutAnimation(animationOut);
+        if (lyricViewHolder.mSubtitleTextSwitcher != null) {
+            lyricViewHolder.mSubtitleTextSwitcher.setInAnimation(null);
+            lyricViewHolder.mSubtitleTextSwitcher.setOutAnimation(null);
+        }
     }
 
     private LyricViewHolder getActiveLyricViewHolder() {
@@ -325,7 +358,11 @@ public abstract class LyricViewController implements
         if (!TextUtils.isEmpty(currentText)) {
             to.mTextSwitcher.setCurrentText(currentText);
         }
-        updateIconTint(to);
+        syncSubtitle(from, to);
+        if (to.mSubtitleTextSwitcher != null) {
+            setSubtitle(to, getVisibleTranslatedText());
+        }
+        updateIconTint(to, getTintColorForHolder(to));
     }
 
     private void setIconForAllHolders(Drawable icon) {
@@ -337,11 +374,19 @@ public abstract class LyricViewController implements
         updateIconVisibility();
     }
 
-    private void setTextForAllHolders(CharSequence text) {
+    private void setTextForAllHolders(CharSequence text, CharSequence translatedText) {
+        mCurrentTranslatedText = translatedText;
         mOverlayLyricViewHolder.mTextSwitcher.setText(text);
+        setSubtitle(mOverlayLyricViewHolder, getVisibleTranslatedText());
         if (mInlineLyricViewHolder != null) {
             mInlineLyricViewHolder.mTextSwitcher.setText(text);
+            setSubtitle(mInlineLyricViewHolder, null);
         }
+        postApplyTextTint();
+    }
+
+    private CharSequence getVisibleTranslatedText() {
+        return mShowTranslation ? mCurrentTranslatedText : null;
     }
 
     private void updateIconVisibility() {
@@ -356,7 +401,7 @@ public abstract class LyricViewController implements
         return constantState != null ? constantState.newDrawable().mutate() : drawable;
     }
 
-    private void updateIconTint(LyricViewHolder lyricViewHolder) {
+    private void updateIconTint(LyricViewHolder lyricViewHolder, int tintColor) {
         Drawable drawable = ((ImageView) lyricViewHolder.mIconSwitcher.getCurrentView()).getDrawable();
         if (drawable == null) {
             return;
@@ -364,9 +409,10 @@ public abstract class LyricViewController implements
         boolean isGrayscale = mNotificationColorUtil.isGrayscaleIcon(drawable);
         ImageView currentView = (ImageView) lyricViewHolder.mIconSwitcher.getCurrentView();
         ImageView nextView = (ImageView) lyricViewHolder.mIconSwitcher.getNextView();
+        ColorStateList tintList = ColorStateList.valueOf(tintColor);
         if (isGrayscale) {
-            currentView.setImageTintList(mTintColorStateList);
-            nextView.setImageTintList(mTintColorStateList);
+            currentView.setImageTintList(tintList);
+            nextView.setImageTintList(tintList);
         } else {
             currentView.setImageTintList(null);
             nextView.setImageTintList(null);
@@ -376,17 +422,74 @@ public abstract class LyricViewController implements
     private void updateTextTint(LyricViewHolder lyricViewHolder, int tintColor) {
         ((TextView) lyricViewHolder.mTextSwitcher.getCurrentView()).setTextColor(tintColor);
         ((TextView) lyricViewHolder.mTextSwitcher.getNextView()).setTextColor(tintColor);
+        if (lyricViewHolder.mSubtitleTextSwitcher != null) {
+            ((TextView) lyricViewHolder.mSubtitleTextSwitcher.getCurrentView()).setTextColor(tintColor);
+            ((TextView) lyricViewHolder.mSubtitleTextSwitcher.getNextView()).setTextColor(tintColor);
+        }
+    }
+
+    private void setSubtitle(LyricViewHolder lyricViewHolder, CharSequence translatedText) {
+        if (lyricViewHolder.mSubtitleTextSwitcher == null) {
+            return;
+        }
+        if (TextUtils.isEmpty(translatedText)) {
+            lyricViewHolder.mSubtitleTextSwitcher.setCurrentText("");
+            lyricViewHolder.mSubtitleTextSwitcher.setVisibility(View.GONE);
+            return;
+        }
+        int tintColor = getTintColorForHolder(lyricViewHolder);
+        ((TextView) lyricViewHolder.mSubtitleTextSwitcher.getCurrentView()).setTextColor(tintColor);
+        ((TextView) lyricViewHolder.mSubtitleTextSwitcher.getNextView()).setTextColor(tintColor);
+        lyricViewHolder.mSubtitleTextSwitcher.setVisibility(View.VISIBLE);
+        lyricViewHolder.mSubtitleTextSwitcher.setText(translatedText);
+    }
+
+    private void syncSubtitle(LyricViewHolder from, LyricViewHolder to) {
+        if (from.mSubtitleTextSwitcher == null || to.mSubtitleTextSwitcher == null) {
+            return;
+        }
+        CharSequence currentText =
+                ((TextView) from.mSubtitleTextSwitcher.getCurrentView()).getText();
+        if (TextUtils.isEmpty(currentText)) {
+            to.mSubtitleTextSwitcher.setCurrentText("");
+            to.mSubtitleTextSwitcher.setVisibility(View.GONE);
+            return;
+        }
+        to.mSubtitleTextSwitcher.setVisibility(View.VISIBLE);
+        to.mSubtitleTextSwitcher.setCurrentText(currentText);
+    }
+
+    private void applyTextTint() {
+        updateTextTint(mOverlayLyricViewHolder, mOverlayTintColor);
+        if (mInlineLyricViewHolder != null) {
+            updateTextTint(mInlineLyricViewHolder, mInlineTintColor);
+        }
+        updateIconTint();
+    }
+
+    private int getTintColorForHolder(LyricViewHolder lyricViewHolder) {
+        return lyricViewHolder == mInlineLyricViewHolder ? mInlineTintColor : mOverlayTintColor;
+    }
+
+    private void postApplyTextTint() {
+        mOverlayLyricViewHolder.mLyricContainer.post(this::applyTextTint);
     }
 
     private static final class LyricViewHolder {
         final View mLyricContainer;
         final ImageSwitcher mIconSwitcher;
         final TextSwitcher mTextSwitcher;
+        final TextSwitcher mSubtitleTextSwitcher;
 
-        LyricViewHolder(View lyricContainer, ImageSwitcher iconSwitcher, TextSwitcher textSwitcher) {
+        LyricViewHolder(
+                View lyricContainer,
+                ImageSwitcher iconSwitcher,
+                TextSwitcher textSwitcher,
+                TextSwitcher subtitleTextSwitcher) {
             mLyricContainer = lyricContainer;
             mIconSwitcher = iconSwitcher;
             mTextSwitcher = textSwitcher;
+            mSubtitleTextSwitcher = subtitleTextSwitcher;
         }
     }
 }

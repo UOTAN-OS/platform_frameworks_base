@@ -26,7 +26,6 @@ import android.view.View;
 import android.widget.TextView;
 
 public class LyricTextView extends TextView {
-
     private boolean mStopped = true;
     private int mTextWidth;
     private int mScrollSpeed = 4;
@@ -91,6 +90,7 @@ public class LyricTextView extends TextView {
 
     @Override
     public void setTextColor(int color) {
+        super.setTextColor(color);
         getPaint().setColor(color);
         postInvalidate();
     }

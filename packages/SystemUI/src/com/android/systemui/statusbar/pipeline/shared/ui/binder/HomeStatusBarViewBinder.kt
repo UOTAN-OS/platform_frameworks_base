@@ -171,6 +171,11 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
                         lyricController.setHideIconOnClockRight(it)
                     }
                 }
+                launch {
+                    viewModel.isLyricTranslationEnabled.collect {
+                        lyricController.setShowTranslation(it)
+                    }
+                }
                 launch { viewModel.isLyricVisible.collect { lyricController.adjustVisibility(it) } }
 
                 launch {
@@ -315,7 +320,8 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
         // TODO(b/364360986): Synchronize the motion with the Keyguard fading if necessary.
     }
 
-    inner class LyricController(val statusBar: View) : LyricViewController(statusBar.context, statusBar) {
+    inner class LyricController(val statusBar: View) :
+        LyricViewController(statusBar.context, statusBar, statusBar.findViewById(R.id.clock)) {
         private val leftSide: View by lazy {
             statusBar.findViewById(R.id.status_bar_start_side_except_heads_up)
         }

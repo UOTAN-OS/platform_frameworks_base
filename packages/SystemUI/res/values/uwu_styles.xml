@@ -19,5 +19,10 @@
     <style name="TextApperance.StatusBar.Lyric" parent="@*android:style/TextAppearance.StatusBar">
         <item name="android:textSize">14sp</item>
         <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextApperance.StatusBar.Lyric.Translation" parent="@style/TextApperance.StatusBar.Lyric">
+        <item name="android:textSize">12sp</item>
     </style>
 </resources>
