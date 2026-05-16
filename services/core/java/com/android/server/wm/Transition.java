@@ -3948,9 +3948,9 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
                 return TRANSIT_TO_FRONT;
             }
             final boolean nowVisible = wc.isVisibleRequested();
-            if (nowVisible == mVisible
-                    || PopUpWindowController.getInstance().isLaunchPopUpViewFromRecents()
-                    || PopUpWindowController.getInstance().isLaunchPopUpViewFromGesture()) {
+            final boolean isPopUpWindowingModeChange = PopUpWindowController.getInstance()
+                    .shouldStartChangeTransition(mWindowingMode, wc.getWindowingMode());
+            if (nowVisible == mVisible || isPopUpWindowingModeChange) {
                 return TRANSIT_CHANGE;
             }
             if (mExistenceChanged) {

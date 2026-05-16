@@ -96,12 +96,26 @@ public class TransitionInfoExt {
                 info.mTask.getBounds(mPopUpViewInfo.mStartDragBounds);
             }
         }
-        if (info.mTask != null && PopUpWindowController.getInstance().hasPendingPopUpViewLaunchPoint()) {
+        if (info.mTask != null
+                && PopUpWindowController.getInstance().hasPendingPopUpViewLaunchPoint()
+                && isPopUpWindowModeChange(freezeInfo, info)) {
             overrideStartStateForGestureLaunch(info, displayInfo);
         }
         if (DEBUG_POP_UP) {
             Slog.d(TAG, "setupPopUpViewInfo, info=" + mPopUpViewInfo);
         }
+    }
+
+    private boolean isPopUpWindowModeChange(TaskWindowSurfaceInfo freezeInfo,
+            TaskWindowSurfaceInfo info) {
+        final int startWindowingMode = freezeInfo.mFreezedWindowingMode != WINDOWING_MODE_UNDEFINED
+                ? freezeInfo.mFreezedWindowingMode
+                : freezeInfo.mTask.getConfiguration().windowConfiguration.getWindowingMode();
+        final int endWindowingMode = info.mFreezedWindowingMode != WINDOWING_MODE_UNDEFINED
+                ? info.mFreezedWindowingMode
+                : info.mTask.getConfiguration().windowConfiguration.getWindowingMode();
+        return PopUpWindowController.getInstance().shouldStartChangeTransition(
+                startWindowingMode, endWindowingMode);
     }
 
     private void overrideStartStateForGestureLaunch(TaskWindowSurfaceInfo info, DisplayInfo displayInfo) {
