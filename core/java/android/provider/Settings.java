@@ -14227,6 +14227,19 @@ public final class Settings {
         public static final String STATUS_BAR_LYRIC_POSITION = "status_bar_lyric_position";
 
         /**
+         * Controls whether translated lyric text is shown when available.
+         * <ul>
+         *    <li> 0 = hidden </li>
+         *    <li> 1 = shown </li>
+         * </ul>
+         *
+         * @hide
+         */
+        @Readable
+        public static final String STATUS_BAR_LYRIC_SHOW_TRANSLATION =
+                "status_bar_lyric_show_translation";
+
+        /**
          * Controls whether the music app icon is hidden in clock-right lyric mode.
          * <ul>
          *    <li> 0 = show icon </li>

@@ -414,6 +414,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
                 this,
                 Settings.Secure.STATUS_BAR_SHOW_LYRIC,
                 Settings.Secure.STATUS_BAR_LYRIC_POSITION,
+                Settings.Secure.STATUS_BAR_LYRIC_SHOW_TRANSLATION,
                 Settings.Secure.STATUS_BAR_LYRIC_HIDE_ICON_CLOCK_RIGHT);
         mCarrierConfigTracker.addCallback(mCarrierConfigCallback);
         mCarrierConfigTracker.addDefaultDataSubscriptionChangedListener(mDefaultDataListener);
@@ -559,6 +560,11 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
                 mLyricController.setLyricPosition(
                         TunerService.parseInteger(
                                 newValue, LyricViewController.LYRIC_POSITION_OVERLAY));
+            }
+        } else if (key.equals(Settings.Secure.STATUS_BAR_LYRIC_SHOW_TRANSLATION)) {
+            if (mLyricController != null) {
+                mLyricController.setShowTranslation(
+                        TunerService.parseIntegerSwitch(newValue, false));
             }
         } else if (key.equals(Settings.Secure.STATUS_BAR_LYRIC_HIDE_ICON_CLOCK_RIGHT)) {
             if (mLyricController != null) {
@@ -1103,7 +1109,7 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         private View mLeftSide;
 
         public LyricController(Context context, View statusBar) {
-            super(context, statusBar);
+            super(context, statusBar, statusBar.findViewById(R.id.clock));
             mLeftSide = statusBar.findViewById(R.id.status_bar_start_side_except_heads_up);
         }
 
