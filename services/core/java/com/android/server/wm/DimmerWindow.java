@@ -182,6 +182,9 @@ class DimmerWindow {
         private final Rect mDefaultDragStartBounds = new Rect();
         private VelocityTracker mMiniVelocityTracker;
         private boolean mDismissTargetVisible;
+        private int mMiniFlingVelocityX;
+        private int mMiniFlingVelocityY;
+        private boolean mMiniFlingRebounded;
         private final Runnable mMiniFlingRunnable = new Runnable() {
             @Override
             public void run() {
@@ -193,6 +196,9 @@ class DimmerWindow {
                 newBounds.offsetTo(mMiniFlingScroller.getCurrX(), mMiniFlingScroller.getCurrY());
                 updateLayout(newBounds);
                 moveTaskSurface(newBounds.centerX(), newBounds.centerY());
+                if (maybeStartMiniWindowEdgeRebound(newBounds)) {
+                    return;
+                }
                 postOnAnimation(this);
             }
         };
@@ -1127,6 +1133,9 @@ class DimmerWindow {
                 return;
             }
             updateMiniMovementBounds(mDrawingRect.width(), mDrawingRect.height());
+            mMiniFlingVelocityX = velocityX;
+            mMiniFlingVelocityY = velocityY;
+            mMiniFlingRebounded = false;
             mMiniFlingScroller.fling(
                     mDrawingRect.left,
                     mDrawingRect.top,
@@ -1143,14 +1152,57 @@ class DimmerWindow {
             if (!mMiniFlingScroller.isFinished()) {
                 mMiniFlingScroller.abortAnimation();
             }
+            mMiniFlingRebounded = false;
             removeCallbacks(mMiniFlingRunnable);
         }
 
         private void finishMiniWindowFling() {
             removeCallbacks(mMiniFlingRunnable);
+            mMiniFlingRebounded = false;
             if (!mDrawingRect.isEmpty()) {
                 rememberMinimizedCenter(mDrawingRect.centerX(), mDrawingRect.centerY());
             }
+        }
+
+        private boolean maybeStartMiniWindowEdgeRebound(Rect currentBounds) {
+            if (currentBounds == null || currentBounds.isEmpty() || mMiniFlingRebounded) {
+                return false;
+            }
+            final boolean atLeftEdge = currentBounds.left <= mMiniMovementBounds.left;
+            final boolean atRightEdge = currentBounds.left >= mMiniMovementBounds.right;
+            if (!atLeftEdge && !atRightEdge) {
+                return false;
+            }
+            if ((atLeftEdge && mMiniFlingVelocityX >= 0) || (atRightEdge && mMiniFlingVelocityX <= 0)
+                    || Math.abs(mMiniFlingVelocityX) < mMinimumFlingVelocity) {
+                return false;
+            }
+
+            final int reboundVelocityX = Math.round(-mMiniFlingVelocityX * 0.45f);
+            final int reboundVelocityY = Math.round(mMiniFlingVelocityY * 0.35f);
+            mMiniFlingScroller.abortAnimation();
+            removeCallbacks(mMiniFlingRunnable);
+            mMiniFlingRebounded = true;
+
+            if (Math.max(Math.abs(reboundVelocityX), Math.abs(reboundVelocityY))
+                    < mMinimumFlingVelocity) {
+                finishMiniWindowFling();
+                return true;
+            }
+
+            mMiniFlingVelocityX = reboundVelocityX;
+            mMiniFlingVelocityY = reboundVelocityY;
+            mMiniFlingScroller.fling(
+                    currentBounds.left,
+                    currentBounds.top,
+                    reboundVelocityX,
+                    reboundVelocityY,
+                    mMiniMovementBounds.left,
+                    mMiniMovementBounds.right,
+                    mMiniMovementBounds.top,
+                    mMiniMovementBounds.bottom);
+            postOnAnimation(mMiniFlingRunnable);
+            return true;
         }
 
         private VelocityTracker ensureMiniVelocityTracker() {
