@@ -618,14 +618,26 @@ public class PopUpWindowController {
     }
 
     void triggerVibrate() {
+        triggerVibrationEffect(VibrationEffect.EFFECT_CLICK,
+                VibrationEffect.EFFECT_STRENGTH_STRONG);
+    }
+
+    void triggerTickVibrate() {
+        triggerVibrationEffect(VibrationEffect.EFFECT_TICK,
+                VibrationEffect.EFFECT_STRENGTH_MEDIUM);
+    }
+
+    void triggerHeavyVibrate() {
+        triggerVibrationEffect(VibrationEffect.EFFECT_HEAVY_CLICK,
+                VibrationEffect.EFFECT_STRENGTH_STRONG);
+    }
+
+    private void triggerVibrationEffect(int effectId, int strength) {
         Slog.d(TAG, "Triggering vibrate");
         mHandler.post(() -> {
             if (mVibrator != null) {
-                // Create a predefined click effect
-                VibrationEffect effect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK);
-                // Apply STRONG effect strength to increase intensity
-                effect = effect.applyEffectStrength(VibrationEffect.EFFECT_STRENGTH_STRONG);
-                // Vibrate with the strengthened effect
+                VibrationEffect effect = VibrationEffect.createPredefined(effectId);
+                effect = effect.applyEffectStrength(strength);
                 mVibrator.vibrate(effect);
             }
         });
