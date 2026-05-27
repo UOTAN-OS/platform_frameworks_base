@@ -356,6 +356,7 @@ class TaskWindowSurfaceInfo {
                     bound, displayBound, mWindowCenterPosition, mWindowSurfaceScale,
                     false, pos);
             t.setPosition(mTask.mSurfaceControl, pos.x, pos.y)
+                    .setAlpha(mTask.mSurfaceControl, 1.0f)
                     .setWindowCrop(mTask.mSurfaceControl, bound.width(), bound.height())
                     .setCornerRadius(mTask.mSurfaceControl, mCornerRadius)
                     .setScale(mTask.mSurfaceControl, getWindowSurfaceRealScale(), getWindowSurfaceRealScale());

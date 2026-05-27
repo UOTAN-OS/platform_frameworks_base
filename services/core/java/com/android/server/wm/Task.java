@@ -6415,6 +6415,7 @@ class Task extends TaskFragment {
 
     void resetSurfaceControlTransforms() {
         getSyncTransaction().setMatrix(mSurfaceControl, Matrix.IDENTITY_MATRIX, new float[9])
+                .setAlpha(mSurfaceControl, 1.0f)
                 .setWindowCrop(mSurfaceControl, null)
                 .setShadowRadius(mSurfaceControl, 0)
                 .setCornerRadius(mSurfaceControl, 0);
@@ -7221,11 +7222,13 @@ class Task extends TaskFragment {
         super.resetSurfacePositionForAnimationLeash(t);
         if (getWindowConfiguration().isPopUpWindowMode() ||
                 PopUpWindowController.getInstance().isTryExitWindowingMode()) {
+            t.setAlpha(mSurfaceControl, 1.0f);
             t.setScale(mSurfaceControl, 1.0f, 1.0f);
             t.setWindowCrop(mSurfaceControl, -1, -1);
             final SurfaceControl.Transaction syncTransaction = getSyncTransaction();
             if (t != syncTransaction) {
                 // Avoid a later sync transaction restoring stale popup transform/crop state.
+                syncTransaction.setAlpha(mSurfaceControl, 1.0f);
                 syncTransaction.setScale(mSurfaceControl, 1.0f, 1.0f);
                 syncTransaction.setWindowCrop(mSurfaceControl, -1, -1);
             }
