@@ -439,6 +439,8 @@ public class PopUpWindowController {
                     TopActivityRecorder.getInstance().clearMiniWindow();
                 }
                 final TaskWindowSurfaceInfo info = task.mWindowContainerExt.getTaskWindowSurfaceInfo();
+                // Hide the DimmerWindow frame immediately to prevent flash after exit animation
+                DimmerWindowManager.getInstance().detachTask(task);
                 info.playExitAnimation(reason == MOVE_TO_BACK_FROM_LEAVE_BUTTON,
                         info.getWindowSurfaceRealScale(),
                         () -> {
@@ -611,7 +613,13 @@ public class PopUpWindowController {
         final Task boundsTask = rootTask != null ? rootTask : task;
         final Rect bounds = new Rect();
         boundsTask.mWindowContainerExt.getTaskWindowSurfaceInfo().resetWindowBoundaryGapToOrigin();
-        boundsTask.getBounds(bounds);
+        // Use display bounds as the source instead of task's current bounds,
+        // which may be from a previous freeform/small-window state and too small.
+        if (boundsTask.mDisplayContent != null) {
+            boundsTask.mDisplayContent.getBounds(bounds);
+        } else {
+            boundsTask.getBounds(bounds);
+        }
         WindowResizingAlgorithm.getPopUpViewDefalutBounds(bounds);
         boundsTask.setAlwaysOnTop(true);
         boundsTask.setBounds(bounds);
