@@ -152,7 +152,8 @@ class LaunchParamsController {
                 task.setBounds(mTmpParams.mBounds);
                 return true;
             }
-            if (task.getRootTask().inMultiWindowMode()) {
+            if (task.getRootTask().inMultiWindowMode()
+                    && !task.getRootTask().getWindowConfiguration().isPopUpWindowMode()) {
                 if (!mTmpParams.mAppBounds.isEmpty()) {
                     task.getRequestedOverrideConfiguration().windowConfiguration.setAppBounds(
                             mTmpParams.mAppBounds);
