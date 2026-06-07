@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2023-2024 The Nameless-AOSP Project
  * Copyright (C) 2026 The RisingOS Revived Project
+ * Copyright (C) 2026 The uwuAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -925,9 +926,6 @@ public class PopUpWindowController {
                 Slog.d(TAG, "Touch at (" + x + "," + y + "), dimmerBounds=" + dimmerBounds +
                     ", inMiniWindow=" + inMiniWindow);
             }
-
-
-            DimmerWindow.getInstance().hideMenu();
 
             if (inMiniWindow) {
                 setMiniWindowInputFocus(true);
