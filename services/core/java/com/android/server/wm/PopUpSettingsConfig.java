@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2023-2024 The Nameless-AOSP Project
+ * Copyright (C) 2026 The uwuAOSP Project
  * SPDX-License-Identifier: Apache-2.0
  */
 
@@ -18,9 +19,7 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
 
-import com.android.internal.util.android.PopUpSettingsHelper;
-
-import org.rising.view.PopUpViewManager;
+import com.android.internal.util.android.PopUpViewManager;
 
 class PopUpSettingsConfig {
 
@@ -54,7 +53,10 @@ class PopUpSettingsConfig {
             Log.w(TAG, "Context is null, cannot update notification blacklist");
             return;
         }
-        final String blacklist = PopUpSettingsHelper.getNotificationJumpBlacklist(mContext);
+        final String blacklist = Settings.System.getStringForUser(
+                mContext.getContentResolver(),
+                POP_UP_NOTIFICATION_BLACKLIST,
+                UserHandle.USER_CURRENT);
         if (TextUtils.isEmpty(blacklist)) {
             return;
         }
