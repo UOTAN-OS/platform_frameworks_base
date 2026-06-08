@@ -1079,6 +1079,13 @@ class ActivityStarter {
         final int userId = aInfo != null && aInfo.applicationInfo != null
                 ? UserHandle.getUserId(aInfo.applicationInfo.uid) : 0;
         final int launchMode = aInfo != null ? aInfo.launchMode : 0;
+        if (err == ActivityManager.START_SUCCESS && aInfo != null
+                && (request.componentSpecified || intent.getPackage() != null)
+                && mService.getPackageManagerInternalLocked().filterAppAccess(
+                        aInfo.packageName, callingUid, userId)) {
+            SafeActivityOptions.abort(options);
+            return START_CLASS_NOT_FOUND;
+        }
         if (err == ActivityManager.START_SUCCESS) {
             request.logMessage.append("START u").append(userId).append(" {")
                     .append(intent.toShortString(true, true, true, false))

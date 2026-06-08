@@ -50,6 +50,8 @@ import com.android.server.utils.WatchedArraySet;
 import com.android.server.utils.WatchedSparseBooleanMatrix;
 import com.android.server.utils.WatchedSparseSetArray;
 
+import org.uwuaosp.romhide.RomHidePolicy;
+
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.Objects;
@@ -506,6 +508,27 @@ public abstract class AppsFilterBase implements AppsFilterSnapshot {
             if (targetPkg.isStaticSharedLibrary()) {
                 // not an app, this filtering takes place at a higher level
                 return false;
+            }
+
+            final boolean trustedCaller;
+            if (callingPkgSetting != null) {
+                trustedCaller = callingPkgSetting.isSystem();
+            } else {
+                boolean foundTrustedCaller = false;
+                for (int i = 0; i < callingSharedPkgSettings.size(); i++) {
+                    if (callingSharedPkgSettings.valueAt(i).isSystem()) {
+                        foundTrustedCaller = true;
+                        break;
+                    }
+                }
+                trustedCaller = foundTrustedCaller;
+            }
+
+            if (RomHidePolicy.shouldHidePackage(targetPkg.getPackageName(), trustedCaller)) {
+                if (DEBUG_LOGGING) {
+                    log(callingSetting, targetPkgSetting, "blocked by uwuaosp rom hide");
+                }
+                return true;
             }
 
             try {
