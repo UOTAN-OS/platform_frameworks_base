@@ -90,6 +90,7 @@ class PopUpAppStarter {
     static Bundle getMiniWindowBundle() {
         ActivityOptions options = ActivityOptions.makeBasic();
         options.setLaunchWindowingMode(WINDOWING_MODE_MINI_WINDOW_EXT);
+        options.setApplyMultipleTaskFlagForShortcut(true);
         options.setPendingIntentBackgroundActivityStartMode(MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
         return options.toBundle();
     }
