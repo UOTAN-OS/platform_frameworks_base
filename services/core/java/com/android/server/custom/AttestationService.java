@@ -166,6 +166,26 @@ public final class AttestationService extends SystemService {
     }
 
     private static class KeyboxAttestationServiceImpl extends IKeyboxAttestationService.Stub {
+        private static AttestationCertificates emptyCertificates() {
+            AttestationCertificates certs = new AttestationCertificates();
+            certs.privateKey = new byte[0];
+            certs.certificate = new byte[0];
+            certs.certificateChain = new byte[0];
+            return certs;
+        }
+
+        private static AttestationCertificates buildCertificates(List<Certificate> chain,
+                byte[] privateKey) throws Exception {
+            AttestationCertificates certs = emptyCertificates();
+            certs.privateKey = privateKey != null ? privateKey : certs.privateKey;
+            certs.certificate = chain.get(0).getEncoded();
+            if (chain.size() > 1) {
+                certs.certificateChain = KeyboxUtils.toCertificateChainBytes(
+                        chain.subList(1, chain.size()).toArray(new Certificate[0]));
+            }
+            return certs;
+        }
+
         private void enforcePermission() {
             int callingUid = Binder.getCallingUid();
             if (callingUid != Process.KEYSTORE_UID) {
@@ -194,18 +214,13 @@ public final class AttestationService extends SystemService {
                         targetUid, descriptor, keyGenParams, leafCertificate);
 
                 if (chain == null || chain.isEmpty()) {
-                    return null;
+                    return emptyCertificates();
                 }
 
-                AttestationCertificates certs = new AttestationCertificates();
-                certs.certificate = chain.get(0).getEncoded();
-                certs.certificateChain = chain.size() > 1 ? KeyboxUtils.toCertificateChainBytes(
-                        chain.subList(1, chain.size()).toArray(new Certificate[0])) : null;
-
-                return certs;
+                return buildCertificates(chain, null);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to generate certificate chain", e);
-                return null;
+                return emptyCertificates();
             }
         }
 
@@ -221,20 +236,21 @@ public final class AttestationService extends SystemService {
                         KeyboxChainGenerator.generateKeyMaterial(
                                 targetUid, descriptor, keyGenParams, entropy);
 
-                if (material == null || material.certificateChain == null || material.certificateChain.isEmpty()) {
-                    return null;
+                if (material == null || material.keyPair == null
+                        || material.certificateChain == null
+                        || material.certificateChain.isEmpty()) {
+                    return emptyCertificates();
                 }
 
-                AttestationCertificates certs = new AttestationCertificates();
-                certs.privateKey = material.keyPair.getPrivate().getEncoded();
-                certs.certificate = material.certificateChain.get(0).getEncoded();
-                certs.certificateChain = material.certificateChain.size() > 1 ? KeyboxUtils.toCertificateChainBytes(
-                        material.certificateChain.subList(1, material.certificateChain.size()).toArray(new Certificate[0])) : null;
+                byte[] privateKey = material.keyPair.getPrivate().getEncoded();
+                if (privateKey == null || privateKey.length == 0) {
+                    return emptyCertificates();
+                }
 
-                return certs;
+                return buildCertificates(material.certificateChain, privateKey);
             } catch (Exception e) {
                 Log.e(TAG, "Failed to generate software key and certificates", e);
-                return null;
+                return emptyCertificates();
             }
         }
     }
