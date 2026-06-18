@@ -40,6 +40,7 @@ import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
+import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockFaceLayout
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
@@ -47,6 +48,7 @@ import com.android.systemui.res.R
 import com.android.systemui.shade.LargeScreenHeaderHelper
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shared.R as sharedR
+import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.util.ui.value
 import dagger.Lazy
 import javax.inject.Inject
@@ -64,6 +66,8 @@ private fun ConstraintSet.setScaleX(views: Iterable<View>, scaleX: Float) =
 private fun ConstraintSet.setScaleY(views: Iterable<View>, scaleY: Float) =
     views.forEach { view -> this.setScaleY(view.id, scaleY) }
 
+private const val UWU_CLOCK_HORIZONTAL_ID = "UWU_CLOCK_HORIZONTAL"
+
 @SysUISingleton
 class ClockSection
 @Inject
@@ -76,6 +80,8 @@ constructor(
     private val rootViewModel: KeyguardRootViewModel,
     private val aodBurnInViewModel: AodBurnInViewModel,
     private val largeScreenHeaderHelperLazy: Lazy<LargeScreenHeaderHelper>,
+    private val activeNotificationsInteractor: ActiveNotificationsInteractor,
+    private val mediaCarouselInteractor: MediaCarouselInteractor,
 ) : KeyguardSection() {
     private var disposableHandle: DisposableHandle? = null
 
@@ -92,6 +98,8 @@ constructor(
                 blueprintInteractor.get(),
                 rootViewModel,
                 aodBurnInViewModel,
+                activeNotificationsInteractor,
+                mediaCarouselInteractor,
             )
     }
 
@@ -110,7 +118,7 @@ constructor(
         constraintSet: ConstraintSet,
     ): ConstraintSet {
         // Add constraint between rootView and clockContainer
-        applyDefaultConstraints(constraintSet)
+        applyDefaultConstraints(clock, constraintSet)
         getNonTargetClockFace(clock).applyConstraints(constraintSet)
         getTargetClockFace(clock).applyConstraints(constraintSet)
 
@@ -146,6 +154,19 @@ constructor(
                     setScaleY(
                         getTargetClockFace(clock).views,
                         aodBurnInViewModel.movement.value.scale,
+                    )
+                }
+                if (shouldUseUwuHorizontalNotificationLayout(clock)) {
+                    createBarrier(
+                        R.id.smart_space_barrier_bottom,
+                        Barrier.BOTTOM,
+                        0,
+                        *intArrayOf(
+                            ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
+                            sharedR.id.bc_smartspace_view,
+                            sharedR.id.date_smartspace_view,
+                            sharedR.id.date_smartspace_view_large,
+                        ),
                     )
                 }
             }
@@ -192,7 +213,7 @@ constructor(
         }
     }
 
-    fun applyDefaultConstraints(constraints: ConstraintSet) {
+    fun applyDefaultConstraints(clock: ClockController, constraints: ConstraintSet) {
         val guideline =
             if (keyguardClockViewModel.clockShouldBeCentered.value) PARENT_ID
             else R.id.split_shade_guideline
@@ -243,6 +264,10 @@ constructor(
                 largeClockTopMargin,
             )
             constrainWidth(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE, WRAP_CONTENT)
+            setVerticalBias(
+                ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
+                if (shouldUseUwuHorizontalNotificationLayout(clock)) 0F else 0.5F,
+            )
 
             // The following two lines make LOCKSCREEN_CLOCK_VIEW_LARGE is constrained to available
             // height when it goes beyond constraints; otherwise, it use WRAP_CONTENT
@@ -310,4 +335,10 @@ constructor(
 
         constrainWeatherClockDateIconsBarrier(constraints)
     }
+
+    private fun shouldUseUwuHorizontalNotificationLayout(clock: ClockController): Boolean =
+        keyguardClockViewModel.isLargeClockVisible.value &&
+            clock.config.id == UWU_CLOCK_HORIZONTAL_ID &&
+            (activeNotificationsInteractor.areAnyNotificationsPresentValue ||
+                mediaCarouselInteractor.hasActiveMedia.value)
 }

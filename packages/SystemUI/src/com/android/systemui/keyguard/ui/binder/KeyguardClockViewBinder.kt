@@ -39,8 +39,10 @@ import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
+import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.plugins.keyguard.ui.clocks.AodClockBurnInModel
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
+import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.util.kotlin.DisposableHandles
 import com.android.systemui.util.ui.value
 import kotlinx.coroutines.DisposableHandle
@@ -51,6 +53,7 @@ import kotlinx.coroutines.flow.map
 object KeyguardClockViewBinder {
     private val TAG = KeyguardClockViewBinder::class.simpleName!!
     private val defaultTransition = AutoTransition().excludeTarget(ViewPager2::class.java, true)
+    private const val UWU_CLOCK_HORIZONTAL_ID = "UWU_CLOCK_HORIZONTAL"
 
     @JvmStatic
     fun bind(
@@ -61,6 +64,8 @@ object KeyguardClockViewBinder {
         blueprintInteractor: KeyguardBlueprintInteractor,
         rootViewModel: KeyguardRootViewModel,
         aodBurnInViewModel: AodBurnInViewModel,
+        activeNotificationsInteractor: ActiveNotificationsInteractor,
+        mediaCarouselInteractor: MediaCarouselInteractor,
     ): DisposableHandle {
         val disposables = DisposableHandles()
         disposables +=
@@ -108,6 +113,23 @@ object KeyguardClockViewBinder {
                             updateBurnInLayer(keyguardRootView, viewModel, clockSize)
                             blueprintInteractor.refreshBlueprint(Type.ClockSize)
                         }
+                    }
+
+                    launch("$TAG#uwuHorizontalClockNotificationLayout") {
+                        combine(
+                                activeNotificationsInteractor.areAnyNotificationsPresent,
+                                mediaCarouselInteractor.hasActiveMedia,
+                                viewModel.currentClock,
+                                viewModel.isLargeClockVisible,
+                            ) { hasNotifications, hasMedia, currentClock, isLargeClockVisible ->
+                                isLargeClockVisible &&
+                                    currentClock?.config?.id == UWU_CLOCK_HORIZONTAL_ID &&
+                                    (hasNotifications || hasMedia)
+                            }
+                            .distinctUntilChanged()
+                            .collect {
+                                blueprintInteractor.refreshBlueprint(Type.DefaultTransition)
+                            }
                     }
 
                     launch {

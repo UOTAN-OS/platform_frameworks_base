@@ -263,6 +263,7 @@ public final class NotificationPanelViewController implements
     private static final String COUNTER_PANEL_OPEN = "panel_open";
     public static final String COUNTER_PANEL_OPEN_QS = "panel_open_qs";
     private static final String COUNTER_PANEL_OPEN_PEEK = "panel_open_peek";
+    private static final String UWU_CLOCK_HORIZONTAL_ID = "UWU_CLOCK_HORIZONTAL";
     private static final Rect M_DUMMY_DIRTY_RECT = new Rect(0, 0, 1, 1);
     private static final Rect EMPTY_RECT = new Rect();
     //TODO(b/394977231) delete this temporary workaround used only by tests
@@ -1221,10 +1222,14 @@ public final class NotificationPanelViewController implements
     }
 
     private ClockSize computeDesiredClockSizeForSingleShade() {
-        if (hasVisibleNotifications()) {
+        if (hasVisibleNotifications() && !isUwuHorizontalClock()) {
             return ClockSize.SMALL;
         }
         return ClockSize.LARGE;
+    }
+
+    private boolean isUwuHorizontalClock() {
+        return UWU_CLOCK_HORIZONTAL_ID.equals(mKeyguardClockInteractor.getRenderedClockId());
     }
 
     private ClockSize computeDesiredClockSizeForSplitShade() {
