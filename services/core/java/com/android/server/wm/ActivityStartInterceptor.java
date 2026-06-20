@@ -109,6 +109,7 @@ class ActivityStartInterceptor {
     private static final String PERMISSION_CONTROLLER_PACKAGE_NAME =
             "com.android.permissioncontroller";
     private static final String VPN_DIALOGS_PACKAGE_NAME = "com.android.vpndialogs";
+    private static final String LAUNCHER3_PACKAGE_NAME = "com.android.launcher3";
 
     private final ActivityTaskManagerService mService;
     private final ActivityTaskSupervisor mSupervisor;
@@ -446,6 +447,9 @@ class ActivityStartInterceptor {
             return false;
         }
         if (isAllowedSystemMediatorTarget(mAInfo)) {
+            return false;
+        }
+        if (LAUNCHER3_PACKAGE_NAME.equals(mCallingPackage)) {
             return false;
         }
 
