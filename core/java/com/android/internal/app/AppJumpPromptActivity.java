@@ -21,6 +21,7 @@ import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTE
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.ActivityTaskManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
@@ -224,13 +225,18 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
     }
 
     private void launchOriginalIntent() {
+        if (mTarget == null) {
+            Log.w(TAG, "No target intent sender, finishing");
+            finish();
+            return;
+        }
         final Bundle activityOptions = ActivityOptions.makeBasic()
                 .setPendingIntentBackgroundActivityStartMode(
                         ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                 .toBundle();
         try {
             startIntentSenderForResult(mTarget, -1, null, 0, 0, 0, activityOptions);
-        } catch (IntentSender.SendIntentException e) {
+        } catch (IntentSender.SendIntentException | ActivityNotFoundException e) {
             Log.e(TAG, "Unable to continue app jump", e);
         }
         finish();
