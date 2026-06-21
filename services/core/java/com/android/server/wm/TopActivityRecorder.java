@@ -154,14 +154,6 @@ public class TopActivityRecorder {
         }
     }
 
-    private Task getTopMiniWindowTaskLocked() {
-        final int n = mTopMiniWindowActivity.size();
-        if (n == 0) {
-            return null;
-        }
-        return mTopMiniWindowActivity.get(n - 1).task;
-    }
-
     boolean isTopFullscreenActivityHome() {
         synchronized (mFocusLock) {
             if (mTopFullscreenActivity == null) {
@@ -172,8 +164,10 @@ public class TopActivityRecorder {
     }
 
     boolean isPackageAtTop(String packageName) {
-        return getTopFullscreenPackage().equals(packageName) ||
-                getTopMiniWindowPackage().equals(packageName);
+        synchronized (mFocusLock) {
+            return getTopFullscreenPackage().equals(packageName) ||
+                    getTopMiniWindowPackage().equals(packageName);
+        }
     }
 
     public boolean hasMiniWindow() {
@@ -182,26 +176,13 @@ public class TopActivityRecorder {
         }
     }
 
-    private String getPackageNameFromTask(Task task) {
-        final ActivityRecord taskActivity = task.getActivity((r) -> true);
-        if (taskActivity != null) {
-            return taskActivity.packageName;
-        }
-        return "";
-    }
-
     void removeMiniWindowTask(Task task) {
         synchronized (mFocusLock) {
-            final int n = mTopMiniWindowActivity.size();
-            for (int i = n - 1; i >= 0; --i) {
+            for (int i = mTopMiniWindowActivity.size() - 1; i >= 0; --i) {
                 if (mTopMiniWindowActivity.get(i).task == task) {
                     final ActivityInfo ai = mTopMiniWindowActivity.remove(i);
                     logD("removeMiniWindowTask: " + ai);
-                    if (n == 1) {
-                        DimmerWindowManager.getInstance().detachTask(task);
-                    } else {
-                        DimmerWindowManager.getInstance().detachTask(task);
-                    }
+                    DimmerWindowManager.getInstance().detachTask(task);
                     return;
                 }
             }
@@ -214,7 +195,6 @@ public class TopActivityRecorder {
             logD("moveTopMiniToFull");
             final int n = mTopMiniWindowActivity.size();
             if (n > 0) {
-                final ComponentName oldComponent = getTopFullscreenComponentLocked();
                 mTopFullscreenActivity = new ActivityInfo(mTopMiniWindowActivity.get(n - 1));
                 logD("Top fullscreen window activity changed to " + mTopFullscreenActivity);
             }
@@ -249,6 +229,10 @@ public class TopActivityRecorder {
 
     void onForceStopPackage(String packageName) {
         synchronized (mFocusLock) {
+            if (mTopFullscreenActivity != null
+                    && packageName.equals(mTopFullscreenActivity.packageName)) {
+                mTopFullscreenActivity = null;
+            }
             for (int i = mTopMiniWindowActivity.size() - 1; i >= 0; --i) {
                 if (packageName.equals(mTopMiniWindowActivity.get(i).packageName)) {
                     Task task = mTopMiniWindowActivity.get(i).task;
