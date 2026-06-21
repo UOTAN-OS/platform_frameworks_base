@@ -6,6 +6,7 @@
 package com.android.wm.shell.popupview;
 
 import static android.view.WindowManager.TRANSIT_CHANGE;
+import static android.view.WindowManager.TRANSIT_TO_FRONT;
 import static android.window.TransitionInfo.FLAG_POP_UP_VIEW;
 
 import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
@@ -47,10 +48,15 @@ public class PopUpViewTransitionHandler implements Transitions.TransitionHandler
     @Override
     public boolean startAnimation(IBinder binder, TransitionInfo info, SurfaceControl.Transaction startT,
             SurfaceControl.Transaction endT, Transitions.TransitionFinishCallback callback) {
-        if (info.getType() == TRANSIT_CHANGE) {
+        final int type = info.getType();
+        if (type == TRANSIT_CHANGE || type == TRANSIT_TO_FRONT) {
             boolean hasPopUpView = false;
             for (TransitionInfo.Change change : info.getChanges()) {
-                if ((change.getFlags() & FLAG_POP_UP_VIEW) != 0) {
+                if ((change.getFlags() & FLAG_POP_UP_VIEW) != 0
+                        || (type == TRANSIT_TO_FRONT
+                            && change.getTaskInfo() != null
+                            && WindowConfiguration.isPopUpWindowMode(
+                                    change.getTaskInfo().getWindowingMode()))) {
                     hasPopUpView = true;
                 }
             }

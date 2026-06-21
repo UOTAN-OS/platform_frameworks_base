@@ -265,7 +265,9 @@ public class PopUpWindowController {
     }
 
     int getChangeFlags(ChangeInfo info, int flags) {
-        if (shouldStartChangeTransition(info.mWindowingMode, info.mContainer.getWindowingMode())) {
+        final int curMode = info.mContainer.getWindowingMode();
+        if (shouldStartChangeTransition(info.mWindowingMode, curMode)
+                || WindowConfiguration.isPopUpWindowMode(curMode)) {
             flags |= FLAG_SCHEDULE_POP_UP_VIEW;
             if (mLaunchPopUpViewFromGesture) {
                 flags |= FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE;
@@ -534,6 +536,23 @@ public class PopUpWindowController {
                         rootTask.setWindowingMode(WINDOWING_MODE_UNDEFINED);
                         rootTask.setBounds(null);
                         rootTask.mWindowContainerExt.setFreezerSkipAnim(false);
+                        // Update recents ordering so the expanded task appears at the top.
+                        // Without this, the task stays at its old position in the recents list,
+                        // causing gesture bar quick switch to go to the wrong app.
+                        // Note: 'task' may be the root task, not the actual app task.
+                        // Find the real task from the root task's top activity.
+                        final Task recentsTask;
+                        final ActivityRecord topActivity = rootTask.getTopNonFinishingActivity();
+                        if (topActivity != null && topActivity.getTask() != null) {
+                            recentsTask = topActivity.getTask();
+                        } else {
+                            recentsTask = task;
+                        }
+                        // Clear the recents freeze first — it may have been set by a prior
+                        // Recents operation and never cleared, preventing the task from moving
+                        // to the top of the recents list.
+                        mAtmService.getRecentTasks().resetFreezeTaskListReordering(task);
+                        mAtmService.getRecentTasks().add(recentsTask);
                         if (skipAnim) {
                             rootTask.mTaskSupervisor.mNoAnimActivities.clear();
                             rootTask.resetSurfaceControlTransforms();
@@ -874,8 +893,12 @@ public class PopUpWindowController {
 
             if (currentTopFullscreenPackage.equals(targetPackage)) {
                 // Target package is in top fullscreen.
-                // Reset to undefined windowing mode so that app can run in previous windowing mode.
-                request.activityOptions.setLaunchWindowingMode(WINDOWING_MODE_UNDEFINED);
+                // Don't reset windowing mode — the caller explicitly requested PopUp mode.
+                // Resetting to UNDEFINED would prevent the activity from opening in mini window.
+                if (DEBUG_POP_UP) {
+                    Slog.d(TAG, "computeBeforeExecuteRequest: target is fullscreen, "
+                            + "keeping PopUp mode for notification launch");
+                }
                 return;
             }
 
