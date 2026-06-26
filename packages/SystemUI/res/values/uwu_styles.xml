@@ -23,6 +23,6 @@
     </style>
 
     <style name="TextApperance.StatusBar.Lyric.Translation" parent="@style/TextApperance.StatusBar.Lyric">
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">10sp</item>
     </style>
 </resources>
