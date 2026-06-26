@@ -242,7 +242,9 @@ constructor(
                 )
             }
             val largeClockTopMargin =
-                if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
+                if (clock.config.id == UWU_CLOCK_HORIZONTAL_ID) {
+                    keyguardClockViewModel.getLargeClockTopMargin()
+                } else if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
                     keyguardClockViewModel.getLargeClockTopMargin() +
                         context.resources.getDimensionPixelSize(
                             clocksR.dimen.enhanced_smartspace_height

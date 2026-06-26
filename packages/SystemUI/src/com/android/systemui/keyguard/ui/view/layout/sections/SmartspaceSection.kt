@@ -45,6 +45,8 @@ import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.DisposableHandle
 
+private const val UWU_CLOCK_HORIZONTAL_ID = "UWU_CLOCK_HORIZONTAL"
+
 @SysUISingleton
 open class SmartspaceSection
 @Inject
@@ -384,6 +386,9 @@ constructor(
 
         // This may update the visibility of the smartspace views
         smartspaceController.requestSmartspaceUpdate()
+        val hideSmartspaceForUwuHorizontalClock =
+            isLargeClockVisible &&
+                keyguardClockViewModel.currentClock.value?.config?.id == UWU_CLOCK_HORIZONTAL_ID
         val weatherId: Int
         val dateId: Int
         if (
@@ -399,6 +404,12 @@ constructor(
         }
 
         constraintSet.apply {
+            setVisibility(
+                sharedR.id.bc_smartspace_view,
+                if (hideSmartspaceForUwuHorizontalClock) GONE else VISIBLE,
+            )
+            setAlpha(sharedR.id.bc_smartspace_view, if (hideSmartspaceForUwuHorizontalClock) 0f else 1f)
+
             val showWeather = keyguardSmartspaceViewModel.isWeatherVisible.value
             setVisibility(weatherId, if (showWeather) VISIBLE else GONE)
             setAlpha(weatherId, if (showWeather) 1f else 0f)
