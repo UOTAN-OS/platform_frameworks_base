@@ -57,6 +57,7 @@ final class AppJumpBlockPolicy {
     private static final String ATTR_SOURCE_PACKAGE = "source-package";
     private static final String ATTR_TARGET_PACKAGE = "target-package";
     private static final String ATTR_MODE = "mode";
+    private static final String ATTR_ENABLED = "enabled";
 
     private final Object mLock = new Object();
 
@@ -70,6 +71,20 @@ final class AppJumpBlockPolicy {
     private final ArraySet<String> mBypassTokens = new ArraySet<>();
 
     AppJumpBlockPolicy() {
+    }
+
+    void setEnabled(int userId, boolean enabled) {
+        synchronized (mLock) {
+            final UserPolicyState policy = getPolicyLocked(userId);
+            policy.enabled = enabled;
+            writeToFileLocked(userId, policy);
+        }
+    }
+
+    boolean isEnabled(int userId) {
+        synchronized (mLock) {
+            return getPolicyLocked(userId).enabled;
+        }
     }
 
     String createBypassToken() {
@@ -204,6 +219,7 @@ final class AppJumpBlockPolicy {
             if (type != XmlPullParser.START_TAG || !TAG_ROOT.equals(parser.getName())) {
                 return policy;
             }
+            policy.enabled = parser.getAttributeBoolean(null, ATTR_ENABLED, true);
             final int outerDepth = parser.getDepth();
             while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
                     && (type != XmlPullParser.END_TAG || parser.getDepth() > outerDepth)) {
@@ -270,6 +286,7 @@ final class AppJumpBlockPolicy {
             final TypedXmlSerializer serializer = Xml.resolveSerializer(fos);
             serializer.startDocument(null, true);
             serializer.startTag(null, TAG_ROOT);
+            serializer.attributeBoolean(null, ATTR_ENABLED, policy.enabled);
             writePackageSet(serializer, TAG_ALLOWED_SOURCE_PACKAGE, policy.allowedSourcePackages);
             writePackageSet(serializer, TAG_BLOCKED_SOURCE_PACKAGE, policy.blockedSourcePackages);
             writePackageSet(serializer, TAG_ALLOWED_TARGET_PACKAGE, policy.allowedTargetPackages);
@@ -347,6 +364,7 @@ final class AppJumpBlockPolicy {
     }
 
     private static final class UserPolicyState {
+        boolean enabled = true;
         final ArraySet<String> allowedSourcePackages = new ArraySet<>();
         final ArraySet<String> blockedSourcePackages = new ArraySet<>();
         final ArraySet<String> allowedTargetPackages = new ArraySet<>();

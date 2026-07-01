@@ -344,9 +344,12 @@ class ActivityStartInterceptor {
         if (bypassToken == null) {
             return false;
         }
-        mIntent.removeExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
         final AppJumpBlockPolicy policy = mService.getAppJumpBlockPolicyLocked();
-        return policy != null && policy.consumeBypassToken(bypassToken);
+        if (policy == null || !policy.isEnabled(mUserId)) {
+            return false;
+        }
+        mIntent.removeExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
+        return policy.consumeBypassToken(bypassToken);
     }
 
     private boolean interceptUserAppJumpIfNeeded() {
@@ -354,7 +357,7 @@ class ActivityStartInterceptor {
             return false;
         }
         final AppJumpBlockPolicy policy = mService.getAppJumpBlockPolicyLocked();
-        if (policy == null) {
+        if (policy == null || !policy.isEnabled(mUserId)) {
             return false;
         }
 

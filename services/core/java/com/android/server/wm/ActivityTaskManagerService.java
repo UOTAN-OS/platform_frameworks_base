@@ -2519,6 +2519,31 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
     }
 
     @Override
+    public void setAppJumpEnabled(int userId, boolean enabled) {
+        enforceManageAppJumpCaller("setAppJumpEnabled()");
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpEnabled()");
+        synchronized (mGlobalLock) {
+            if (mAppJumpBlockPolicy == null) {
+                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
+            }
+            mAppJumpBlockPolicy.setEnabled(userId, enabled);
+        }
+    }
+
+    @Override
+    public boolean isAppJumpEnabled(int userId) {
+        enforceManageAppJumpCaller("isAppJumpEnabled()");
+        final int callingPid = Binder.getCallingPid();
+        final int callingUid = Binder.getCallingUid();
+        userId = handleIncomingUser(callingPid, callingUid, userId, "isAppJumpEnabled()");
+        synchronized (mGlobalLock) {
+            return mAppJumpBlockPolicy == null || mAppJumpBlockPolicy.isEnabled(userId);
+        }
+    }
+
+    @Override
     public void setAppJumpSourceMode(String sourcePackage, int userId, int mode) {
         enforceManageAppJumpCaller("setAppJumpSourceMode()");
         if (sourcePackage == null || sourcePackage.isEmpty()) {
