@@ -29,4 +29,8 @@
         <xliff:g id="source_app" example="Browser">%1$s</xliff:g> is blocked from opening
         <xliff:g id="target_app" example="Maps">%2$s</xliff:g>. You can still allow this once.
     </string>
+    <string name="app_jump_blocked_toast">
+        <xliff:g id="source_app" example="Browser">%1$s</xliff:g> was blocked from opening
+        <xliff:g id="target_app" example="Maps">%2$s</xliff:g>
+    </string>
 </resources>

@@ -1413,8 +1413,6 @@ class ActivityStarter {
 
         final int sourceDisplayId =
                 sourceRecord != null ? sourceRecord.getDisplayId() : INVALID_DISPLAY;
-        final TaskDisplayArea suggestedLaunchDisplayArea =
-                computeSuggestedLaunchDisplayArea(inTask, sourceRecord, checkedOptions);
         final boolean isResultExpected = resultRecord != null;
         mInterceptor.setStates(userId, realCallingPid, realCallingUid, startFlags,
                 callingPackage,
@@ -1438,6 +1436,14 @@ class ActivityStarter {
             // The interception target shouldn't get any permission grants
             // intended for the original destination
             intentGrants = null;
+        }
+        if (mInterceptor.mAppJumpLaunchBlocked) {
+            abort = true;
+            final String toastText = mInterceptor.mAppJumpBlockedMessage;
+            if (toastText != null) {
+                UiThread.getHandler().post(() ->
+                        Toast.makeText(mService.mContext, toastText, Toast.LENGTH_SHORT).show());
+            }
         }
 
         if (checkedOptions != null
