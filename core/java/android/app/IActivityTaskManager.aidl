@@ -295,6 +295,8 @@ interface IActivityTaskManager {
     void stopAppSwitches();
     void resumeAppSwitches();
     void setActivityController(in IActivityController watcher, boolean imAMonkey);
+    void setAppJumpEnabled(int userId, boolean enabled);
+    boolean isAppJumpEnabled(int userId);
     void setAppJumpSourceMode(in String sourcePackage, int userId, int mode);
     int getAppJumpSourceMode(in String sourcePackage, int userId);
     void setAppJumpPairMode(in String sourcePackage, in String targetPackage, int userId, int mode);
