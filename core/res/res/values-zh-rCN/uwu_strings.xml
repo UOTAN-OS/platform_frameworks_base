@@ -23,4 +23,5 @@
     <string name="app_jump_footer_message">您可以随时在设置中更改跳转权限。</string>
     <string name="app_jump_blocked_title">已阻止打开其他应用</string>
     <string name="app_jump_blocked_message">“<xliff:g id="source_app" example="浏览器">%1$s</xliff:g>”已被禁止打开“<xliff:g id="target_app" example="地图">%2$s</xliff:g>”。你仍可仅允许这一次。</string>
+    <string name="app_jump_blocked_toast">“<xliff:g id="source_app" example="浏览器">%1$s</xliff:g>”已被阻止跳转“<xliff:g id="target_app" example="地图">%2$s</xliff:g>”</string>
 </resources>

@@ -1379,6 +1379,14 @@ class ActivityStarter {
             // intended for the original destination
             intentGrants = null;
         }
+        if (mInterceptor.mAppJumpLaunchBlocked) {
+            abort = true;
+            final String toastText = mInterceptor.mAppJumpBlockedMessage;
+            if (toastText != null) {
+                UiThread.getHandler().post(() ->
+                        Toast.makeText(mService.mContext, toastText, Toast.LENGTH_SHORT).show());
+            }
+        }
 
         if (abort) {
             if (resultRecord != null) {

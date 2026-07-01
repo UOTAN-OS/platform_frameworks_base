@@ -53,6 +53,8 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageItemInfo;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.content.pm.SuspendDialogInfo;
@@ -135,6 +137,8 @@ class ActivityStartInterceptor {
     Task mInTask;
     TaskFragment mInTaskFragment;
     ActivityOptions mActivityOptions;
+    boolean mAppJumpLaunchBlocked;
+    String mAppJumpBlockedMessage;
 
     /*
      * Note that this is just a hint of what the launch display area will be as it is
@@ -178,6 +182,8 @@ class ActivityStartInterceptor {
         mStartFlags = startFlags;
         mCallingPackage = callingPackage;
         mCallingFeatureId = callingFeatureId;
+        mAppJumpLaunchBlocked = false;
+        mAppJumpBlockedMessage = null;
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
@@ -374,15 +380,17 @@ class ActivityStartInterceptor {
         if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW) {
             return false;
         }
-        final IntentSender target = createAppJumpTargetIntentSender(policy);
         if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK) {
-            mIntent = AppJumpPromptActivity.createBlockedIntent(mServiceContext, mUserId,
-                    mCallingPackage, targetPackage, target);
-        } else {
-            mIntent = AppJumpPromptActivity.createConfirmIntent(mServiceContext, mUserId,
-                    mCallingPackage, targetPackage, target);
+            mAppJumpLaunchBlocked = true;
+            mAppJumpBlockedMessage = mServiceContext.getString(
+                    com.android.internal.R.string.app_jump_blocked_toast,
+                    loadAppLabel(mCallingPackage), loadAppLabel(targetPackage));
+            return true;
         }
 
+        final IntentSender target = createAppJumpTargetIntentSender(policy);
+        mIntent = AppJumpPromptActivity.createConfirmIntent(mServiceContext, mUserId,
+                mCallingPackage, targetPackage, target);
         mCallingPid = mRealCallingPid;
         mCallingUid = mRealCallingUid;
         mResolvedType = null;
@@ -390,6 +398,20 @@ class ActivityStartInterceptor {
                 mRealCallingUid, mRealCallingPid);
         mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /* profilerInfo*/);
         return true;
+    }
+
+    private CharSequence loadAppLabel(String packageName) {
+        final PackageManager packageManager = mServiceContext.getPackageManager();
+        try {
+            final ApplicationInfo appInfo = packageManager.getApplicationInfoAsUser(
+                    packageName, 0, mUserId);
+            return appInfo.loadSafeLabel(packageManager,
+                    PackageItemInfo.DEFAULT_MAX_LABEL_SIZE_PX,
+                    PackageItemInfo.SAFE_LABEL_FLAG_FIRST_LINE
+                            | PackageItemInfo.SAFE_LABEL_FLAG_TRIM);
+        } catch (PackageManager.NameNotFoundException e) {
+            return packageName;
+        }
     }
 
     private IntentSender createAppJumpTargetIntentSender(AppJumpBlockPolicy policy) {

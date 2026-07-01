@@ -34,6 +34,7 @@
     <java-symbol type="string" name="app_jump_allow_once" />
     <java-symbol type="string" name="app_jump_blocked_title" />
     <java-symbol type="string" name="app_jump_blocked_message" />
+    <java-symbol type="string" name="app_jump_blocked_toast" />
     <java-symbol type="string" name="app_jump_remember_choice" />
     <java-symbol type="string" name="app_jump_footer_message" />
     <java-symbol type="layout" name="app_jump_prompt_dialog" />
