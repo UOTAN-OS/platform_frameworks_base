@@ -228,6 +228,9 @@ public class TopActivityRecorder {
     }
 
     void onForceStopPackage(String packageName) {
+        if (packageName == null) {
+            return;
+        }
         synchronized (mFocusLock) {
             if (mTopFullscreenActivity != null
                     && packageName.equals(mTopFullscreenActivity.packageName)) {
