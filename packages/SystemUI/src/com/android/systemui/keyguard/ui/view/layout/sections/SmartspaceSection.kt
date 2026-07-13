@@ -410,14 +410,25 @@ constructor(
             )
             setAlpha(sharedR.id.bc_smartspace_view, if (hideSmartspaceForUwuHorizontalClock) 0f else 1f)
 
-            val showWeather = keyguardSmartspaceViewModel.isWeatherVisible.value
-            setVisibility(weatherId, if (showWeather) VISIBLE else GONE)
-            setAlpha(weatherId, if (showWeather) 1f else 0f)
+            if (hideSmartspaceForUwuHorizontalClock) {
+                setVisibility(sharedR.id.weather_smartspace_view, GONE)
+                setAlpha(sharedR.id.weather_smartspace_view, 0f)
+                setVisibility(sharedR.id.weather_smartspace_view_large, GONE)
+                setAlpha(sharedR.id.weather_smartspace_view_large, 0f)
+                setVisibility(sharedR.id.date_smartspace_view, GONE)
+                setAlpha(sharedR.id.date_smartspace_view, 0f)
+                setVisibility(sharedR.id.date_smartspace_view_large, GONE)
+                setAlpha(sharedR.id.date_smartspace_view_large, 0f)
+            } else {
+                val showWeather = keyguardSmartspaceViewModel.isWeatherVisible.value
+                setVisibility(weatherId, if (showWeather) VISIBLE else GONE)
+                setAlpha(weatherId, if (showWeather) 1f else 0f)
 
-            val showDateView =
-                !keyguardClockViewModel.hasCustomWeatherDataDisplay.value || !isLargeClockVisible
-            setVisibility(dateId, if (showDateView) VISIBLE else GONE)
-            setAlpha(dateId, if (showDateView) 1f else 0f)
+                val showDateView =
+                    !keyguardClockViewModel.hasCustomWeatherDataDisplay.value || !isLargeClockVisible
+                setVisibility(dateId, if (showDateView) VISIBLE else GONE)
+                setAlpha(dateId, if (showDateView) 1f else 0f)
+            }
 
             if (clockReactiveSmartspaceLayout()) {
                 if (
