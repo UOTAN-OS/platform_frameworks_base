@@ -107,6 +107,14 @@ constructor(
         keyguardUnlockAnimationController.lockscreenSmartspace = smartspaceView
         smartspaceVisibilityListener = OnGlobalLayoutListener {
             smartspaceView?.let {
+                if (shouldHideSmartspaceForUwuHorizontalClock()) {
+                    if (it.visibility != View.GONE) {
+                        it.visibility = View.GONE
+                    }
+                    it.alpha = 0f
+                    pastVisibility = View.GONE
+                    return@OnGlobalLayoutListener
+                }
                 val newVisibility = it.visibility
                 if (pastVisibility != newVisibility) {
                     keyguardSmartspaceInteractor.setBcSmartspaceVisibility(newVisibility)
@@ -387,8 +395,7 @@ constructor(
         // This may update the visibility of the smartspace views
         smartspaceController.requestSmartspaceUpdate()
         val hideSmartspaceForUwuHorizontalClock =
-            isLargeClockVisible &&
-                keyguardClockViewModel.currentClock.value?.config?.id == UWU_CLOCK_HORIZONTAL_ID
+            shouldHideSmartspaceForUwuHorizontalClock(isLargeClockVisible)
         val weatherId: Int
         val dateId: Int
         if (
@@ -409,6 +416,10 @@ constructor(
                 if (hideSmartspaceForUwuHorizontalClock) GONE else VISIBLE,
             )
             setAlpha(sharedR.id.bc_smartspace_view, if (hideSmartspaceForUwuHorizontalClock) 0f else 1f)
+            if (hideSmartspaceForUwuHorizontalClock) {
+                smartspaceView?.visibility = GONE
+                smartspaceView?.alpha = 0f
+            }
 
             if (hideSmartspaceForUwuHorizontalClock) {
                 setVisibility(sharedR.id.weather_smartspace_view, GONE)
@@ -441,5 +452,12 @@ constructor(
                 }
             }
         }
+    }
+
+    private fun shouldHideSmartspaceForUwuHorizontalClock(
+        isLargeClockVisible: Boolean = keyguardClockViewModel.isLargeClockVisible.value,
+    ): Boolean {
+        return isLargeClockVisible &&
+            keyguardClockViewModel.currentClock.value?.config?.id == UWU_CLOCK_HORIZONTAL_ID
     }
 }

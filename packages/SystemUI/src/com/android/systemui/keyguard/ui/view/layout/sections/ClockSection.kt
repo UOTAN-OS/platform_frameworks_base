@@ -161,12 +161,7 @@ constructor(
                         R.id.smart_space_barrier_bottom,
                         Barrier.BOTTOM,
                         0,
-                        *intArrayOf(
-                            ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
-                            sharedR.id.bc_smartspace_view,
-                            sharedR.id.date_smartspace_view,
-                            sharedR.id.date_smartspace_view_large,
-                        ),
+                        ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
                     )
                 }
             }
