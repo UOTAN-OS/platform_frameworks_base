@@ -88,12 +88,25 @@
                     android:orientation="horizontal">
                         <!-- volume rows added and removed here! :-) -->
                 </LinearLayout>
-                <FrameLayout
+                <LinearLayout
                     android:id="@+id/settings_container"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/volume_background_bottom"
+                    android:orientation="vertical"
                     android:paddingBottom="@dimen/volume_dialog_ringer_rows_padding">
+                    <com.android.keyguard.AlphaOptimizedImageButton
+                        android:id="@+id/volume_dialog_app_volume"
+                        android:layout_width="@dimen/volume_dialog_tap_target_size"
+                        android:layout_height="@dimen/volume_dialog_tap_target_size"
+                        android:layout_gravity="center"
+                        android:background="@drawable/ripple_drawable_20dp"
+                        android:contentDescription="@string/accessibility_app_volume"
+                        android:scaleType="centerInside"
+                        android:soundEffectsEnabled="false"
+                        android:src="@drawable/ic_app_volume"
+                        android:tint="?androidprv:attr/colorAccent"
+                        android:visibility="gone" />
                     <com.android.keyguard.AlphaOptimizedImageButton
                         android:id="@+id/settings"
                         android:src="@drawable/horizontal_ellipsis"
@@ -104,7 +117,7 @@
                         android:background="@drawable/ripple_drawable_20dp"
                         android:tint="?androidprv:attr/colorAccent"
                         android:soundEffectsEnabled="false" />
-                </FrameLayout>
+                </LinearLayout>
             </LinearLayout>
 
         </LinearLayout>

@@ -39,13 +39,23 @@ constructor(
 
     override fun CoroutineScope.bind(view: View) {
         val button = view.requireViewById<ImageButton>(R.id.volume_dialog_settings)
+        val appVolumeButton = view.requireViewById<ImageButton>(R.id.volume_dialog_app_volume)
         launchTraced("VDSBVB#addTouchableBounds") { dialogViewModel.addTouchableBounds(button) }
+        launchTraced("VDSBVB#addAppVolumeTouchableBounds") {
+            dialogViewModel.addTouchableBounds(appVolumeButton)
+        }
         viewModel.isVisible
             .onEach { isVisible -> button.visibility = if (isVisible) View.VISIBLE else View.GONE }
             .launchInTraced("VDSBVB#isVisible", this)
+        viewModel.isAppVolumeVisible
+            .onEach { isVisible ->
+                appVolumeButton.visibility = if (isVisible) View.VISIBLE else View.GONE
+            }
+            .launchInTraced("VDSBVB#isAppVolumeVisible", this)
 
         viewModel.icon.onEach { button.setImageDrawable(it) }.launchInTraced("VDSBVB#icon", this)
 
         button.setOnClickListener { viewModel.onButtonClicked() }
+        appVolumeButton.setOnClickListener { viewModel.onAppVolumeButtonClicked() }
     }
 }

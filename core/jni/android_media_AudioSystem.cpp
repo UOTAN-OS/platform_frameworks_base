@@ -34,6 +34,7 @@
 #include <binder/IBinder.h>
 #include <jni.h>
 #include <media/AidlConversion.h>
+#include <media/AppVolume.h>
 #include <media/AudioContainers.h>
 #include <media/AudioPolicy.h>
 #include <media/AudioSystem.h>
@@ -80,6 +81,9 @@ static struct {
     jmethodID add;
     jmethodID toArray;
 } gArrayListMethods;
+
+static jclass gAppVolumeClass;
+static jmethodID gAppVolumeCstor;
 
 static jclass gIntArrayClass;
 static struct {
@@ -926,6 +930,69 @@ android_media_AudioSystem_getMasterMute(JNIEnv *env, jobject thiz)
         mute = false;
     }
     return mute;
+}
+
+static jint android_media_AudioSystem_setAppVolume(JNIEnv* env, jobject thiz, jstring packageName,
+                                                   jfloat value) {
+    if (packageName == nullptr) {
+        return AUDIO_JAVA_BAD_VALUE;
+    }
+    ScopedUtfChars packageNameChars(env, packageName);
+    if (packageNameChars.c_str() == nullptr) {
+        return AUDIO_JAVA_ERROR;
+    }
+    return check_AudioSystem_Command(
+            AudioSystem::setAppVolume(String8(packageNameChars.c_str()), value));
+}
+
+static jint android_media_AudioSystem_setAppMute(JNIEnv* env, jobject thiz, jstring packageName,
+                                                 jboolean mute) {
+    if (packageName == nullptr) {
+        return AUDIO_JAVA_BAD_VALUE;
+    }
+    ScopedUtfChars packageNameChars(env, packageName);
+    if (packageNameChars.c_str() == nullptr) {
+        return AUDIO_JAVA_ERROR;
+    }
+    return check_AudioSystem_Command(
+            AudioSystem::setAppMute(String8(packageNameChars.c_str()), mute));
+}
+
+static jint convertAppVolumeFromNative(JNIEnv* env, jobject* outAppVolume,
+                                       const media::AppVolume* appVolume) {
+    if (appVolume == nullptr || outAppVolume == nullptr) {
+        return AUDIO_JAVA_ERROR;
+    }
+
+    jstring packageName = env->NewStringUTF(appVolume->packageName.c_str());
+    *outAppVolume = env->NewObject(gAppVolumeClass, gAppVolumeCstor, packageName,
+                                   appVolume->muted, appVolume->volume, appVolume->active);
+    env->DeleteLocalRef(packageName);
+    return AUDIO_JAVA_SUCCESS;
+}
+
+static jint android_media_AudioSystem_listAppVolumes(JNIEnv* env, jobject clazz,
+                                                     jobject volumesList) {
+    if (volumesList == nullptr || !env->IsInstanceOf(volumesList, gArrayListClass)) {
+        return AUDIO_JAVA_BAD_VALUE;
+    }
+
+    std::vector<media::AppVolume> volumes;
+    status_t status = AudioSystem::listAppVolumes(&volumes);
+    if (status != NO_ERROR) {
+        return nativeToJavaStatus(status);
+    }
+
+    for (const auto& volume : volumes) {
+        jobject appVolume;
+        jint status = convertAppVolumeFromNative(env, &appVolume, &volume);
+        if (status != AUDIO_JAVA_SUCCESS) {
+            return status;
+        }
+        env->CallBooleanMethod(volumesList, gArrayListMethods.add, appVolume);
+        env->DeleteLocalRef(appVolume);
+    }
+    return AUDIO_JAVA_SUCCESS;
 }
 
 static jint
@@ -3555,6 +3622,12 @@ static const JNINativeMethod gMethods[] = {
         MAKE_AUDIO_SYSTEM_METHOD(getMasterVolume),
         MAKE_AUDIO_SYSTEM_METHOD(setMasterMute),
         MAKE_AUDIO_SYSTEM_METHOD(getMasterMute),
+        MAKE_JNI_NATIVE_METHOD("setAppVolume", "(Ljava/lang/String;F)I",
+                               android_media_AudioSystem_setAppVolume),
+        MAKE_JNI_NATIVE_METHOD("setAppMute", "(Ljava/lang/String;Z)I",
+                               android_media_AudioSystem_setAppMute),
+        MAKE_JNI_NATIVE_METHOD("listAppVolumes", "(Ljava/util/ArrayList;)I",
+                               android_media_AudioSystem_listAppVolumes),
         MAKE_AUDIO_SYSTEM_METHOD(setMasterMono),
         MAKE_AUDIO_SYSTEM_METHOD(getMasterMono),
         MAKE_AUDIO_SYSTEM_METHOD(setMasterBalance),
@@ -3725,6 +3798,11 @@ int register_android_media_AudioSystem(JNIEnv *env)
     gArrayListMethods.cstor = GetMethodIDOrDie(env, arrayListClass, "<init>", "()V");
     gArrayListMethods.add = GetMethodIDOrDie(env, arrayListClass, "add", "(Ljava/lang/Object;)Z");
     gArrayListMethods.toArray = GetMethodIDOrDie(env, arrayListClass, "toArray", "()[Ljava/lang/Object;");
+
+    jclass appVolumeClass = FindClassOrDie(env, "android/media/AppVolume");
+    gAppVolumeClass = MakeGlobalRefOrDie(env, appVolumeClass);
+    gAppVolumeCstor = GetMethodIDOrDie(env, appVolumeClass, "<init>",
+                                      "(Ljava/lang/String;ZFZ)V");
 
     jclass intArrayClass = FindClassOrDie(env, "android/util/IntArray");
     gIntArrayClass = MakeGlobalRefOrDie(env, intArrayClass);

@@ -28,6 +28,19 @@
         android:visibility="gone"/>
 
     <ImageButton
+        android:id="@+id/volume_dialog_app_volume"
+        android:layout_width="@dimen/volume_dialog_button_size"
+        android:layout_height="@dimen/volume_dialog_button_size"
+        android:layout_gravity="center"
+        android:background="@drawable/ripple_drawable_20dp"
+        android:contentDescription="@string/accessibility_app_volume"
+        android:scaleType="centerInside"
+        android:soundEffectsEnabled="false"
+        android:src="@drawable/ic_app_volume"
+        android:tint="@androidprv:color/materialColorPrimary"
+        android:visibility="gone"/>
+
+    <ImageButton
         android:id="@+id/volume_dialog_settings"
         android:layout_width="@dimen/volume_dialog_button_size"
         android:layout_height="@dimen/volume_dialog_button_size"

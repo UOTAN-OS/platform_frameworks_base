@@ -1991,6 +1991,12 @@ public class AudioSystem
     /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static native boolean getMasterMute();
+    /** @hide */
+    public static native int setAppVolume(@NonNull String packageName, float volume);
+    /** @hide */
+    public static native int setAppMute(@NonNull String packageName, boolean mute);
+    /** @hide */
+    public static native int listAppVolumes(ArrayList<AppVolume> volumes);
     /** @hide
      * Only used (unsupported) for legacy apps.
      * @deprecated on {@link android.os.Build.VERSION_CODES#T} as new devices

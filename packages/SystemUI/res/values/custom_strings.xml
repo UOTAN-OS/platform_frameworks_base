@@ -117,6 +117,9 @@
     <!-- Button to restart SystemUI, within the Restart Options dialog -->
     <string name="global_action_restart_systemui">SystemUI</string>
 
+    <!-- Per-app volume -->
+    <string name="accessibility_app_volume">App volume controls</string>
+
     <!-- Flashlight Strength -->
     <string name="flashlight_strength_title">Flashlight Strength</string>
     <string name="flashlight_strength_turn_off">Turn off</string>

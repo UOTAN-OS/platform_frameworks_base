@@ -73,6 +73,7 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 import android.os.Trace;
+import android.os.UserHandle;
 import android.os.VibrationEffect;
 import android.provider.Settings;
 import android.provider.Settings.Global;
@@ -268,6 +269,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
     private CaptionsToggleImageButton mODICaptionsIcon;
     private View mSettingsView;
     private ImageButton mSettingsIcon;
+    private ImageButton mAppVolumeIcon;
     private final List<VolumeRow> mRows = new ArrayList<>();
     private ConfigurableTexts mConfigurableTexts;
     private final SparseBooleanArray mDynamic = new SparseBooleanArray();
@@ -698,6 +700,7 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
 
         mSettingsView = mDialog.findViewById(R.id.settings_container);
         mSettingsIcon = mDialog.findViewById(R.id.settings);
+        mAppVolumeIcon = mDialog.findViewById(R.id.volume_dialog_app_volume);
 
         if (mRows.isEmpty()) {
             if (!AudioSystem.isSingleVolume(mContext)) {
@@ -1247,6 +1250,17 @@ public class VolumeDialogImpl implements VolumeDialog, Dumpable,
                 mMediaOutputDialogManager.dismiss();
                 mVolumeNavigator.openVolumePanel(
                         mVolumePanelNavigationInteractor.getVolumePanelRoute());
+            });
+        }
+        if (mAppVolumeIcon != null) {
+            final boolean appVolumeEnabled = Settings.System.getIntForUser(
+                    mContext.getContentResolver(), Settings.System.SHOW_APP_VOLUME, 0,
+                    UserHandle.USER_CURRENT) != 0;
+            mAppVolumeIcon.setVisibility(appVolumeEnabled ? VISIBLE : GONE);
+            mAppVolumeIcon.setOnClickListener(v -> {
+                dismissH(DISMISS_REASON_SETTINGS_CLICKED);
+                mMediaOutputDialogManager.dismiss();
+                mVolumeNavigator.openAppVolumePanel();
             });
         }
     }

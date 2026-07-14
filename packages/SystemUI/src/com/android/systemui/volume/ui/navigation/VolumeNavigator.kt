@@ -97,6 +97,13 @@ constructor(
         }
     }
 
+    fun openAppVolumePanel() {
+        activityStarter.startActivity(
+            /* intent= */ Intent(ACTION_APP_VOLUME_PANEL),
+            /* dismissShade= */ true,
+        )
+    }
+
     private fun showNewVolumePanel() {
         activityStarter.dismissKeyguardThenExecute(
             /* action = */ {
@@ -128,5 +135,9 @@ constructor(
             // TODO(b/337205027) change maxWidth
             maxWidth = 800.dp,
         )
+    }
+
+    private companion object {
+        const val ACTION_APP_VOLUME_PANEL = "android.settings.panel.action.APP_VOLUME"
     }
 }

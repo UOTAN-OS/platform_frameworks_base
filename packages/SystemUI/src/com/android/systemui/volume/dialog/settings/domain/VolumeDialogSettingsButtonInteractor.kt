@@ -17,8 +17,10 @@
 package com.android.systemui.volume.dialog.settings.domain
 
 import android.app.ActivityManager
+import android.provider.Settings
 import com.android.app.tracing.coroutines.flow.flowName
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shared.settings.data.repository.SystemSettingsRepository
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import com.android.systemui.volume.Events
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
@@ -27,10 +29,12 @@ import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDeta
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogVisibilityInteractor
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogVisibilityModel
 import com.android.systemui.volume.panel.domain.interactor.VolumePanelGlobalStateInteractor
+import com.android.systemui.volume.ui.navigation.VolumeNavigator
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -45,6 +49,8 @@ constructor(
     private val visibilityInteractor: VolumeDialogVisibilityInteractor,
     private val shadeInteractor: ShadeInteractor,
     private val desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+    systemSettingsRepository: SystemSettingsRepository,
+    private val volumeNavigator: VolumeNavigator,
 ) {
 
     val isVisible: StateFlow<Boolean> =
@@ -57,6 +63,15 @@ constructor(
             .flowName("VDSBI#isVisible")
             .stateIn(coroutineScope, SharingStarted.Eagerly, false)
 
+    val isAppVolumeVisible: StateFlow<Boolean> =
+        combine(isVisible, systemSettingsRepository.boolSetting(Settings.System.SHOW_APP_VOLUME)) {
+                isVisible,
+                isEnabled ->
+                isVisible && isEnabled
+            }
+            .flowName("VDSBI#isAppVolumeVisible")
+            .stateIn(coroutineScope, SharingStarted.Eagerly, false)
+
     fun onButtonClicked() {
         if (desktopAudioTileDetailsFeatureInteractor.isEnabled()) {
             shadeInteractor.expandQuickSettingsShade(QS_SHADE_EXPAND_REASON)
@@ -64,6 +79,11 @@ constructor(
             volumePanelGlobalStateInteractor.setVisible(true)
         }
         visibilityInteractor.dismissDialog(Events.DISMISS_REASON_SETTINGS_CLICKED)
+    }
+
+    fun onAppVolumeButtonClicked() {
+        visibilityInteractor.dismissDialog(Events.DISMISS_REASON_SETTINGS_CLICKED)
+        volumeNavigator.openAppVolumePanel()
     }
 
     private companion object {

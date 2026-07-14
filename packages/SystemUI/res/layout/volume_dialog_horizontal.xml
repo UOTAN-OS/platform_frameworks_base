@@ -66,12 +66,14 @@
         app:layout_constraintWidth_max="@dimen/volume_dialog_slider_height"
         app:layout_constraintHorizontal_bias="1" />
 
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/volume_dialog_bottom_section_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginStart="@dimen/volume_dialog_components_spacing"
         android:clipChildren="false"
+        android:gravity="center"
+        android:orientation="horizontal"
         app:layout_constraintStart_toEndOf="@+id/volume_dialog_main_slider_container"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/volume_dialog_background"
@@ -81,7 +83,7 @@
         app:layout_constraintHorizontal_bias="0">
 
         <include layout="@layout/volume_dialog_bottom_section" />
-    </FrameLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/volume_dialog_floating_sliders_container"
