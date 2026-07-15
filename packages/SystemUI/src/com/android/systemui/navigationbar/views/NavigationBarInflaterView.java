@@ -20,9 +20,14 @@ import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
 import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_3BUTTON;
 
 import android.annotation.Nullable;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.database.ContentObserver;
 import android.graphics.drawable.Icon;
+import android.net.Uri;
+import android.os.UserHandle;
+import android.provider.Settings;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.SparseArray;
@@ -72,6 +77,8 @@ public class NavigationBarInflaterView extends FrameLayout {
     public static final String GRAVITY_SEPARATOR = ";";
     public static final String BUTTON_SEPARATOR = ",";
 
+    private static final String INVERSE_BUTTON_PLACEHOLDER = "__navbar_inverse_button_placeholder__";
+
     public static final String SIZE_MOD_START = "[";
     public static final String SIZE_MOD_END = "]";
 
@@ -119,6 +126,8 @@ public class NavigationBarInflaterView extends FrameLayout {
 
     private LauncherProxyService mLauncherProxyService;
     private int mNavBarMode = NAV_BAR_MODE_3BUTTON;
+    private boolean mInverseLayout;
+    private final ContentObserver mContentObserver;
 
     public NavigationBarInflaterView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -126,6 +135,17 @@ public class NavigationBarInflaterView extends FrameLayout {
         mLauncherProxyService = Dependency.get(LauncherProxyService.class);
         mListener = new Listener(this);
         mNavBarMode = Dependency.get(NavigationModeController.class).addListener(mListener);
+        mContentObserver = new ContentObserver(null) {
+            @Override
+            public void onChange(boolean selfChange, @Nullable Uri uri) {
+                if (uri == null || getNavBarKeyOrderUri().equals(uri)) {
+                    mInverseLayout = Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                            Settings.Secure.NAVIGATIONBAR_KEY_ORDER, 0,
+                            ActivityManager.getCurrentUser()) != 0;
+                    updateLayoutInversion();
+                }
+            }
+        };
     }
 
     @VisibleForTesting
@@ -170,9 +190,25 @@ public class NavigationBarInflaterView extends FrameLayout {
     }
 
     @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        Uri navBarInverse = getNavBarKeyOrderUri();
+        mContext.getContentResolver().registerContentObserver(navBarInverse, false,
+                mContentObserver, UserHandle.USER_ALL);
+        mContentObserver.onChange(true, navBarInverse);
+    }
+
+    @Override
     protected void onDetachedFromWindow() {
         Dependency.get(NavigationModeController.class).removeListener(mListener);
+        mContext.getContentResolver().unregisterContentObserver(mContentObserver);
         super.onDetachedFromWindow();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        updateLayoutInversion();
     }
 
     public void onLikelyDefaultLayoutChange() {
@@ -254,6 +290,7 @@ public class NavigationBarInflaterView extends FrameLayout {
         if (newLayout == null) {
             newLayout = getDefaultLayout();
         }
+        newLayout = maybeSwapBackAndRecents(newLayout);
         String[] sets = newLayout.split(GRAVITY_SEPARATOR, 3);
         if (sets.length != 3) {
             Log.d(TAG, "Invalid layout.");
@@ -283,6 +320,26 @@ public class NavigationBarInflaterView extends FrameLayout {
                 true /* landscape */, false /* start */);
 
         updateButtonDispatchersCurrentView();
+    }
+
+    private Uri getNavBarKeyOrderUri() {
+        return Settings.Secure.getUriFor(Settings.Secure.NAVIGATIONBAR_KEY_ORDER);
+    }
+
+    private String maybeSwapBackAndRecents(String layout) {
+        if (!mInverseLayout || layout == null || mNavBarMode != NAV_BAR_MODE_3BUTTON) {
+            return layout;
+        }
+        return layout.replace(BACK, INVERSE_BUTTON_PLACEHOLDER)
+                .replace(RECENT, BACK)
+                .replace(INVERSE_BUTTON_PLACEHOLDER, RECENT);
+    }
+
+    private void updateLayoutInversion() {
+        mContext.getMainExecutor().execute(() -> {
+            clearViews();
+            inflateLayout(getDefaultLayout());
+        });
     }
 
     private void addGravitySpacer(LinearLayout layout) {
