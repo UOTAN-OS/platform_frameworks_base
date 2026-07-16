@@ -188,7 +188,6 @@ constructor(
     private fun launchShortcut(target: QuickMenuTarget.Shortcut) {
         val options = ActivityOptions.makeBasic().apply {
             setLaunchWindowingMode(WindowConfiguration.WINDOWING_MODE_MINI_WINDOW_EXT)
-            setApplyMultipleTaskFlagForShortcut(true)
             setPendingIntentBackgroundActivityStartMode(
                 ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
             )
