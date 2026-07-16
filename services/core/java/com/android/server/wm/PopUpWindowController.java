@@ -157,9 +157,6 @@ public class PopUpWindowController {
             return;
         }
         final DisplayContent displayContent = win.getDisplayContent();
-        if (displayContent == null) {
-            return;
-        }
         if (displayContent.getDisplayId() == DEFAULT_DISPLAY &&
                 win.mAttrs.type == TYPE_MINI_WINDOW_DIMMER) {
             mDimWinState = win;
@@ -174,9 +171,7 @@ public class PopUpWindowController {
 
     void onWindowRemove(WindowState win) {
         if (win.mAttrs.type == TYPE_MINI_WINDOW_DIMMER) {
-            if (mDimWinState == win) {
-                mDimWinState = null;
-            }
+            mDimWinState = null;
             final Integer taskId = mTaskIdByDimmerToken.remove(win.mToken);
             if (taskId != null) {
                 mDimmerTokensByTaskId.remove(taskId);
@@ -593,15 +588,12 @@ public class PopUpWindowController {
         final DisplayContent defaultDisplay = mService.getDefaultDisplayContentLocked();
         final ActivityRecord previousFocusedApp = defaultDisplay.mFocusedApp;
         defaultDisplay.mFocusedApp = null;
-        try {
-            final WindowState win = defaultDisplay.findFocusedWindow();
-            if (win != null && win.getActivityRecord() != null) {
-                defaultDisplay.setFocusedApp(win.getActivityRecord());
-            } else if (win != null && win.getTask() != null) {
-                mAtmService.setFocusedTask(win.getTask().mTaskId);
-            }
-        } finally {
-            defaultDisplay.mFocusedApp = previousFocusedApp;
+        final WindowState win = defaultDisplay.findFocusedWindow();
+        defaultDisplay.mFocusedApp = previousFocusedApp;
+        if (win != null && win.getActivityRecord() != null) {
+            defaultDisplay.setFocusedApp(win.getActivityRecord());
+        } else if (win != null && win.getTask() != null) {
+            mAtmService.setFocusedTask(win.getTask().mTaskId);
         }
     }
 
@@ -647,10 +639,7 @@ public class PopUpWindowController {
 
         final Task boundsTask = rootTask != null ? rootTask : task;
         final Rect bounds = new Rect();
-        final TaskWindowSurfaceInfo surfaceInfo = boundsTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
-        if (surfaceInfo != null) {
-            surfaceInfo.resetWindowBoundaryGapToOrigin();
-        }
+        boundsTask.mWindowContainerExt.getTaskWindowSurfaceInfo().resetWindowBoundaryGapToOrigin();
         // Use display bounds as the source instead of task's current bounds,
         // which may be from a previous freeform/small-window state and too small.
         if (boundsTask.mDisplayContent != null) {
@@ -683,9 +672,7 @@ public class PopUpWindowController {
     }
 
     private void triggerVibrationEffect(int effectId, int strength) {
-        if (DEBUG_POP_UP) {
-            Slog.d(TAG, "Triggering vibrate");
-        }
+        Slog.d(TAG, "Triggering vibrate");
         mHandler.post(() -> {
             if (mVibrator != null) {
                 VibrationEffect effect = VibrationEffect.createPredefined(effectId);
@@ -841,7 +828,7 @@ public class PopUpWindowController {
             return;
         }
         if (DEBUG_POP_UP) {
-            Slog.d(TAG, "Abort pop-up view flags for display rotated");
+            Slog.d(TAG, "Abort pop-up view flags for display ratated");
         }
         for (int i = 0; i < out.getChanges().size(); i++) {
             final Change change = out.getChanges().get(i);
@@ -958,7 +945,7 @@ public class PopUpWindowController {
             case MOVE_TO_BACK_TOUCH_OUTSIDE:
                 return "TOUCH_OUTSIDE";
             case MOVE_TO_BACK_FROM_LEAVE_BUTTON:
-                return "FROM_LEAVE_BUTTON";
+                return "FROM_LEAVY_BUTTON";
             case MOVE_TO_BACK_NEW_MINI:
                 return "NEW_MINI";
             case MOVE_TO_BACK_NEW_PIN:
@@ -1041,16 +1028,19 @@ public class PopUpWindowController {
         if (task == null) {
             return;
         }
+        // Flag to indicate we are exiting manually, possibly affecting transition logic
+        setTryExitWindowingMode(true);
         // tryExitPopUpView(Task, skipAnim, removeMini, removePin)
         // removeMini=true ensures it clears from TopActivityRecorder tracking
         tryExitPopUpView(task, false, true, true);
+        setTryExitWindowingMode(false);
     }
 
     /**
     * Tracks whether mini window should receive input (back gestures, etc).
     * Different from Android's focus which always gives focus to alwaysOnTop windows.
     */
-    private volatile boolean mMiniWindowHasInputFocus = false;
+    private boolean mMiniWindowHasInputFocus = false;
 
     /**
     * Check if mini window should handle input events like back gestures.
@@ -1155,20 +1145,14 @@ public class PopUpWindowController {
 
         // Check status bar area (top)
         final WindowState statusBar = policy.getStatusBar();
-        if (statusBar != null) {
-            final Rect frame = statusBar.getFrame();
-            if (frame != null && frame.contains(x, y)) {
-                return true;
-            }
+        if (statusBar != null && statusBar.getFrame().contains(x, y)) {
+            return true;
         }
 
         // Check navigation bar area (bottom or sides)
         final WindowState navBar = policy.getNavigationBar();
-        if (navBar != null) {
-            final Rect frame = navBar.getFrame();
-            if (frame != null && frame.contains(x, y)) {
-                return true;
-            }
+        if (navBar != null && navBar.getFrame().contains(x, y)) {
+            return true;
         }
 
         return false;
@@ -1177,8 +1161,8 @@ public class PopUpWindowController {
     private boolean isShadeExpanded(DisplayContent dc) {
         // Check if NotificationShade window is visible
         final WindowState shadeWindow = dc.getWindow(w -> {
-            final CharSequence title = w.mAttrs.getTitle();
-            return title != null && title.toString().contains("NotificationShade");
+            final String windowName = w.toString();
+            return windowName.contains("NotificationShade");
         });
 
         if (shadeWindow != null) {

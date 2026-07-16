@@ -91,10 +91,10 @@ class DimmerWindow {
     private final Task mTask;
     private WindowManager mWindowManager;
 
-    private volatile boolean mIsWindowAdded = false;
-    private volatile boolean mShowing = false;
+    private boolean mIsWindowAdded = false;
+    private boolean mShowing = false;
 
-    private volatile float mCurrentScale = 1.0f;
+    private float mCurrentScale = 1.0f;
 
     private int mVibrateThreadhold = 50;
     private int mPendingShowAttempts = 0;
@@ -102,7 +102,7 @@ class DimmerWindow {
 
     private static final float MIN_SCALE = LEGACY_MINIMIZED_SCALE;
 
-    private volatile int mWindowState = WINDOW_STATE_EXPANDED;
+    private int mWindowState = WINDOW_STATE_EXPANDED;
     private final Point mMinimizedCenter = new Point();
 
     private static final int MAX_SHOW_RETRY = 40;
@@ -486,7 +486,7 @@ class DimmerWindow {
                     DimmerWindowManager.getInstance().hideMenus();
                     final int currentX = (int) event.getRawX();
                     final int currentY = (int) event.getRawY();
-                    if (Math.abs(currentX - mLegacyBarDownX) > mTouchSlop || Math.abs(currentY - mLegacyBarDownY) > mTouchSlop) {
+                    if (Math.abs(currentX - mLegacyBarDownX) > 10 || Math.abs(currentY - mLegacyBarDownY) > 10) {
                         mHasMoved = true;
                     }
                     if (mHasMoved) {
@@ -600,10 +600,8 @@ class DimmerWindow {
                     if (info == null) {
                         return;
                     }
-                    final DisplayContent dc = mTask.getDisplayContent();
-                    if (dc == null) return;
                     Rect displayBounds = new Rect();
-                    dc.getBounds(displayBounds);
+                    mTask.getDisplayContent().getBounds(displayBounds);
 
                     float oldScale = info.getWindowSurfaceScale();
                     float scaleDiff = scale - oldScale;
@@ -1303,8 +1301,6 @@ class DimmerWindow {
         }
 
         private void startMiniWindowSpringFling() {
-            // Cancel any prior fling/spring animation to avoid leaking animators.
-            cancelMiniWindowFlingAnimation();
             if (mDrawingRect.isEmpty()) {
                 recycleMiniVelocityTracker();
                 return;
@@ -1656,11 +1652,10 @@ class DimmerWindow {
     }
 
     void destroy() {
-        // Cancel animations on the UI thread where they were created.
+        if (mDimView != null) {
+            mDimView.cancelMiniWindowFlingAnimation();
+        }
         mUiHandler.post(() -> {
-            if (mDimView != null) {
-                mDimView.cancelMiniWindowFlingAnimation();
-            }
             if (mIsWindowAdded && mDimView != null && getWindowManager() != null) {
                 getWindowManager().removeView(mDimView);
             }
@@ -1899,17 +1894,14 @@ class DimmerWindow {
             mDimView.cancelMiniWindowFlingAnimation();
         }
         mWindowState = targetState;
-        applyWindowState(true, targetState);
+        applyWindowState(true);
     }
 
     private void applyWindowState(boolean animate) {
-        applyWindowState(animate, mWindowState);
-    }
-
-    private void applyWindowState(boolean animate, final int targetState) {
         if (mTask == null) {
             return;
         }
+        final int targetState = mWindowState;
         mTask.mWmService.mH.post(() -> {
             synchronized (mTask.mWmService.mGlobalLock) {
                 final TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();

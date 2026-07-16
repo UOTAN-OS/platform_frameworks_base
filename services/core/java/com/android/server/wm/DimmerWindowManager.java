@@ -12,10 +12,6 @@ import java.util.ArrayList;
 
 /**
  * Manages Pop-Up View decoration windows per task.
- *
- * All public methods are synchronized because this singleton is accessed from
- * both the WM thread (attachTask/detachTask/clearAll) and the UI/input thread
- * (setActiveTask/hideMenus/findTaskAt via DimmerWindow touch handlers).
  */
 class DimmerWindowManager {
 
@@ -35,7 +31,7 @@ class DimmerWindowManager {
     private DimmerWindowManager() {
     }
 
-    synchronized void attachTask(Task task) {
+    void attachTask(Task task) {
         if (task == null) {
             return;
         }
@@ -44,73 +40,64 @@ class DimmerWindowManager {
         }
         DimmerWindow window = getOrCreate(task);
         window.show();
-        setActiveTaskLocked(task);
+        setActiveTask(task);
     }
 
-    synchronized void detachTask(Task task) {
+    void detachTask(Task task) {
         if (task == null) {
             return;
         }
         DimmerWindow window = mWindows.remove(task);
         if (window != null) {
             window.destroy();
-            mWindowOrder.remove(task);
         }
+        mWindowOrder.remove(task);
         if (task == mActiveTask) {
             mActiveTask = mWindowOrder.isEmpty() ? null : mWindowOrder.get(mWindowOrder.size() - 1);
         }
-        updateFocusStateLocked();
+        updateFocusState();
     }
 
-    synchronized void clearAll() {
+    void clearAll() {
         for (int i = mWindows.size() - 1; i >= 0; i--) {
-            try {
-                mWindows.valueAt(i).destroy();
-            } catch (Exception e) {
-                // Continue destroying remaining windows even if one fails.
-            }
+            mWindows.valueAt(i).destroy();
         }
         mWindows.clear();
         mWindowOrder.clear();
         mActiveTask = null;
     }
 
-    synchronized void setActiveTask(Task task) {
-        setActiveTaskLocked(task);
-    }
-
-    private void setActiveTaskLocked(Task task) {
+    void setActiveTask(Task task) {
         if (task == null) {
             mActiveTask = null;
-            updateFocusStateLocked();
-            return;
-        }
-        if (task == mActiveTask) {
+            updateFocusState();
             return;
         }
         DimmerWindow window = getOrCreate(task);
         window.show();
         mWindowOrder.remove(task);
         mWindowOrder.add(task);
-        mActiveTask = task;
-        updateFocusStateLocked();
+        if (mActiveTask != task) {
+            mActiveTask = task;
+            updateFocusState();
+        }
     }
 
-    synchronized Task getActiveTask() {
+    Task getActiveTask() {
         return mActiveTask;
     }
 
-    synchronized boolean shouldTaskHandleInput(Task task) {
+    boolean shouldTaskHandleInput(Task task) {
         final DimmerWindow window = task != null ? mWindows.get(task) : null;
         return window == null || window.shouldHandleInput();
     }
 
-    synchronized Rect getActiveBounds() {
+    Rect getActiveBounds() {
         DimmerWindow window = mActiveTask != null ? mWindows.get(mActiveTask) : null;
         return window != null ? window.getBounds() : null;
     }
 
-    synchronized Task findTaskAt(int x, int y) {
+    Task findTaskAt(int x, int y) {
         for (int i = mWindowOrder.size() - 1; i >= 0; i--) {
             Task task = mWindowOrder.get(i);
             DimmerWindow window = mWindows.get(task);
@@ -125,7 +112,7 @@ class DimmerWindowManager {
         return null;
     }
 
-    synchronized void onDragResizeChanged(Task task, float scale, Rect taskWindowSurfaceBound,
+    void onDragResizeChanged(Task task, float scale, Rect taskWindowSurfaceBound,
             boolean isLandscape) {
         DimmerWindow window = mWindows.get(task);
         if (window != null) {
@@ -133,36 +120,29 @@ class DimmerWindowManager {
         }
     }
 
-    synchronized void onResizeChanged(Task task) {
+    void onResizeChanged(Task task) {
         DimmerWindow window = mWindows.get(task);
         if (window != null) {
             window.onResizeChanged();
         }
     }
 
-    synchronized void notifyFocusChanged() {
-        updateFocusStateLocked();
+    void notifyFocusChanged() {
+        updateFocusState();
     }
 
-    synchronized void hideMenus() {
+    void hideMenus() {
         for (int i = mWindows.size() - 1; i >= 0; i--) {
-            DimmerWindow w = mWindows.valueAt(i);
-            if (w != null) {
-                w.hideMenu();
-            }
+            mWindows.valueAt(i).hideMenu();
         }
     }
 
-    synchronized ArrayList<Task> getTasksSnapshot() {
+    ArrayList<Task> getTasksSnapshot() {
         return new ArrayList<>(mWindowOrder);
     }
 
     void moveOtherTasksToBack(Task keepTask, int reason) {
-        // Snapshot under lock, then call out without lock to avoid reentrancy.
-        final ArrayList<Task> tasks;
-        synchronized (this) {
-            tasks = new ArrayList<>(mWindowOrder);
-        }
+        final ArrayList<Task> tasks = new ArrayList<>(mWindowOrder);
         for (int i = tasks.size() - 1; i >= 0; i--) {
             final Task task = tasks.get(i);
             if (task == null || task == keepTask) {
@@ -182,14 +162,12 @@ class DimmerWindowManager {
         return window;
     }
 
-    private void updateFocusStateLocked() {
+    private void updateFocusState() {
         final boolean hasFocus = PopUpWindowController.getInstance().shouldMiniWindowHandleInput();
         for (int i = mWindows.size() - 1; i >= 0; i--) {
             Task task = mWindows.keyAt(i);
             DimmerWindow window = mWindows.valueAt(i);
-            if (window != null) {
-                window.updateTopBarFocus(hasFocus && task == mActiveTask);
-            }
+            window.updateTopBarFocus(hasFocus && task == mActiveTask);
         }
     }
 }
