@@ -15,7 +15,6 @@ import static android.view.WindowManager.LayoutParams.TYPE_MINI_WINDOW_DIMMER;
 
 import static com.android.server.wm.PopUpWindowController.MOVE_TO_BACK_FROM_LEAVE_BUTTON;
 
-import android.app.ActivityManager.TaskDescription;
 import android.app.ActivityThread;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -33,7 +32,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewTreeObserver;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.widget.FrameLayout;
@@ -149,7 +147,10 @@ class DimmerWindow {
             mTopBarWidth = (int) (dpToPx(BASE_TOP_BAR_WIDTH_DP) * uiScale);
 
             mTopBar = new View(getContext());
-            updateTopBarDrawable();
+            GradientDrawable topBarDrawable = new GradientDrawable();
+            topBarDrawable.setColor(0xFFFFFFFF);
+            topBarDrawable.setCornerRadius(mTopBarHeight / 2f);
+            mTopBar.setBackground(topBarDrawable);
             mTopBar.setAlpha(UNFOCUSED_ALPHA);
 
             mTopBarTouchArea = new View(getContext());
@@ -479,7 +480,10 @@ class DimmerWindow {
             mTopBarHeight = (int) (dpToPx(BASE_TOP_BAR_HEIGHT_DP) * uiScale);
             mTopBarWidth = (int) (dpToPx(BASE_TOP_BAR_WIDTH_DP) * uiScale);
 
-            updateTopBarDrawable();
+            GradientDrawable topBarDrawable = new GradientDrawable();
+            topBarDrawable.setColor(0xFFFFFFFF);
+            topBarDrawable.setCornerRadius(mTopBarHeight / 2f);
+            mTopBar.setBackground(topBarDrawable);
 
             FrameLayout.LayoutParams lpBar = (FrameLayout.LayoutParams) mTopBar.getLayoutParams();
             lpBar.width = mTopBarWidth;
@@ -497,41 +501,6 @@ class DimmerWindow {
                     updateLayout(info.getTaskWindowSurfaceBounds());
                 }
             }
-        }
-
-        private void updateTopBarDrawable() {
-            final GradientDrawable topBarDrawable = new GradientDrawable();
-            topBarDrawable.setColor(resolveDefaultTopBarColor());
-            topBarDrawable.setCornerRadius(mTopBarHeight / 2f);
-            mTopBar.setBackground(topBarDrawable);
-        }
-
-        private int resolveDefaultTopBarColor() {
-            if (mTask == null) {
-                return DEFAULT_TOP_BAR_LIGHT_COLOR;
-            }
-            final TaskDescription taskDescription = mTask.getTaskDescription();
-            if (taskDescription == null) {
-                return DEFAULT_TOP_BAR_LIGHT_COLOR;
-            }
-            final int appearance = taskDescription.getSystemBarsAppearance();
-            if ((appearance & WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS) != 0
-                    || (appearance & WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS) != 0) {
-                return DEFAULT_TOP_BAR_DARK_COLOR;
-            }
-            int sampleColor = taskDescription.getNavigationBarColor();
-            if (sampleColor == 0) {
-                sampleColor = taskDescription.getStatusBarColor();
-            }
-            if (sampleColor == 0) {
-                sampleColor = taskDescription.getBackgroundColor();
-            }
-            if (sampleColor == 0) {
-                return DEFAULT_TOP_BAR_LIGHT_COLOR;
-            }
-            return Color.luminance(sampleColor) > 0.5f
-                    ? DEFAULT_TOP_BAR_DARK_COLOR
-                    : DEFAULT_TOP_BAR_LIGHT_COLOR;
         }
 
         void updateTopBarFocus(boolean hasFocus) {
