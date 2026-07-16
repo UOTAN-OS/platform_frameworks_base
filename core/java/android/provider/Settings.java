@@ -5387,13 +5387,6 @@ public final class Settings {
         public static final String POP_UP_NOTIFICATION_BLACKLIST = "pop_up_notification_blacklist";
 
         /**
-         * Controls the Pop-Up View interaction UI mode.
-         * 0 = default, 1 = legacy.
-         * @hide
-         */
-        public static final String POP_UP_VIEW_UI_MODE = "pop_up_view_ui_mode";
-
-        /**
          * Control lock behavior on fold
          *
          * If this isn't set, the system falls back to a device specific default.

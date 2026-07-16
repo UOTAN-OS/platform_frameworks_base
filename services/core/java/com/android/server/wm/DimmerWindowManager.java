@@ -35,11 +35,6 @@ class DimmerWindowManager {
         if (task == null) {
             return;
         }
-        if (PopUpSettingsConfig.getInstance().isLegacyUiMode()
-                && mActiveTask != null && mActiveTask != task) {
-            PopUpWindowController.getInstance().moveActivityTaskToBack(
-                    mActiveTask, PopUpWindowController.MOVE_TO_BACK_NEW_MINI);
-        }
         DimmerWindow window = getOrCreate(task);
         window.show();
         setActiveTask(task);
@@ -87,11 +82,6 @@ class DimmerWindowManager {
 
     Task getActiveTask() {
         return mActiveTask;
-    }
-
-    boolean shouldTaskHandleInput(Task task) {
-        final DimmerWindow window = task != null ? mWindows.get(task) : null;
-        return window == null || window.shouldHandleInput();
     }
 
     Rect getActiveBounds() {
