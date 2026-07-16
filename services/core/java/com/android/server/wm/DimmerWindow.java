@@ -354,7 +354,7 @@ class DimmerWindow {
             mCornerHandleTouchArea = new View(getContext());
             mCornerHandleTouchArea.setBackgroundColor(Color.TRANSPARENT);
             mCornerHandleTouchArea.setClickable(true);
-            mCornerHandleTouchArea.setOnClickListener(v -> openCornerChipFromHandle());
+            mCornerHandleTouchArea.setOnClickListener(v -> setCornerChipExpanded(true, true));
 
             mCornerHandle = new View(getContext());
             final GradientDrawable handleDrawable = new GradientDrawable();
@@ -362,7 +362,7 @@ class DimmerWindow {
             handleDrawable.setCornerRadius(mTopBarHeight / 2f);
             mCornerHandle.setBackground(handleDrawable);
             mCornerHandle.setAlpha(UNFOCUSED_ALPHA);
-            mCornerHandle.setOnClickListener(v -> openCornerChipFromHandle());
+            mCornerHandle.setOnClickListener(v -> setCornerChipExpanded(true, true));
 
             mCornerChip = new LinearLayout(getContext());
             mCornerChip.setOrientation(LinearLayout.HORIZONTAL);
@@ -399,11 +399,6 @@ class DimmerWindow {
             mCornerChip.addView(mCornerChipIcon);
             mCornerChip.addView(mCornerChipLabel);
             populateCornerChipInfo();
-        }
-
-        private void openCornerChipFromHandle() {
-            PopUpWindowController.getInstance().triggerVibrate();
-            setCornerChipExpanded(true, true);
         }
 
         private void initCornerHints() {
