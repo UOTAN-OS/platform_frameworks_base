@@ -6,7 +6,7 @@
 package com.android.server.wm;
 
 import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_SCREEN_ROTATION;
-import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
+import static org.rising.DebugConstants.DEBUG_POP_UP;
 
 import android.graphics.Rect;
 import android.util.Slog;
@@ -61,12 +61,12 @@ class SurfaceFreezerExt {
     private final Freezable mAnimatable;
     private final WindowManagerService mWmService;
     private final Rect mFreezeBounds = new Rect();
-
+    
     private int mPreFreezedWindowingMode;
     private TaskWindowSurfaceInfo mFreezeTaskWindowSurfaceInfo;
     private Snapshot mSnapshot;
     private SurfaceControl mLeash;
-
+    
     boolean mNoWindowModeAnim;
 
     SurfaceFreezerExt(Freezable animatable, WindowManagerService service) {
@@ -121,7 +121,7 @@ class SurfaceFreezerExt {
         reset(t);
         mFreezeBounds.set(startBounds);
         mFreezeTaskWindowSurfaceInfo = new TaskWindowSurfaceInfo(taskWindowSurfaceInfo, mPreFreezedWindowingMode);
-
+        
         if (DEBUG_POP_UP) {
             Slog.d(TAG, "freeze(): startBounds=" + startBounds);
         }
@@ -131,15 +131,15 @@ class SurfaceFreezerExt {
                     mAnimatable, mAnimatable.getSurfaceControl(), t,
                     ANIMATION_TYPE_SCREEN_ROTATION, startBounds.width(), startBounds.height(),
                     false, mWmService.mTransactionFactory, mFreezeTaskWindowSurfaceInfo);
-
+            
             if (mLeash != null) {
                 mAnimatable.onAnimationLeashCreated(t, mLeash);
-
+                
                 // Create snapshot if leash was successfully created
                 mSnapshot = new Snapshot(mLeash, startBounds);
             }
         }
-
+        
         t.apply();
     }
 
@@ -158,11 +158,11 @@ class SurfaceFreezerExt {
         if (DEBUG_POP_UP) {
             Slog.d(TAG, "unfreeze()");
         }
-
+        
         if (mAnimatable != null && mLeash != null) {
             mAnimatable.onAnimationLeashDestroyed(t);
         }
-
+        
         reset(t);
         t.apply();
     }

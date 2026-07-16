@@ -8,7 +8,7 @@ package com.android.server.wm;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.os.Process.THREAD_PRIORITY_DEFAULT;
 
-import static com.android.internal.util.android.DebugConstants.DEBUG_WMS_TOP_APP;
+import static org.rising.DebugConstants.DEBUG_WMS_TOP_APP;
 
 import android.app.WindowConfiguration;
 import android.content.ComponentName;
@@ -58,7 +58,7 @@ public class TopActivityRecorder {
                 logE("onAppFocusChanged called before initWms - mWms is null");
                 return;
             }
-
+            
             final DisplayContent dc = mWms.getDefaultDisplayContentLocked();
             final ActivityRecord newFocus = focus != null ? focus : dc.topRunningActivity();
             if (newFocus == null) {

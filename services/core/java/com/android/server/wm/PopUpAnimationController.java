@@ -5,7 +5,7 @@
 
 package com.android.server.wm;
 
-import static com.android.internal.util.android.DebugConstants.DEBUG_POP_UP;
+import static org.rising.DebugConstants.DEBUG_POP_UP;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
