@@ -228,7 +228,6 @@ import android.graphics.Point;
 import android.content.ComponentName;
 import android.app.PendingIntent;
 import android.window.DesktopExperienceFlags;
-import android.os.SystemProperties;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
@@ -6246,10 +6245,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
     @Override
     public int interceptMotionBeforeQueueing(MotionEvent event) {
-        boolean isPopupViewEnable = SystemProperties.getBoolean("persist.avium.popup_gesture", true);
-        if(!isPopupViewEnable){
-            return SYSTEM_GESTURE_NONE;
-        }
         final int action = event.getActionMasked();
         final float x = event.getRawX();
         final float y = event.getRawY();
