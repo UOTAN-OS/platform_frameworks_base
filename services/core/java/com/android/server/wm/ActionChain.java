@@ -209,12 +209,6 @@ public class ActionChain {
      */
     void collectClose(@NonNull WindowContainer<?> wc) {
         if (!wc.mTransitionController.isShellTransitionsEnabled()) return;
-        if (isFinishing()) {
-            // During finishTransition, collectClose is called on a TYPE_FINISH chain.
-            // The chain is not collecting, so expectCollecting() would return null and
-            // log "Trying to collect into a finished transition". Skip silently.
-            return;
-        }
         final Transition transition = expectCollecting();
         if (transition == null) return;
         if (wc.isVisibleRequested()) {

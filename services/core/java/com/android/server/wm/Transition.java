@@ -3924,15 +3924,6 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
             // If it's invisible and hasn't changed visibility, always return false since even if
             // something changed, it wouldn't be a visible change.
             if (currVisible == mVisible && !mVisible) return false;
-            // A PopUp task that is already visible should always be considered changed.
-            // When launched from Recents, the task is reparented to a PopUp root task before
-            // the transition is created, so mWindowingMode == current windowing mode (both PopUp).
-            // Without this, hasChanged() returns false, the task is excluded from targets,
-            // and the empty TO_FRONT transition corrupts the chain.
-            if (currVisible && mVisible
-                    && WindowConfiguration.isPopUpWindowMode(mContainer.getWindowingMode())) {
-                return true;
-            }
             return currVisible != mVisible
                     || mKnownConfigChanges != 0
                     // if mWindowingMode is 0, this container wasn't attached at collect time, so
@@ -3959,14 +3950,7 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
             final boolean nowVisible = wc.isVisibleRequested();
             final boolean isPopUpWindowingModeChange = PopUpWindowController.getInstance()
                     .shouldStartChangeTransition(mWindowingMode, wc.getWindowingMode());
-            // For PopUp tasks that are already visible, force TRANSIT_CHANGE. The task's
-            // windowing mode hasn't changed (both mWindowingMode and current are PopUp), so
-            // shouldStartChangeTransition returns false. But the isLaunchPopUpViewFromRecents
-            // flag is also cleared by the time this runs (Recents transition finish clears it).
-            // Without this, the task gets TO_FRONT, which PopUpViewTransitionHandler skips.
-            final boolean isPopUpVisible = nowVisible && mVisible
-                    && WindowConfiguration.isPopUpWindowMode(wc.getWindowingMode());
-            if (nowVisible == mVisible || isPopUpWindowingModeChange || isPopUpVisible) {
+            if (nowVisible == mVisible || isPopUpWindowingModeChange) {
                 return TRANSIT_CHANGE;
             }
             if (mExistenceChanged) {
