@@ -258,9 +258,6 @@ class TaskWindowSurfaceInfo {
                 setWindowCenterPosition(pos);
             }
             mCornerRadius = mMiniWindowCornerRadius;
-            if (!isPrevMiniWindow) {
-                DimmerWindow.getInstance().setTask(mTask);
-            }
         }
         if (isPopUpWindow || isPrevPopUpWindow) {
             final SurfaceControl surfaceControl = mTask.getSurfaceControl();
