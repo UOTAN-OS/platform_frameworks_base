@@ -134,7 +134,6 @@ import android.view.WindowManager;
 import android.view.WindowManagerPolicyConstants;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
-import android.view.MotionEvent;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
@@ -3340,11 +3339,6 @@ public class InputManagerService extends IInputManager.Stub
          */
         void notifyConfigurationChanged();
 
-        //Ext add
-        void notifySystemGestureState(boolean down); 
-
-        int interceptMotionBeforeQueueing(MotionEvent event);
-
         /**
          * This callback is invoked when the pointer location changes.
          */
@@ -4235,17 +4229,5 @@ public class InputManagerService extends IInputManager.Stub
         default void notifyUserActivity() {}
         default void systemRunning() {}
         default void dump(PrintWriter pw) {}
-    }
-
-    //Ext add
-    @SuppressWarnings("unused")
-    private void notifySystemGestureState(boolean down) { 
-        mWindowManagerCallbacks.notifySystemGestureState(down);
-    }
-
-    // Native callback.
-    @SuppressWarnings("unused")
-    private int interceptMotionBeforeQueueing(MotionEvent event) { 
-        return mWindowManagerCallbacks.interceptMotionBeforeQueueing(event);
     }
 }

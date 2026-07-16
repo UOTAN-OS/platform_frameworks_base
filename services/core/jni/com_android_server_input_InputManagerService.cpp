@@ -128,8 +128,6 @@ static struct {
     jmethodID filterInputEvent;
     jmethodID filterPointerMotion;
     jmethodID interceptKeyBeforeQueueing;
-    //Ext add
-    jmethodID interceptMotionBeforeQueueing;
     jmethodID interceptMotionBeforeQueueingNonInteractive;
     jmethodID interceptKeyBeforeDispatching;
     jmethodID dispatchUnhandledKey;
@@ -376,9 +374,6 @@ public:
     void setStylusPointerIconEnabled(bool enabled);
     void setInputMethodConnectionIsActive(bool isActive);
     void setKeyRemapping(const std::map<int32_t, int32_t>& keyRemapping);
-
-    //Ext add
-    void interceptMotionBeforeQueueingExt(const MotionEvent& motionEvent, uint32_t& policyFlags) override;
 
     /* --- InputReaderPolicyInterface implementation --- */
 
@@ -1872,39 +1867,6 @@ void NativeInputManager::interceptKeyBeforeQueueing(const KeyEvent& keyEvent,
     handleInterceptActions(wmActions, when, /*byref*/ policyFlags);
 }
 
-//Ext add
-void NativeInputManager::interceptMotionBeforeQueueingExt(const MotionEvent& motionEvent,
-        uint32_t& policyFlags) {
-    ATRACE_CALL();
-
-    JNIEnv* env = jniEnv();
-    ScopedLocalFrame localFrame(env);
-
-    ScopedLocalRef<jobject> motionEventObj = android_view_MotionEvent_obtainAsCopy(env, motionEvent);
-    if (!motionEventObj.get()) {
-        ALOGE("Failed to obtain motion event object for interceptMotionBeforeQueueingExt.");
-        return;
-    }
-
-    const jint wmActions = env->CallIntMethod(mServiceObj,
-            gServiceClassInfo.interceptMotionBeforeQueueing, motionEventObj.get());
-    android_view_MotionEvent_recycle(env, motionEventObj.get());
-    if (checkAndClearExceptionFromCallback(env, "interceptMotionBeforeQueueing")) {
-        return;
-    }
-
-    if ((wmActions & 2) != 0) { // SYSTEM_GESTURE_DOWN = 0x02
-        policyFlags |= POLICY_FLAG_SYSTEM_GESTURE_DOWN;
-    } else if ((wmActions & 4) != 0) { // SYSTEM_GESTURE_MOVE = 0x04
-        policyFlags |= POLICY_FLAG_SYSTEM_GESTURE_MOVE;
-    } else if ((wmActions & 8) != 0) { // SYSTEM_GESTURE_MOVE_TRIGGERED = 0x08
-        policyFlags |= POLICY_FLAG_SYSTEM_GESTURE_MOVE_TRIGGERED;
-    } else if ((wmActions & 16) != 0) { // SYSTEM_GESTURE_RESET = 0x10
-        policyFlags |= POLICY_FLAG_SYSTEM_GESTURE_RESET;
-    } else if ((wmActions & 32) != 0) { // SYSTEM_GESTURE_CANCELED = 0x20
-        policyFlags |= POLICY_FLAG_SYSTEM_GESTURE_CANCELED;
-    }
-}
 void NativeInputManager::interceptMotionBeforeQueueing(ui::LogicalDisplayId displayId,
                                                        uint32_t source, int32_t action,
                                                        nsecs_t when, uint32_t& policyFlags) {
@@ -3667,11 +3629,6 @@ int register_android_server_InputManager(JNIEnv* env) {
 
     GET_METHOD_ID(gServiceClassInfo.getParentSurfaceForPointers, clazz,
                   "getParentSurfaceForPointers", "(I)J");
-
-    //Ext add
-    GET_METHOD_ID(gServiceClassInfo.interceptMotionBeforeQueueing, clazz,
-                  "interceptMotionBeforeQueueing",
-                  "(Landroid/view/MotionEvent;)I");
 
     // InputDevice
 
