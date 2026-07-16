@@ -88,7 +88,6 @@ public class PopUpWindowController {
     static final int MOVE_TO_BACK_NEW_MINI = 2;
     static final int MOVE_TO_BACK_NEW_PIN = 3;
     static final int MOVE_TO_BACK_NON_USER = 4;
-    static final int MOVE_TO_BACK_SINGLE_POP_UP_POLICY = 5;
 
     private static final long EXIT_POP_UP_DELAY = 200L;
 
@@ -391,12 +390,6 @@ public class PopUpWindowController {
         for (int i = miniTasks.size() - 1; i >= 0; i--) {
             moveActivityTaskToBack(miniTasks.get(i), MOVE_TO_BACK_TOUCH_OUTSIDE);
         }
-    }
-
-    void enforceSinglePopUpPolicy() {
-        final Task activeTask = DimmerWindowManager.getInstance().getActiveTask();
-        DimmerWindowManager.getInstance().moveOtherTasksToBack(
-                activeTask, MOVE_TO_BACK_SINGLE_POP_UP_POLICY);
     }
 
     private void moveActivityTaskToBackInner(Task task, Task fullTask) {
@@ -835,8 +828,6 @@ public class PopUpWindowController {
                 return "NEW_PIN";
             case MOVE_TO_BACK_NON_USER:
                 return "NON_USER";
-            case MOVE_TO_BACK_SINGLE_POP_UP_POLICY:
-                return "SINGLE_POP_UP_POLICY";
             default:
                 return "UNKNOWN";
         }

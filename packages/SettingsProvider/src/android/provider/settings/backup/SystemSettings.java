@@ -131,17 +131,9 @@ public class SystemSettings {
                 Settings.System.CV_DYNAMIC_ENABLED,
                 Settings.System.CV_PREFERRED_INTENSITY,
                 Settings.System.ADVANCED_REBOOT,
-                Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_ENABLED,
-                Settings.System.POP_UP_VIEW_QUICK_MENU_SELECTED_APPS,
-                Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_WIDTH_DP,
-                Settings.System.POP_UP_VIEW_QUICK_MENU_GESTURE_AREA_HEIGHT_DP,
-                Settings.System.POP_UP_NOTIFICATION_ENTRY_ENABLED,
-                Settings.System.POP_UP_NOTIFICATION_LAUNCH_MODE,
                 Settings.System.POP_UP_NOTIFICATION_JUMP_PORTRAIT,
                 Settings.System.POP_UP_NOTIFICATION_JUMP_LANDSCAPE,
-                Settings.System.POP_UP_NOTIFICATION_BLACKLIST,
-                Settings.System.POP_UP_VIEW_ALLOW_MULTIPLE,
-                Settings.System.POP_UP_VIEW_UI_MODE
+                Settings.System.POP_UP_NOTIFICATION_BLACKLIST
         ));
         if (Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
             settings.add(Settings.System.PEAK_REFRESH_RATE);

@@ -35,8 +35,10 @@ class DimmerWindowManager {
         if (task == null) {
             return;
         }
-        if (!PopUpSettingsConfig.getInstance().isAllowMultipleEnabled()) {
-            moveOtherTasksToBack(task, PopUpWindowController.MOVE_TO_BACK_SINGLE_POP_UP_POLICY);
+        if (PopUpSettingsConfig.getInstance().isLegacyUiMode()
+                && mActiveTask != null && mActiveTask != task) {
+            PopUpWindowController.getInstance().moveActivityTaskToBack(
+                    mActiveTask, PopUpWindowController.MOVE_TO_BACK_NEW_MINI);
         }
         DimmerWindow window = getOrCreate(task);
         window.show();
@@ -139,17 +141,6 @@ class DimmerWindowManager {
 
     ArrayList<Task> getTasksSnapshot() {
         return new ArrayList<>(mWindowOrder);
-    }
-
-    void moveOtherTasksToBack(Task keepTask, int reason) {
-        final ArrayList<Task> tasks = new ArrayList<>(mWindowOrder);
-        for (int i = tasks.size() - 1; i >= 0; i--) {
-            final Task task = tasks.get(i);
-            if (task == null || task == keepTask) {
-                continue;
-            }
-            PopUpWindowController.getInstance().moveActivityTaskToBack(task, reason);
-        }
     }
 
     private DimmerWindow getOrCreate(Task task) {

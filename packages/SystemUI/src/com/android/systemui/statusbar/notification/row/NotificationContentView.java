@@ -28,7 +28,6 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.RemoteException;
-import android.provider.Settings;
 import android.service.notification.StatusBarNotification;
 import android.util.ArrayMap;
 import android.util.AttributeSet;
@@ -1628,11 +1627,8 @@ public class NotificationContentView extends FrameLayout implements Notification
             return;
         }
 
-        boolean isPropEnabled = Settings.System.getIntForUser(
-                mContext.getContentResolver(),
-                Settings.System.POP_UP_NOTIFICATION_ENTRY_ENABLED,
-                0,
-                getSettingsUserId()) != 0;
+        boolean isPropEnabled = android.os.SystemProperties.getBoolean(
+                "persist.uwuaosp.notification.popup_entry_enabled", false);
         boolean canBubble = shouldShowBubbleButton(entry);
         boolean canShowPopupButton = isPropEnabled && shouldShowPopupButton(entry);
 
@@ -1726,10 +1722,6 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
         mContainingNotification.setForcePopUpOnNextClick(true);
         mContainingNotification.performClick();
-    }
-
-    private int getSettingsUserId() {
-        return mSbn != null ? mSbn.getNormalizedUserId() : mContext.getUserId();
     }
 
     private static void removeBottomMargin(ViewGroup actionListMarginTarget) {
