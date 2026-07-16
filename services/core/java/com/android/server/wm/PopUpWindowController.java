@@ -39,8 +39,6 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.os.Vibrator;
 import android.os.VibrationEffect;
-import android.util.ArrayMap;
-import android.util.SparseArray;
 import android.util.ArraySet;
 import android.util.Slog;
 import android.view.IWindow;
@@ -113,8 +111,6 @@ public class PopUpWindowController {
     private boolean mNextRecentIsPin;
 
     private WindowState mDimWinState = null;
-    private final SparseArray<WindowToken> mDimmerTokensByTaskId = new SparseArray<>();
-    private final ArrayMap<WindowToken, Integer> mTaskIdByDimmerToken = new ArrayMap<>();
 
     private PointerEventListener mMiniWindowPointerListener;
 
@@ -155,11 +151,6 @@ public class PopUpWindowController {
         if (displayContent.getDisplayId() == DEFAULT_DISPLAY &&
                 win.mAttrs.type == TYPE_MINI_WINDOW_DIMMER) {
             mDimWinState = win;
-            final int taskId = parseDimmerTaskId(win);
-            if (taskId != -1) {
-                mDimmerTokensByTaskId.put(taskId, win.mToken);
-                mTaskIdByDimmerToken.put(win.mToken, taskId);
-            }
             displayContent.assignWindowLayers(false);
         }
     }
@@ -167,10 +158,6 @@ public class PopUpWindowController {
     void onWindowRemove(WindowState win) {
         if (win.mAttrs.type == TYPE_MINI_WINDOW_DIMMER) {
             mDimWinState = null;
-            final Integer taskId = mTaskIdByDimmerToken.remove(win.mToken);
-            if (taskId != null) {
-                mDimmerTokensByTaskId.remove(taskId);
-            }
         }
     }
 
@@ -203,31 +190,25 @@ public class PopUpWindowController {
         if (token == null) {
             return null;
         }
-        final Integer taskId = mTaskIdByDimmerToken.get(token);
-        if (taskId == null) {
-            return null;
-        }
-        return mAtmService.mRootWindowContainer.anyTaskForId(taskId);
-    }
-
-    private int parseDimmerTaskId(WindowState win) {
+        final WindowState win = token.getTopChild();
         if (win == null || win.mAttrs == null) {
-            return -1;
+            return null;
         }
         final CharSequence titleSeq = win.mAttrs.getTitle();
         if (titleSeq == null) {
-            return -1;
+            return null;
         }
         final String title = titleSeq.toString();
         final String prefix = DimmerWindow.WIN_TITLE + "#";
         if (!title.startsWith(prefix)) {
-            return -1;
+            return null;
         }
         final String idPart = title.substring(prefix.length());
         try {
-            return Integer.parseInt(idPart);
+            final int taskId = Integer.parseInt(idPart);
+            return mAtmService.mRootWindowContainer.anyTaskForId(taskId);
         } catch (NumberFormatException e) {
-            return -1;
+            return null;
         }
     }
 
@@ -241,13 +222,6 @@ public class PopUpWindowController {
     void onPrepareSurfaces(Task task, SurfaceControl.Transaction t) {
         if (task.mWindowContainerExt.getTaskWindowSurfaceInfo() != null) {
             task.mWindowContainerExt.getTaskWindowSurfaceInfo().onPrepareSurfaces(t);
-        }
-        final WindowToken dimmerToken = mDimmerTokensByTaskId.get(task.mTaskId);
-        if (dimmerToken != null && dimmerToken.mSurfaceControl != null
-                && task.mSurfaceControl != null && task.mSurfaceControl.isValid()
-                && task.getWindowConfiguration().isMiniExtWindowMode()) {
-            t.show(dimmerToken.mSurfaceControl);
-            dimmerToken.assignRelativeLayer(t, task.mSurfaceControl, 1, true);
         }
     }
 
