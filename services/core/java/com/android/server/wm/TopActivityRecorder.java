@@ -83,7 +83,7 @@ public class TopActivityRecorder {
                     mTopMiniWindowActivity.add(new ActivityInfo(newFocus, newTask));
                 }
                 logD("Top mini-window activity changed to " + newFocus + ", addedTaskBefore=" + hasTask);
-                DimmerWindowManager.getInstance().setActiveTask(newTask);
+                DimmerWindow.getInstance().setTask(newTask);
             } else if (windowingMode == WindowConfiguration.WINDOWING_MODE_UNDEFINED
                     || windowingMode == WindowConfiguration.WINDOWING_MODE_FULLSCREEN) {
                 final ComponentName oldComponent = getTopFullscreenComponentLocked();
@@ -197,9 +197,9 @@ public class TopActivityRecorder {
                     final ActivityInfo ai = mTopMiniWindowActivity.remove(i);
                     logD("removeMiniWindowTask: " + ai);
                     if (n == 1) {
-                        DimmerWindowManager.getInstance().detachTask(task);
+                        DimmerWindow.getInstance().setTask(null);
                     } else {
-                        DimmerWindowManager.getInstance().detachTask(task);
+                        DimmerWindow.getInstance().setTask(mTopMiniWindowActivity.get(n - 2).task);
                     }
                     return;
                 }
@@ -218,7 +218,7 @@ public class TopActivityRecorder {
                 logD("Top fullscreen window activity changed to " + mTopFullscreenActivity);
             }
             mTopMiniWindowActivity.clear();
-            DimmerWindowManager.getInstance().clearAll();
+            DimmerWindow.getInstance().setTask(null);
         }
     }
 
@@ -226,7 +226,7 @@ public class TopActivityRecorder {
         synchronized (mFocusLock) {
             logD("clearMiniWindow");
             mTopMiniWindowActivity.clear();
-            DimmerWindowManager.getInstance().clearAll();
+            DimmerWindow.getInstance().setTask(null);
         }
     }
 
@@ -234,9 +234,7 @@ public class TopActivityRecorder {
         synchronized (mFocusLock) {
             for (int i = mTopMiniWindowActivity.size() - 1; i >= 0; --i) {
                 if (packageName.equals(mTopMiniWindowActivity.get(i).packageName)) {
-                    Task task = mTopMiniWindowActivity.get(i).task;
                     mTopMiniWindowActivity.remove(i);
-                    DimmerWindowManager.getInstance().detachTask(task);
                 }
             }
         }
