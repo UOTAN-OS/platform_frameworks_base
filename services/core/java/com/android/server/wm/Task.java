@@ -7222,13 +7222,6 @@ class Task extends TaskFragment {
         if (getWindowConfiguration().isPopUpWindowMode() ||
                 PopUpWindowController.getInstance().isTryExitWindowingMode()) {
             t.setScale(mSurfaceControl, 1.0f, 1.0f);
-            t.setWindowCrop(mSurfaceControl, -1, -1);
-            final SurfaceControl.Transaction syncTransaction = getSyncTransaction();
-            if (t != syncTransaction) {
-                // Avoid a later sync transaction restoring stale popup transform/crop state.
-                syncTransaction.setScale(mSurfaceControl, 1.0f, 1.0f);
-                syncTransaction.setWindowCrop(mSurfaceControl, -1, -1);
-            }
         }
     }
 }
