@@ -48,6 +48,10 @@ constructor(
         hide()
 
         val selectedApps = getSelectedApps()
+        if (selectedApps.isEmpty()) {
+            return
+        }
+
         val quickMenuView = PopUpQuickMenuView(context, isLeft)
         val packageManager = userTracker.userContext.packageManager
         val displayedApps = ArrayList<String>()
@@ -63,7 +67,6 @@ constructor(
             }
         }
 
-        // Keep the all-apps affordance available even when no quick apps are configured.
         quickMenuView.addView(
             ImageView(context).apply { setImageResource(R.drawable.ic_popup_more_apps) }
         )

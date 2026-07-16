@@ -16,7 +16,6 @@ import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_MINI_WINDOW_DIMMER;
 import static android.window.TransitionInfo.FLAG_EXIT_POP_UP_VIEW_BY_DRAG;
 import static android.window.TransitionInfo.FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION;
-import static android.window.TransitionInfo.FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE;
 import static android.window.TransitionInfo.FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS;
 import static android.window.TransitionInfo.FLAG_SCHEDULE_POP_UP_VIEW;
 
@@ -111,10 +110,6 @@ public class PopUpWindowController {
     private boolean mTryExitWindowingMode;
     private boolean mTryExitWindowingModeByDrag;
     private boolean mLaunchPopUpViewFromRecents;
-    private boolean mLaunchPopUpViewFromGesture;
-    private int mNextPopUpViewLaunchPointX = -1;
-    private int mNextPopUpViewLaunchPointY = -1;
-    private float mNextPopUpViewLaunchProgress = Float.NaN;
     private boolean mNextRecentIsPin;
 
     private WindowState mDimWinState = null;
@@ -267,9 +262,7 @@ public class PopUpWindowController {
     int getChangeFlags(ChangeInfo info, int flags) {
         if (shouldStartChangeTransition(info.mWindowingMode, info.mContainer.getWindowingMode())) {
             flags |= FLAG_SCHEDULE_POP_UP_VIEW;
-            if (mLaunchPopUpViewFromGesture) {
-                flags |= FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE;
-            } else if (mLaunchPopUpViewFromRecents) {
+            if (mLaunchPopUpViewFromRecents) {
                 flags |= FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS;
             }
             if (mTryExitWindowingModeByDrag) {
@@ -492,10 +485,6 @@ public class PopUpWindowController {
     }
 
     boolean startActivityFromRecents(Task task, ActivityOptions activityOptions) {
-        if (activityOptions != null && WindowConfiguration.isPopUpWindowMode(
-                activityOptions.getLaunchWindowingMode())) {
-            updatePendingPopUpLaunchConfig(activityOptions);
-        }
         return false;
     }
 
@@ -654,29 +643,6 @@ public class PopUpWindowController {
         return mLaunchPopUpViewFromRecents;
     }
 
-    boolean isLaunchPopUpViewFromGesture() {
-        return mLaunchPopUpViewFromGesture;
-    }
-
-    boolean hasPendingPopUpViewLaunchPoint() {
-        return mLaunchPopUpViewFromGesture
-                && mNextPopUpViewLaunchPointX >= 0
-                && mNextPopUpViewLaunchPointY >= 0
-                && !Float.isNaN(mNextPopUpViewLaunchProgress);
-    }
-
-    int getNextPopUpViewLaunchPointX() {
-        return mNextPopUpViewLaunchPointX;
-    }
-
-    int getNextPopUpViewLaunchPointY() {
-        return mNextPopUpViewLaunchPointY;
-    }
-
-    float getNextPopUpViewLaunchProgress() {
-        return mNextPopUpViewLaunchProgress;
-    }
-
     boolean shouldInitializeChangeTransition(Task task, int prevWinMode) {
         if (task.mWindowContainerExt.setPreFreezedWindowingMode(prevWinMode)) {
             if (task.mWindowContainerExt.getFreezerSkipAnim()) {
@@ -713,10 +679,6 @@ public class PopUpWindowController {
     void notifyFinishTransition() {
         mTryExitWindowingModeByDrag = false;
         mLaunchPopUpViewFromRecents = false;
-        mLaunchPopUpViewFromGesture = false;
-        mNextPopUpViewLaunchPointX = -1;
-        mNextPopUpViewLaunchPointY = -1;
-        mNextPopUpViewLaunchProgress = Float.NaN;
     }
 
     InsetsState adjustInsetsForWindow(WindowState target, InsetsState state) {
@@ -790,25 +752,7 @@ public class PopUpWindowController {
     }
 
     void computeLaunchParams(LaunchParams params, ActivityOptions options, Task task) {
-        if (options == null || !WindowConfiguration.isPopUpWindowMode(
-                options.getLaunchWindowingMode())) {
-            return;
-        }
-        updatePendingPopUpLaunchConfig(options);
         return;
-    }
-
-    private void updatePendingPopUpLaunchConfig(ActivityOptions options) {
-        if (options == null) {
-            return;
-        }
-        mLaunchPopUpViewFromRecents = options.getLaunchTaskId() != -1;
-        mNextPopUpViewLaunchPointX = options.getPopUpViewLaunchPointX();
-        mNextPopUpViewLaunchPointY = options.getPopUpViewLaunchPointY();
-        mNextPopUpViewLaunchProgress = options.getPopUpViewLaunchProgress();
-        mLaunchPopUpViewFromGesture = mNextPopUpViewLaunchPointX >= 0
-                && mNextPopUpViewLaunchPointY >= 0
-                && !Float.isNaN(mNextPopUpViewLaunchProgress);
     }
 
     void computeBeforeExecuteRequest(Request request) {

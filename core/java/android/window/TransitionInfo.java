@@ -180,11 +180,9 @@ public final class TransitionInfo implements Parcelable {
     public static final int FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS = FLAG_FIRST_CUSTOM << 2;
     public static final int FLAG_EXIT_POP_UP_VIEW_BY_DRAG = FLAG_FIRST_CUSTOM << 3;
     public static final int FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION = FLAG_FIRST_CUSTOM << 4;
-    public static final int FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE = FLAG_FIRST_CUSTOM << 5;
     public static final int FLAG_POP_UP_VIEW = FLAG_SCHEDULE_POP_UP_VIEW |
                                                FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS |
-                                               FLAG_EXIT_POP_UP_VIEW_BY_DRAG |
-                                               FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE;
+                                               FLAG_EXIT_POP_UP_VIEW_BY_DRAG;
 
     /** The change belongs to a window that won't contain activities. */
     public static final int FLAGS_IS_NON_APP_WINDOW =
@@ -225,7 +223,6 @@ public final class TransitionInfo implements Parcelable {
             FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS,
             FLAG_EXIT_POP_UP_VIEW_BY_DRAG,
             FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION,
-            FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE,
             FLAG_POP_UP_VIEW
     })
     public @interface ChangeFlags {}
@@ -558,9 +555,6 @@ public final class TransitionInfo implements Parcelable {
         }
         if ((flags & FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION) != 0) {
             sb.append(sb.length() == 0 ? "" : "|").append("EXIT_POP_UP_VIEW_DISPLAY_ROTATION");
-        }
-        if ((flags & FLAG_LAUNCH_POP_UP_VIEW_FROM_GESTURE) != 0) {
-            sb.append(sb.length() == 0 ? "" : "|").append("LAUNCH_POP_UP_VIEW_FROM_GESTURE");
         }
         return sb.toString();
     }

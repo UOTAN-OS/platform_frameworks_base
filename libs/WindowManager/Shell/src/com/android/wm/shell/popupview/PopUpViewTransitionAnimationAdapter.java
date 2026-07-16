@@ -82,10 +82,8 @@ class PopUpViewTransitionAnimationAdapter {
                     / mAnimation.getDuration());
             t.setCornerRadius(mLeash, mChange.mPopUpView.mStartCornerRadius +
                     (mChange.mPopUpView.mEndCornerRadius - mChange.mPopUpView.mStartCornerRadius) * interpolation);
-        } else {
-            t.setCornerRadius(mLeash, mChange.mPopUpView.mEndCornerRadius);
+            t.setWindowCrop(mLeash, mChange.mPopUpView.mWindowCrop);
         }
-        t.setWindowCrop(mLeash, mChange.mPopUpView.mWindowCrop);
     }
 
     void onAnimationEnd(SurfaceControl.Transaction t) {

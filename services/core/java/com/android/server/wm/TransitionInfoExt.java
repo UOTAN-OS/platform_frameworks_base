@@ -63,11 +63,11 @@ public class TransitionInfoExt {
     }
 
     void setupPopUpViewInfo(TaskWindowSurfaceInfo freezeInfo, TaskWindowSurfaceInfo info, DisplayInfo displayInfo) {
+        mPopUpViewInfo.mStartScale = getPositionAndScaleFormInfo(freezeInfo, mPopUpViewInfo.mStartPos);
         mPopUpViewInfo.mEndScale = getPositionAndScaleFormInfo(info, mPopUpViewInfo.mEndPos);
+        mPopUpViewInfo.mStartCornerRadius = getCornerRadiusFromInfo(freezeInfo);
         mPopUpViewInfo.mEndCornerRadius = getCornerRadiusFromInfo(info);
         mPopUpViewInfo.mAppBounds.set(0, 0, displayInfo.appWidth, displayInfo.appHeight);
-        mPopUpViewInfo.mStartScale = getPositionAndScaleFormInfo(freezeInfo, mPopUpViewInfo.mStartPos);
-        mPopUpViewInfo.mStartCornerRadius = getCornerRadiusFromInfo(freezeInfo);
         if (info.mTask != null) {
             info.mTask.getBounds(mPopUpViewInfo.mWindowCrop);
 
@@ -96,46 +96,8 @@ public class TransitionInfoExt {
                 info.mTask.getBounds(mPopUpViewInfo.mStartDragBounds);
             }
         }
-        if (info.mTask != null && PopUpWindowController.getInstance().hasPendingPopUpViewLaunchPoint()) {
-            overrideStartStateForGestureLaunch(info, displayInfo);
-        }
         if (DEBUG_POP_UP) {
             Slog.d(TAG, "setupPopUpViewInfo, info=" + mPopUpViewInfo);
         }
-    }
-
-    private void overrideStartStateForGestureLaunch(TaskWindowSurfaceInfo info, DisplayInfo displayInfo) {
-        final Task task = info.mTask;
-        if (task == null) {
-            return;
-        }
-        final Rect endBounds = new Rect();
-        task.getBounds(endBounds);
-        if (endBounds.isEmpty()) {
-            return;
-        }
-        final Rect displayBounds = new Rect(0, 0, displayInfo.appWidth, displayInfo.appHeight);
-        final float progress = Math.max(0f, Math.min(1f,
-                PopUpWindowController.getInstance().getNextPopUpViewLaunchProgress()));
-        final int sourceWidth = Math.max(endBounds.width(),
-                Math.round(lerp(displayBounds.width(), endBounds.width(), progress)));
-        final int sourceHeight = Math.round(
-                sourceWidth * (endBounds.height() / (float) endBounds.width()));
-        final int centerX = PopUpWindowController.getInstance().getNextPopUpViewLaunchPointX();
-        final int bottomY = PopUpWindowController.getInstance().getNextPopUpViewLaunchPointY();
-        final int clampedLeft = Math.max(displayBounds.left,
-                Math.min(displayBounds.right - sourceWidth, centerX - (sourceWidth / 2)));
-        final int clampedBottom = Math.max(displayBounds.top + sourceHeight / 2,
-                Math.min(displayBounds.bottom, bottomY));
-        final Rect startBounds = mPopUpViewInfo.mStartDragBounds;
-        startBounds.set(clampedLeft, clampedBottom - sourceHeight,
-                clampedLeft + sourceWidth, clampedBottom);
-        mPopUpViewInfo.mStartPos.set(startBounds.left, startBounds.top);
-        mPopUpViewInfo.mStartScale = sourceWidth / (float) endBounds.width();
-        mPopUpViewInfo.mStartCornerRadius = mPopUpViewInfo.mEndCornerRadius;
-    }
-
-    private static float lerp(float start, float end, float progress) {
-        return start + ((end - start) * progress);
     }
 }
