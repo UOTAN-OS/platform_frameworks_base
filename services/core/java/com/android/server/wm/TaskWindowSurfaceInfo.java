@@ -52,7 +52,6 @@ class TaskWindowSurfaceInfo {
     private float mMiniWindowCornerRadius;
 
     private boolean mMute = false;
-    private boolean mIsExiting = false;
 
     private float mWindowSurfaceScale;
     private float mWindowSurfaceScaleFactor;
@@ -247,7 +246,6 @@ class TaskWindowSurfaceInfo {
                     + winConfig.getWindowingMode() + " mTask=" + mTask);
         }
         if (!isPopUpWindow && isPrevPopUpWindow) {
-            mIsExiting = false;
             final IWindow window = getIWindow();
             if (window != null) {
                 finishTaskPositioning(window);
@@ -347,7 +345,7 @@ class TaskWindowSurfaceInfo {
                 mPopUpAnimationController.isAnimating() ||
                 mTask.mTransitionController.isPlaying();
         if (ownsPopUpSurface() && winConfig.isPopUpWindowMode() && !hasAnimationLeash &&
-                !isWindowPositioningLocked() && !mIsExiting) {
+                !isWindowPositioningLocked()) {
             final Rect displayBound = new Rect();
             if (mTask.mDisplayContent != null) {
                 mTask.mDisplayContent.getBounds(displayBound);
@@ -377,7 +375,6 @@ class TaskWindowSurfaceInfo {
 
     void playExitAnimation(boolean isFromLeaveButton, float startScale,
             PopUpAnimationController.OnAnimationEndCallback callback) {
-        mIsExiting = true;
         mPopUpAnimationController.playExitAnimation(
                 isFromLeaveButton, startScale, callback);
     }
