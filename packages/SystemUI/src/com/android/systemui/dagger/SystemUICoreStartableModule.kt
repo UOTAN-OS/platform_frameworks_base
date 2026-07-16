@@ -59,6 +59,7 @@ import com.android.systemui.temporarydisplay.chipbar.ChipbarCoordinator
 import com.android.systemui.usb.StorageNotification
 import com.android.systemui.util.NotificationChannels
 import com.android.systemui.wmshell.WMShell
+import com.android.systemui.statusbar.phone.popup.PopUpQuickMenuStartable
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
@@ -110,6 +111,12 @@ abstract class SystemUICoreStartableModule {
     @ClassKey(MusicSuggestionStartable::class)
     abstract fun bindMusicSuggestionStartable(startable: MusicSuggestionStartable): CoreStartable
 
+    /** Inject into PopUpQuickMenuStartable. */
+    @Binds
+    @IntoMap
+    @ClassKey(PopUpQuickMenuStartable::class)
+    abstract fun bindPopUpQuickMenuStartable(startable: PopUpQuickMenuStartable): CoreStartable
+    
     /** Inject into GlobalActionsComponent. */
     @Binds
     @IntoMap
