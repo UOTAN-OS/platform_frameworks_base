@@ -53,16 +53,14 @@ constructor(
     fun show(isLeft: Boolean, initialTouchX: Float = -1f, initialTouchY: Float = -1f) {
         hide()
 
-        val innerTargets = getInnerRingTargets()
-        val outerTargets = getOuterRingTargets()
+        val selectedTargets = getSelectedTargets()
         val quickMenuView = PopUpQuickMenuView(context, isLeft)
-        val displayedInnerTargets = ArrayList<QuickMenuTarget>()
-        val displayedOuterTargets = ArrayList<QuickMenuTarget>()
+        val displayedTargets = ArrayList<QuickMenuTarget>()
 
-        innerTargets.take(INNER_MAX_ICONS - 1).forEach { target ->
+        selectedTargets.take(MAX_ICONS - 1).forEach { target ->
             createIconView(target)?.let { iconView ->
                 quickMenuView.addView(iconView)
-                displayedInnerTargets.add(target)
+                displayedTargets.add(target)
             }
         }
 
@@ -71,20 +69,11 @@ constructor(
             ImageView(context).apply { setImageResource(R.drawable.ic_popup_more_apps) }
         )
 
-        outerTargets.take(OUTER_MAX_ICONS).forEach { target ->
-            createIconView(target)?.let { iconView ->
-                quickMenuView.addView(iconView)
-                displayedOuterTargets.add(target)
-            }
-        }
-
         quickMenuView.setOnIconLaunchListener { index ->
-            when {
-                index < displayedInnerTargets.size -> launchTarget(displayedInnerTargets[index])
-                index == displayedInnerTargets.size -> launchAllApps()
-                else -> displayedOuterTargets
-                    .getOrNull(index - displayedInnerTargets.size - 1)
-                    ?.let(::launchTarget)
+            if (index < displayedTargets.size) {
+                launchTarget(displayedTargets[index])
+            } else {
+                launchAllApps()
             }
             hide()
         }
@@ -238,18 +227,10 @@ constructor(
         }
     }
 
-    private fun getInnerRingTargets(): List<QuickMenuTarget> {
-        return readTargets(Settings.System.POP_UP_VIEW_QUICK_MENU_SELECTED_APPS)
-    }
-
-    private fun getOuterRingTargets(): List<QuickMenuTarget> {
-        return readTargets(Settings.System.POP_UP_VIEW_QUICK_MENU_OUTER_RING_SELECTED_APPS)
-    }
-
-    private fun readTargets(key: String): List<QuickMenuTarget> {
+    private fun getSelectedTargets(): List<QuickMenuTarget> {
         val selected = Settings.System.getStringForUser(
             context.contentResolver,
-            key,
+            Settings.System.POP_UP_VIEW_QUICK_MENU_SELECTED_APPS,
             userTracker.userId,
         ).orEmpty()
         return selected.split(ENTRY_SEPARATOR).mapNotNull(::parseTarget)
@@ -334,8 +315,7 @@ constructor(
 
     companion object {
         private const val TAG = "PopUpQuickMenuController"
-        private const val INNER_MAX_ICONS = 6
-        private const val OUTER_MAX_ICONS = 7
+        private const val MAX_ICONS = 6
         private const val ENTRY_SEPARATOR = "|"
         private const val ENTRY_PREFIX_APP = "app:"
         private const val ENTRY_PREFIX_SHORTCUT = "shortcut:"

@@ -5383,13 +5383,6 @@ public final class Settings {
                 "pop_up_view_quick_menu_selected_apps";
 
         /**
-         * Selected outer ring quick menu apps for Pop-Up View, encoded as a package-name list.
-         * @hide
-         */
-        public static final String POP_UP_VIEW_QUICK_MENU_OUTER_RING_SELECTED_APPS =
-                "pop_up_view_quick_menu_outer_ring_selected_apps";
-
-        /**
          * Width of the quick menu gesture trigger area in dp.
          * @hide
          */

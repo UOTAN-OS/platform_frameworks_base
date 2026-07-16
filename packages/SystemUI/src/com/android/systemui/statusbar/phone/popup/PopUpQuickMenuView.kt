@@ -1,3 +1,19 @@
+/*
+ * Copyright (C) 2026 The uwuAOSP Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.android.systemui.statusbar.phone.popup
 
 import android.animation.AnimatorSet
@@ -86,30 +102,15 @@ class PopUpQuickMenuView(
         val screenHeight = bounds.height()
         val navbarHeight = getNavbarHeight()
 
+        val iconRadius = min(screenWidth, screenHeight) * ICON_SIZE_RATIO / 2
         val circleXOffset = if (screenWidth > screenHeight) CIRCLE_OFFSET_X_LAND else CIRCLE_OFFSET_X_PORT
         val circleCenterY = if (screenWidth > screenHeight) CIRCLE_CENTER_Y_LAND else CIRCLE_CENTER_Y_PORT
-        val dim = min(screenWidth, screenHeight)
-
-        val innerRadius = dim * CIRCLE_RADIUS_RATIO
-        val outerRadius = dim * OUTER_CIRCLE_RADIUS_RATIO
-        val innerIconRadius = dim * ICON_SIZE_RATIO / 2
-        val outerIconRadius = dim * OUTER_ICON_SIZE_RATIO / 2
+        val radius = min(screenWidth, screenHeight) * CIRCLE_RADIUS_RATIO
 
         for (i in 0 until count) {
-            val isInner = i < INNER_CHILD_COUNT
-            val radius = if (isInner) innerRadius else outerRadius
-            val iconRadius = if (isInner) innerIconRadius else outerIconRadius
-
-            val localIndex = if (isInner) i else i - INNER_CHILD_COUNT
-            val localTotal = if (isInner) INNER_CHILD_COUNT else OUTER_CHILD_COUNT
-            val spacing = if (isInner) ICON_SPACING_MULTIPLIER else OUTER_ICON_SPACING_MULTIPLIER
-            val angleStart = if (isInner) INNER_ANGLE_START else OUTER_ANGLE_START
-            val angleEnd = if (isInner) INNER_ANGLE_END else OUTER_ANGLE_END
-            val angleRange = angleEnd - angleStart
-
-            val position = localIndex + 1
-            val angle = angleStart + ((localTotal + 1) / 2f - position) * (angleRange / (localTotal + 1)) * spacing
-
+            val total = count
+            val position = i + 1
+            val angle = 45f + ((total + 1) / 2f - position) * (90f / (total + 1)) * ICON_SPACING_MULTIPLIER
             val x = if (isLeft) {
                 (screenWidth * circleXOffset + radius * cos(Math.toRadians(angle.toDouble())) + iconRadius).toInt()
             } else {
@@ -217,9 +218,6 @@ class PopUpQuickMenuView(
             child.translationX = startX
             child.translationY = startY
 
-            val isOuter = i >= INNER_CHILD_COUNT
-            val delay = i * 15L + if (isOuter) OUTER_ANIMATION_DELAY_OFFSET else 0L
-
             AnimatorSet().apply {
                 playTogether(
                     ObjectAnimator.ofFloat(child, "translationX", startX, 0f),
@@ -227,7 +225,7 @@ class PopUpQuickMenuView(
                     ObjectAnimator.ofFloat(child, "alpha", 0f, 1f),
                 )
                 interpolator = DecelerateInterpolator(1.5f)
-                duration = ANIMATION_DURATION_MS + delay
+                duration = ANIMATION_DURATION_MS + i * 15L
                 start()
             }
         }
@@ -305,17 +303,6 @@ class PopUpQuickMenuView(
         private const val ICON_SIZE_RATIO = 0.1f
         private const val ICON_SPACING_MULTIPLIER = 1.5f
         private const val CIRCLE_RADIUS_RATIO = 0.4f
-
-        private const val OUTER_CIRCLE_RADIUS_RATIO = 0.65f
-        private const val OUTER_ICON_SIZE_RATIO = 0.075f
-        private const val OUTER_ICON_SPACING_MULTIPLIER = 1.2f
-        private const val INNER_ANGLE_START = 45f
-        private const val INNER_ANGLE_END = 135f
-        private const val OUTER_ANGLE_START = 30f
-        private const val OUTER_ANGLE_END = 150f
-        private const val INNER_CHILD_COUNT = 6
-        private const val OUTER_CHILD_COUNT = 7
-        private const val OUTER_ANIMATION_DELAY_OFFSET = 100L
 
         fun createLayoutParams(): WindowManager.LayoutParams {
             return WindowManager.LayoutParams(
