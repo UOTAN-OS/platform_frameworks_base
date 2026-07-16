@@ -511,10 +511,8 @@ public class SurfaceControlViewHost {
         attrs.flags |= WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
         addWindowToken(attrs);
         view.setLayoutParams(attrs);
-        if (mViewRoot.mDisplay != null) {
-            mViewRoot.setView(view, attrs, null);
-            mViewRoot.setBackKeyCallbackForWindowlessWindow(mWm::forwardBackKeyToParent);
-        }
+        mViewRoot.setView(view, attrs, null);
+        mViewRoot.setBackKeyCallbackForWindowlessWindow(mWm::forwardBackKeyToParent);
     }
 
     /**
