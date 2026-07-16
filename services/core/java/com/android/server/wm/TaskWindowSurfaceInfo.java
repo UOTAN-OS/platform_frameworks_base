@@ -83,10 +83,6 @@ class TaskWindowSurfaceInfo {
         mPopUpAnimationController.setTask(task);
     }
 
-    private boolean ownsPopUpSurface() {
-        return mTask != null && mTask.isRootTask();
-    }
-
     TaskWindowSurfaceInfo(TaskWindowSurfaceInfo other, int preFreezedWindowingMode) {
         mTask = other.mTask;
         mService = other.mService;
@@ -131,19 +127,15 @@ class TaskWindowSurfaceInfo {
     void setWindowSurfaceScaleDrag(float scale, Rect displayBound, boolean isLandscape) {
         if (mWindowSurfaceScale != scale) {
             mWindowSurfaceScale = scale;
-            if (ownsPopUpSurface()) {
-                DimmerWindowManager.getInstance().onDragResizeChanged(mTask, scale,
-                        getTaskWindowSurfaceBoundsOnDrag(displayBound), isLandscape);
-            }
+            DimmerWindowManager.getInstance().onDragResizeChanged(mTask, scale,
+                    getTaskWindowSurfaceBoundsOnDrag(displayBound), isLandscape);
         }
     }
 
     void setWindowSurfaceScale(float scale) {
         if (mWindowSurfaceScale != scale) {
             mWindowSurfaceScale = scale;
-            if (ownsPopUpSurface()) {
-                DimmerWindowManager.getInstance().onResizeChanged(mTask);
-            }
+            DimmerWindowManager.getInstance().onResizeChanged(mTask);
         }
     }
 
@@ -266,10 +258,10 @@ class TaskWindowSurfaceInfo {
                 setWindowCenterPosition(pos);
             }
             mCornerRadius = mMiniWindowCornerRadius;
-            if (ownsPopUpSurface() && !isPrevMiniWindow) {
+            if (!isPrevMiniWindow) {
                 DimmerWindowManager.getInstance().attachTask(mTask);
             }
-        } else if (ownsPopUpSurface() && isPrevMiniWindow) {
+        } else if (isPrevMiniWindow) {
             DimmerWindowManager.getInstance().detachTask(mTask);
         }
         if (isPopUpWindow || isPrevPopUpWindow) {
@@ -329,9 +321,7 @@ class TaskWindowSurfaceInfo {
                 setWindowSurfaceScale(WindowResizingAlgorithm.getDefaultMiniWindowScale(
                         mTask.getConfiguration().orientation, mTask.mDisplayContent.getRotation()));
             }
-            if (ownsPopUpSurface()) {
-                DimmerWindowManager.getInstance().onResizeChanged(mTask);
-            }
+            DimmerWindowManager.getInstance().onResizeChanged(mTask);
         }
         if ((mConfiguration.diff(newConfig) & ActivityInfo.CONFIG_DENSITY) != 0) {
             updateDensityIfNeed(false);
@@ -344,7 +334,7 @@ class TaskWindowSurfaceInfo {
         final boolean hasAnimationLeash = hasTaskSurfaceAnimationLeash() ||
                 mPopUpAnimationController.isAnimating() ||
                 mTask.mTransitionController.isPlaying();
-        if (ownsPopUpSurface() && winConfig.isPopUpWindowMode() && !hasAnimationLeash &&
+        if (winConfig.isPopUpWindowMode() && !hasAnimationLeash &&
                 !isWindowPositioningLocked()) {
             final Rect displayBound = new Rect();
             if (mTask.mDisplayContent != null) {

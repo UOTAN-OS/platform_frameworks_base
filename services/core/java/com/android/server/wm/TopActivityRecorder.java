@@ -70,10 +70,9 @@ public class TopActivityRecorder {
             }
             final int windowingMode = newTask.getWindowConfiguration().getWindowingMode();
             if (WindowConfiguration.isMiniExtWindowMode(windowingMode)) {
-                final Task miniTask = newTask.getRootTask() != null ? newTask.getRootTask() : newTask;
                 boolean hasTask = false;
                 for (ActivityInfo ai : mTopMiniWindowActivity) {
-                    if (ai.task == miniTask) {
+                    if (ai.task == newTask) {
                         hasTask = true;
                         ai.componentName = newFocus.mActivityComponent;
                         ai.packageName = newFocus.packageName;
@@ -81,10 +80,10 @@ public class TopActivityRecorder {
                     }
                 }
                 if (!hasTask) {
-                    mTopMiniWindowActivity.add(new ActivityInfo(newFocus, miniTask));
+                    mTopMiniWindowActivity.add(new ActivityInfo(newFocus, newTask));
                 }
                 logD("Top mini-window activity changed to " + newFocus + ", addedTaskBefore=" + hasTask);
-                DimmerWindowManager.getInstance().setActiveTask(miniTask);
+                DimmerWindowManager.getInstance().setActiveTask(newTask);
             } else if (windowingMode == WindowConfiguration.WINDOWING_MODE_UNDEFINED
                     || windowingMode == WindowConfiguration.WINDOWING_MODE_FULLSCREEN) {
                 final ComponentName oldComponent = getTopFullscreenComponentLocked();
