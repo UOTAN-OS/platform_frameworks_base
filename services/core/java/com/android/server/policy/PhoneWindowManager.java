@@ -6384,6 +6384,8 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         //Ext add
         updateGestureParams();
         mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
+        mModifierShortcutManager.onSystemReady();
+
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {
             mVrManagerInternal.addPersistentVrModeStateListener(mPersistentVrModeListener);
