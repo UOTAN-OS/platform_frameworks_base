@@ -19,7 +19,6 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.util.Slog;
-import android.util.TypedValue;
 import android.view.DisplayInfo;
 import android.view.IWindow;
 import android.view.InsetsState;
@@ -27,9 +26,11 @@ import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.WindowInsets;
 
+import com.android.internal.R;
+
 import com.android.server.wm.Transition.ChangeInfo.PopUpViewInfo;
 
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 
 class TaskWindowSurfaceInfo {
@@ -37,7 +38,6 @@ class TaskWindowSurfaceInfo {
     private static final String TAG = "TaskWindowSurfaceInfo";
 
     private static final int DENSITY_DEFAULT = 420;
-    private static final float MINI_WINDOW_CORNER_RADIUS_DP = 28f;
 
     private final List<String> mForceUpdateDpiList;
 
@@ -67,16 +67,16 @@ class TaskWindowSurfaceInfo {
 
         mConfiguration.setTo(mTask.getConfiguration());
 
-        mForceUpdateDpiList = Collections.emptyList();
+        mForceUpdateDpiList = Arrays.asList(mService.mContext.getResources()
+                .getStringArray(R.array.config_popUpView_forceUpdateDpiPackages));
 
         mWindowCenterPosition = new Point();
         setWindowSurfaceScale(1.0f);
         mWindowSurfaceScaleFactor = 1.0f;
         mWindowBoundaryGap = new Rect(0, BOUNDARY_GAP, BOUNDARY_GAP, 0);
 
-        mMiniWindowCornerRadius = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
-                MINI_WINDOW_CORNER_RADIUS_DP,
-                mService.mContext.getResources().getDisplayMetrics());
+        mMiniWindowCornerRadius = mService.mContext.getResources()
+                .getDimensionPixelSize(R.dimen.mini_window_corner_radius);
         mCornerRadius = mMiniWindowCornerRadius;
 
         mPopUpAnimationController = new PopUpAnimationController(mService);
@@ -91,7 +91,8 @@ class TaskWindowSurfaceInfo {
         mConfiguration.setTo(mTask.getConfiguration());
         mMute = other.getMute();
 
-        mForceUpdateDpiList = Collections.emptyList();
+        mForceUpdateDpiList = Arrays.asList(mService.mContext.getResources()
+                .getStringArray(R.array.config_popUpView_forceUpdateDpiPackages));
 
         mWindowCenterPosition = other.getWindowCenterPosition();
         mWindowSurfaceScale = other.getWindowSurfaceScale();

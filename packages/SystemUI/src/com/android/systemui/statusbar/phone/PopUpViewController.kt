@@ -12,6 +12,8 @@ import android.net.Uri
 import android.os.Handler
 import android.os.UserHandle
 
+import com.android.internal.util.android.PopUpSettingsHelper
+
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.settings.UserTracker
@@ -77,13 +79,13 @@ class PopUpViewController @Inject constructor(
     }
 
     private fun updateNotificationJumpPort() {
-        notificationJumpPortrait = systemSettings.getIntForUser(
-                POP_UP_NOTIFICATION_JUMP_PORTRAIT, 0, userTracker.userId) != 0
+        notificationJumpPortrait = PopUpSettingsHelper.isNotificationJumpEnabled(
+                context, false, userTracker.userId)
     }
 
     private fun updateNotificationJumpLand() {
-        notificationJumpLandscape = systemSettings.getIntForUser(
-                POP_UP_NOTIFICATION_JUMP_LANDSCAPE, 0, userTracker.userId) != 0
+        notificationJumpLandscape = PopUpSettingsHelper.isNotificationJumpEnabled(
+                context, true, userTracker.userId)
     }
 
     fun shouldJumpNotificationWithPopUp(): Boolean {
