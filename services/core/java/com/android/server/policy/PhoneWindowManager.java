@@ -6335,13 +6335,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     }
 
     private void sendTouchCoordinatesToApp(float x, float y, boolean isUp) {
-        Intent intent = new Intent("com.android.systemui.action.UPDATE_POP_UP_QUICK_MENU_TOUCH");
-        intent.setPackage("com.android.systemui");
-        intent.putExtra("touch_x", x);
-        intent.putExtra("touch_y", y);
-        intent.putExtra("is_up", isUp);
-        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY | Intent.FLAG_RECEIVER_FOREGROUND);
-        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
+        Intent intent = new Intent("org.uwuaosp.freeformsettings.TOUCH_COORDINATES");
+        intent.putExtra("x", x);
+        intent.putExtra("y", y);
+        intent.putExtra("isUp", isUp);
+        intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
+        mContext.sendBroadcast(intent);
     }
 
     private void onSideGestureDetected(boolean fromRight, float startX, float startY) {
@@ -6349,14 +6348,26 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             Slog.d(TAG_GESTURE, "onSideGestureDetected called with: " + fromRight
                     + ", startX: " + startX + ", startY: " + startY);
         }
-
-        Intent intent = new Intent("com.android.systemui.action.SHOW_POP_UP_QUICK_MENU");
-        intent.setPackage("com.android.systemui");
-        intent.putExtra("is_left", !fromRight);
-        intent.putExtra("touch_x", startX);
-        intent.putExtra("touch_y", startY);
-        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY | Intent.FLAG_RECEIVER_FOREGROUND);
-        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
+    
+        Intent intent = new Intent();
+        intent.setComponent(new ComponentName(
+                "org.uwuaosp.freeformsettings",
+                "org.uwuaosp.freeformsettings.service.GestureService"
+        ));
+        intent.putExtra("isLeft", !fromRight);
+        intent.putExtra("touchX", startX);
+        intent.putExtra("touchY", startY);
+        
+        PendingIntent pendingIntent;
+        pendingIntent = PendingIntent.getForegroundService(
+            mContext, 0, intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        try {
+            pendingIntent.send();
+        } catch (Exception e) {
+            //do nothing
+        }
     }
 
     private final DisplayManager.DisplayListener mDisplayListener =
