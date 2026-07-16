@@ -274,11 +274,10 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
         mLogger.logStartingActivityFromClick(entry, row.isHeadsUpState(),
                 mKeyguardStateController.isVisible(),
                 mNotificationShadeWindowController.getPanelExpanded());
-        final boolean forcePopUp = row.consumeForcePopUpOnNextClick();
         OnKeyguardDismissedAction action =
                 (intent, isActivityIntent, animate, showOverTheLockScreen) ->
                         performActionOnKeyguardDismissed(entry, row, intent, isActivityIntent,
-                                animate, showOverTheLockScreen, forcePopUp);
+                                animate, showOverTheLockScreen);
         performActionAfterKeyguardDismissed(entry, action);
     }
 
@@ -342,12 +341,11 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
             PendingIntent intent,
             boolean isActivityIntent,
             boolean animate,
-            boolean showOverLockscreen,
-            boolean forcePopUp) {
+            boolean showOverLockscreen) {
         mLogger.logHandleClickAfterKeyguardDismissed(entry);
 
         final Runnable runnable = () -> handleNotificationClickAfterPanelCollapsed(
-                entry, row, intent, isActivityIntent, animate, forcePopUp);
+                entry, row, intent, isActivityIntent, animate);
         if (showOverLockscreen) {
             mShadeController.addPostCollapseAction(runnable);
             mShadeController.collapseShade(true /* animate */);
@@ -368,8 +366,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
             ExpandableNotificationRow row,
             PendingIntent intent,
             boolean isActivityIntent,
-            boolean animate,
-            boolean forcePopUp) {
+            boolean animate) {
         String notificationKey = entry.getKey();
         mLogger.logHandleClickAfterPanelCollapsed(entry);
 
@@ -417,8 +414,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
             removeHunAfterClick(row);
             expandBubbleStackOnMainThread(entry);
         } else {
-            startNotificationIntent(
-                    intent, fillInIntent, entry, row, animate, isActivityIntent, forcePopUp);
+            startNotificationIntent(intent, fillInIntent, entry, row, animate, isActivityIntent);
         }
         if (isActivityIntent || canBubble) {
             mAssistManagerLazy.get().hideAssist();
@@ -508,8 +504,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
             NotificationEntry entry,
             ExpandableNotificationRow row,
             boolean animate,
-            boolean isActivityIntent,
-            boolean forcePopUp) {
+            boolean isActivityIntent) {
         mLogger.logStartNotificationIntent(entry);
         final int displayId = mContextInteractor.getContext().getDisplayId();
         try {
@@ -544,13 +539,10 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
                                     mKeyguardStateController.isShowing(),
                                     eventTime)
                                     : createActivityOptions(displayId, transition, cookie);
-                            options = maybeApplyPopUpWindowingMode(options, forcePopUp);
                             int result = intent.sendAndReturnResult(mContext, 0, fillInIntent, null,
                                     null, null, options);
                             mLogger.logSendPendingIntent(entry, intent, result);
-                            return shouldLaunchInPopUp(forcePopUp)
-                                    ? ActivityManager.START_DELIVERED_TO_TOP
-                                    : result;
+                            return result;
                         });
             } else {
                 mActivityTransitionAnimator.startPendingIntentWithAnimation(
@@ -566,8 +558,13 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
                                     mKeyguardStateController.isShowing(),
                                     eventTime)
                                     : getActivityOptions(displayId, adapter);
-                            boolean useMiniWindow = shouldLaunchInPopUp(forcePopUp);
-                            options = maybeApplyPopUpWindowingMode(options, forcePopUp);
+                            boolean useMiniWindow = !mKeyguardStateController.isShowing() &&
+                                mPopUpViewController.shouldJumpNotificationWithPopUp();
+                            if (useMiniWindow) {
+                                ActivityOptions newOptions = ActivityOptions.fromBundle(options);
+                                newOptions.setLaunchWindowingMode(WINDOWING_MODE_MINI_WINDOW_EXT);
+                                options = newOptions.toBundle();
+                            }
                             int result = intent.sendAndReturnResult(mContext, 0, fillInIntent, null,
                                     null, null, options);
                             mLogger.logSendPendingIntent(entry, intent, result);
@@ -580,21 +577,6 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
             mLogger.logSendingIntentFailed(e);
             // TODO: Dismiss Keyguard.
         }
-    }
-
-    private boolean shouldLaunchInPopUp(boolean forcePopUp) {
-        return !mKeyguardStateController.isShowing()
-                && (forcePopUp || mPopUpViewController.shouldJumpNotificationWithPopUp());
-    }
-
-    private Bundle maybeApplyPopUpWindowingMode(Bundle options, boolean forcePopUp) {
-        if (!shouldLaunchInPopUp(forcePopUp)) {
-            return options;
-        }
-
-        ActivityOptions activityOptions = ActivityOptions.fromBundle(options);
-        activityOptions.setLaunchWindowingMode(WINDOWING_MODE_MINI_WINDOW_EXT);
-        return activityOptions.toBundle();
     }
 
     @Override

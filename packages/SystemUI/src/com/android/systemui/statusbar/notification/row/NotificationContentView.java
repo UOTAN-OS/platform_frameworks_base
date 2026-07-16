@@ -1615,113 +1615,46 @@ public class NotificationContentView extends FrameLayout implements Notification
             }
         }
         ImageView bubbleButton = layout.findViewById(com.android.internal.R.id.bubble_button);
-        ImageView popupButton = layout.findViewById(
-                com.android.internal.R.id.freeform_popup_button);
         // With the new design, the actions_container should always be visible to act as padding
         // when there are no actions. We're making its child visible/invisible instead.
-        View actionsContainer = layout.findViewById(
+        View actionsContainerForVisibilityChange = layout.findViewById(
                 notificationsRedesignTemplates()
                         ? com.android.internal.R.id.actions_container_layout
                         : com.android.internal.R.id.actions_container);
-        if (actionsContainer == null) {
+        if (bubbleButton == null || actionsContainerForVisibilityChange == null) {
             return;
         }
 
-        boolean isPropEnabled = android.os.SystemProperties.getBoolean(
-                "persist.uwuaosp.notification.popup_entry_enabled", false);
-        boolean canBubble = shouldShowBubbleButton(entry);
-        boolean canShowPopupButton = isPropEnabled && shouldShowPopupButton(entry);
+        if (shouldShowBubbleButton(entry)) {
+            boolean isBubble = NotificationBundleUi.isEnabled()
+                    ? mContainingNotification.getEntryAdapter().isBubble()
+                    : entry.isBubble();
+            // explicitly resolve drawable resource using SystemUI's theme
+            Drawable d = mContext.getDrawable(isBubble
+                    ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
+                    : com.android.wm.shell.R.drawable.bubble_ic_create_bubble);
 
-        if (canBubble) {
-            if (popupButton != null) {
-                popupButton.setVisibility(GONE);
-            }
+            String contentDescription = mContext.getResources().getString(isBubble
+                    ? R.string.notification_conversation_unbubble
+                    : R.string.notification_conversation_bubble);
 
-            if (bubbleButton != null) {
-                boolean isBubble = NotificationBundleUi.isEnabled()
-                        ? mContainingNotification.getEntryAdapter().isBubble()
-                        : entry != null && entry.isBubble();
-                Drawable d = mContext.getDrawable(isBubble
-                        ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
-                        : com.android.wm.shell.R.drawable.bubble_ic_create_bubble);
-
-                String contentDescription = mContext.getResources().getString(isBubble
-                        ? R.string.notification_conversation_unbubble
-                        : R.string.notification_conversation_bubble);
-
-                bubbleButton.setContentDescription(contentDescription);
-                bubbleButton.setImageDrawable(d);
-                bubbleButton.setOnClickListener(mContainingNotification.getBubbleClickListener());
-                bubbleButton.setVisibility(VISIBLE);
-            }
-            actionsContainer.setVisibility(VISIBLE);
-
-        } else if (canShowPopupButton) {
-            if (bubbleButton != null) {
-                bubbleButton.setVisibility(GONE);
-            }
-
-            if (popupButton != null) {
-                popupButton.setVisibility(VISIBLE);
-                Drawable icon = mContext.getDrawable(R.drawable.ic_notification_popup_pip_mobile);
-                if (icon != null) {
-                    popupButton.setImageDrawable(icon);
+            bubbleButton.setContentDescription(contentDescription);
+            bubbleButton.setImageDrawable(d);
+            bubbleButton.setOnClickListener(mContainingNotification.getBubbleClickListener());
+            bubbleButton.setVisibility(VISIBLE);
+            actionsContainerForVisibilityChange.setVisibility(VISIBLE);
+            if (!notificationsRedesignTemplates()) {
+                // Set notification_action_list_margin_target's bottom margin to 0 when showing
+                // bubble
+                ViewGroup actionListMarginTarget = layout.findViewById(
+                        com.android.internal.R.id.notification_action_list_margin_target);
+                if (actionListMarginTarget != null) {
+                    removeBottomMargin(actionListMarginTarget);
                 }
-
-                popupButton.setImageTintList(android.content.res.ColorStateList.valueOf(
-                        mContext.getColor(com.android.internal.R.color.materialColorPrimary)));
-                popupButton.setContentDescription(
-                        mContext.getString(R.string.notification_open_in_popup_view));
-                popupButton.setOnClickListener(v -> launchNotificationInPopupView());
-                popupButton.setOnTouchListener((v, event) -> {
-                    if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                        v.getParent().requestDisallowInterceptTouchEvent(true);
-                    }
-                    return false;
-                });
             }
-            actionsContainer.setVisibility(VISIBLE);
-
-        } else {
-            if (bubbleButton != null) {
-                bubbleButton.setVisibility(GONE);
-            }
-            if (popupButton != null) {
-                popupButton.setVisibility(GONE);
-            }
+        } else  {
+            bubbleButton.setVisibility(GONE);
         }
-
-        if (!notificationsRedesignTemplates() && (canBubble || canShowPopupButton)) {
-            ViewGroup actionListMarginTarget = layout.findViewById(
-                    com.android.internal.R.id.notification_action_list_margin_target);
-            if (actionListMarginTarget != null) {
-                removeBottomMargin(actionListMarginTarget);
-            }
-        }
-    }
-
-    private boolean shouldShowPopupButton(@Nullable NotificationEntry entry) {
-        if (mContainingNotification == null || !mContainingNotification.isClickable()) {
-            return false;
-        }
-
-        StatusBarNotification sbn = NotificationBundleUi.isEnabled()
-                ? mContainingNotification.getEntryAdapter().getSbn()
-                : entry != null ? entry.getSbn() : null;
-        if (sbn == null) {
-            return false;
-        }
-
-        Notification notification = sbn.getNotification();
-        return notification.contentIntent != null || notification.fullScreenIntent != null;
-    }
-
-    private void launchNotificationInPopupView() {
-        if (mContainingNotification == null || !mContainingNotification.isClickable()) {
-            return;
-        }
-        mContainingNotification.setForcePopUpOnNextClick(true);
-        mContainingNotification.performClick();
     }
 
     private static void removeBottomMargin(ViewGroup actionListMarginTarget) {
@@ -2679,5 +2612,4 @@ public class NotificationContentView extends FrameLayout implements Notification
             Log.e(TAG, "cancelNotification failed: " + ex);
         }
     }
-
 }

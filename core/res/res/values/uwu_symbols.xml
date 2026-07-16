@@ -44,5 +44,4 @@
     <java-symbol type="drawable" name="app_jump_action_background_bottom" />
     <java-symbol type="dimen" name="app_jump_action_button_margin_top" />
     <java-symbol type="dimen" name="app_jump_action_button_margin_bottom" />
-    <java-symbol type="id" name="freeform_popup_button" />
 </resources>

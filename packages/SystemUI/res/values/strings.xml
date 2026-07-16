@@ -1500,8 +1500,6 @@
     <string name="popup_on_dismiss_cta_tile_text">Long press to customize widgets</string>
     <!-- Text for the button to configure widgets after long press. [CHAR LIMIT=50] -->
     <string name="button_to_configure_widgets_text">Customize widgets</string>
-    <!-- Content description for the notification action that opens the app in Pop-Up View. -->
-    <string name="notification_open_in_popup_view">Open in Pop-Up View</string>
     <!-- Text for unlock reason on the bouncer before customizing widgets. [CHAR LIMIT=NONE] -->
     <string name="unlock_reason_to_customize_widgets">Unlock to customize widgets</string>
     <!-- Description for the App icon of disabled widget. [CHAR LIMIT=NONE] -->
