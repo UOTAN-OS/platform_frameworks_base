@@ -232,9 +232,6 @@ public class TopActivityRecorder {
     }
 
     void onForceStopPackage(String packageName) {
-        if (packageName == null) {
-            return;
-        }
         synchronized (mFocusLock) {
             for (int i = mTopMiniWindowActivity.size() - 1; i >= 0; --i) {
                 if (packageName.equals(mTopMiniWindowActivity.get(i).packageName)) {
