@@ -22,9 +22,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -121,9 +119,6 @@ class DimmerWindow {
         private LinearLayout mCornerChip;
         private ImageView mCornerChipIcon;
         private TextView mCornerChipLabel;
-        private CornerHintView mCornerHintTopRight;
-        private CornerHintView mCornerHintBottomLeft;
-        private CornerHintView mCornerHintBottomRight;
 
         private View mResizeHandleBottomLeft;
         private View mResizeHandleBottomRight;
@@ -148,12 +143,10 @@ class DimmerWindow {
         private static final int CORNER_HANDLE_TOUCH_SIDE_INSET_DP = 12;
         private static final int CORNER_HANDLE_TOUCH_TOP_INSET_DP = 8;
         private static final int CORNER_CHIP_ICON_SIZE_DP = 20;
-        private static final int BASE_CORNER_HINT_SIZE_DP = 20;
 
         private int mCornerHandleWidth;
         private int mCornerChipWidth;
         private int mCornerChipHeight;
-        private int mCornerHintSize;
         private boolean mCornerChipExpanded;
 
         private static final float FOCUSED_ALPHA = 1.0f;
@@ -197,56 +190,6 @@ class DimmerWindow {
             }
         };
 
-        private final class CornerHintView extends View {
-
-            private static final int TYPE_TOP_RIGHT = 0;
-            private static final int TYPE_BOTTOM_LEFT = 1;
-            private static final int TYPE_BOTTOM_RIGHT = 2;
-
-            private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            private final RectF mArcRect = new RectF();
-            private final int mType;
-            private int mStrokeWidth;
-
-            CornerHintView(Context context, int type) {
-                super(context);
-                mType = type;
-                mPaint.setStyle(Paint.Style.STROKE);
-                mPaint.setColor(DEFAULT_TOP_BAR_LIGHT_COLOR);
-                mPaint.setStrokeCap(Paint.Cap.ROUND);
-            }
-
-            void setHintThickness(int thickness) {
-                mStrokeWidth = thickness;
-                mPaint.setStrokeWidth(thickness);
-                invalidate();
-            }
-
-            @Override
-            protected void onDraw(Canvas canvas) {
-                super.onDraw(canvas);
-                if (mStrokeWidth <= 0) {
-                    return;
-                }
-                final float inset = mStrokeWidth / 2f;
-                mArcRect.set(inset, inset, getWidth() - inset, getHeight() - inset);
-                final float startAngle;
-                switch (mType) {
-                    case TYPE_TOP_RIGHT:
-                        startAngle = 270f;
-                        break;
-                    case TYPE_BOTTOM_LEFT:
-                        startAngle = 90f;
-                        break;
-                    case TYPE_BOTTOM_RIGHT:
-                    default:
-                        startAngle = 0f;
-                        break;
-                }
-                canvas.drawArc(mArcRect, startAngle, 90f, false, mPaint);
-            }
-        }
-
         DimView(Context context, float initialScale) {
             super(context);
             setWillNotDraw(false);
@@ -284,7 +227,6 @@ class DimmerWindow {
             mLegacyDismissTarget.setScaleY(0.85f);
 
             initCornerDecor();
-            initCornerHints();
 
             mGestureDetector = new GestureDetector(getContext(),
                     new GestureDetector.SimpleOnGestureListener() {
@@ -336,15 +278,6 @@ class DimmerWindow {
             addView(mCornerChip, new FrameLayout.LayoutParams(
                     mCornerChipWidth,
                     mCornerChipHeight));
-            addView(mCornerHintTopRight, new FrameLayout.LayoutParams(
-                    mCornerHintSize,
-                    mCornerHintSize));
-            addView(mCornerHintBottomLeft, new FrameLayout.LayoutParams(
-                    mCornerHintSize,
-                    mCornerHintSize));
-            addView(mCornerHintBottomRight, new FrameLayout.LayoutParams(
-                    mCornerHintSize,
-                    mCornerHintSize));
 
             setupTopBarTouchListener();
             getViewTreeObserver().addOnComputeInternalInsetsListener(this::updateTouchableRegion);
@@ -399,16 +332,6 @@ class DimmerWindow {
             mCornerChip.addView(mCornerChipIcon);
             mCornerChip.addView(mCornerChipLabel);
             populateCornerChipInfo();
-        }
-
-        private void initCornerHints() {
-            mCornerHintTopRight = new CornerHintView(getContext(), CornerHintView.TYPE_TOP_RIGHT);
-            mCornerHintBottomLeft = new CornerHintView(getContext(), CornerHintView.TYPE_BOTTOM_LEFT);
-            mCornerHintBottomRight = new CornerHintView(getContext(), CornerHintView.TYPE_BOTTOM_RIGHT);
-            updateCornerHintStyle();
-            mCornerHintTopRight.setAlpha(UNFOCUSED_ALPHA);
-            mCornerHintBottomLeft.setAlpha(UNFOCUSED_ALPHA);
-            mCornerHintBottomRight.setAlpha(UNFOCUSED_ALPHA);
         }
 
         private void updateTouchableRegion(ViewTreeObserver.InternalInsetsInfo info) {
@@ -612,46 +535,11 @@ class DimmerWindow {
                     (int) (dpToPx(BASE_CORNER_CHIP_WIDTH_DP) * Math.max(0.85f, uiScale)));
             mCornerChipHeight = Math.max(dpToPx(32),
                     (int) (dpToPx(BASE_CORNER_CHIP_HEIGHT_DP) * Math.max(0.85f, uiScale)));
-            updateCornerHintMetrics(null);
-        }
-
-        private void updateCornerHintMetrics(Rect taskBounds) {
-            final int minHintSize = dpToPx(BASE_CORNER_HINT_SIZE_DP);
-            final int cornerRadius = Math.max(minHintSize / 2, resolveWindowCornerRadiusPx());
-            int hintSize = Math.max(minHintSize, (cornerRadius * 2) + (mTopBarHeight * 2));
-            if (taskBounds != null && !taskBounds.isEmpty()) {
-                final int shortEdge = Math.min(taskBounds.width(), taskBounds.height());
-                final int maxHintSize = Math.max(minHintSize,
-                        shortEdge - (mTopBarHeight * 2));
-                hintSize = Math.min(hintSize, maxHintSize);
-            }
-            mCornerHintSize = hintSize;
-        }
-
-        private int resolveWindowCornerRadiusPx() {
-            if (mTask == null) {
-                return dpToPx(BASE_CORNER_HINT_SIZE_DP) / 2;
-            }
-            final TaskWindowSurfaceInfo info = mTask.mWindowContainerExt.getTaskWindowSurfaceInfo();
-            if (info == null) {
-                return dpToPx(BASE_CORNER_HINT_SIZE_DP) / 2;
-            }
-            return Math.round(info.getCornerRadius() * info.getWindowSurfaceRealScale());
-        }
-
-        private void updateCornerHintStyle() {
-            if (mCornerHintTopRight != null) {
-                mCornerHintTopRight.setHintThickness(mTopBarHeight);
-                mCornerHintBottomLeft.setHintThickness(mTopBarHeight);
-                mCornerHintBottomRight.setHintThickness(mTopBarHeight);
-            }
         }
 
         void updateLayout(Rect taskBounds) {
             if (taskBounds == null || taskBounds.isEmpty()) return;
             mDrawingRect.set(taskBounds);
-            updateCornerHintMetrics(taskBounds);
-            updateCornerHintStyle();
 
             FrameLayout.LayoutParams lpBar = (FrameLayout.LayoutParams) mTopBar.getLayoutParams();
             lpBar.width = mTopBarWidth;
@@ -703,7 +591,6 @@ class DimmerWindow {
             mResizeHandleTopRight.setLayoutParams(lpTopRight);
 
             updateCornerDecorLayout(taskBounds);
-            updateCornerHintLayout(taskBounds);
 
             mTopBar.setVisibility(VISIBLE);
             mTopBarTouchArea.setVisibility(VISIBLE);
@@ -712,9 +599,6 @@ class DimmerWindow {
             mResizeHandleTopLeft.setVisibility(GONE);
             mResizeHandleTopRight.setVisibility(VISIBLE);
             updateCornerDecorVisibility();
-            mCornerHintTopRight.setVisibility(VISIBLE);
-            mCornerHintBottomLeft.setVisibility(VISIBLE);
-            mCornerHintBottomRight.setVisibility(VISIBLE);
 
             requestLayout();
         }
@@ -773,30 +657,28 @@ class DimmerWindow {
         }
 
         private void updateCornerHintLayout(Rect taskBounds) {
-            final int stroke = mTopBarHeight;
-
             final FrameLayout.LayoutParams topRightLp =
                     (FrameLayout.LayoutParams) mCornerHintTopRight.getLayoutParams();
             topRightLp.width = mCornerHintSize;
             topRightLp.height = mCornerHintSize;
-            topRightLp.leftMargin = taskBounds.right - mCornerHintSize + stroke;
-            topRightLp.topMargin = taskBounds.top - stroke;
+            topRightLp.leftMargin = taskBounds.right - mCornerHintSize;
+            topRightLp.topMargin = taskBounds.top;
             mCornerHintTopRight.setLayoutParams(topRightLp);
 
             final FrameLayout.LayoutParams bottomLeftLp =
                     (FrameLayout.LayoutParams) mCornerHintBottomLeft.getLayoutParams();
             bottomLeftLp.width = mCornerHintSize;
             bottomLeftLp.height = mCornerHintSize;
-            bottomLeftLp.leftMargin = taskBounds.left - stroke;
-            bottomLeftLp.topMargin = taskBounds.bottom - mCornerHintSize + stroke;
+            bottomLeftLp.leftMargin = taskBounds.left;
+            bottomLeftLp.topMargin = taskBounds.bottom - mCornerHintSize;
             mCornerHintBottomLeft.setLayoutParams(bottomLeftLp);
 
             final FrameLayout.LayoutParams bottomRightLp =
                     (FrameLayout.LayoutParams) mCornerHintBottomRight.getLayoutParams();
             bottomRightLp.width = mCornerHintSize;
             bottomRightLp.height = mCornerHintSize;
-            bottomRightLp.leftMargin = taskBounds.right - mCornerHintSize + stroke;
-            bottomRightLp.topMargin = taskBounds.bottom - mCornerHintSize + stroke;
+            bottomRightLp.leftMargin = taskBounds.right - mCornerHintSize;
+            bottomRightLp.topMargin = taskBounds.bottom - mCornerHintSize;
             mCornerHintBottomRight.setLayoutParams(bottomRightLp);
         }
         private void setMinimizedViewVisibility() {
@@ -809,9 +691,6 @@ class DimmerWindow {
             mCornerHandleTouchArea.setVisibility(GONE);
             mCornerHandle.setVisibility(GONE);
             mCornerChip.setVisibility(GONE);
-            mCornerHintTopRight.setVisibility(GONE);
-            mCornerHintBottomLeft.setVisibility(GONE);
-            mCornerHintBottomRight.setVisibility(GONE);
         }
 
         void updateBarScale(float scale) {
@@ -823,7 +702,6 @@ class DimmerWindow {
             updateTopBarDrawable();
             updateCornerHandleDrawable();
             updateCornerChipDrawable();
-            updateCornerHintStyle();
 
             FrameLayout.LayoutParams lpBar = (FrameLayout.LayoutParams) mTopBar.getLayoutParams();
             lpBar.width = mTopBarWidth;
@@ -845,7 +723,7 @@ class DimmerWindow {
 
         private void updateTopBarDrawable() {
             final GradientDrawable topBarDrawable = new GradientDrawable();
-            topBarDrawable.setColor(resolveLegacyDismissTargetColor());
+            topBarDrawable.setColor(resolveDefaultTopBarColor());
             topBarDrawable.setCornerRadius(mTopBarHeight / 2f);
             mTopBar.setBackground(topBarDrawable);
         }
@@ -899,9 +777,6 @@ class DimmerWindow {
             animateDecorAlpha(mTopBar, mDecorAlpha);
             animateDecorAlpha(mCornerHandle, mDecorAlpha);
             animateDecorAlpha(mCornerChip, mDecorAlpha);
-            animateDecorAlpha(mCornerHintTopRight, mDecorAlpha);
-            animateDecorAlpha(mCornerHintBottomLeft, mDecorAlpha);
-            animateDecorAlpha(mCornerHintBottomRight, mDecorAlpha);
         }
 
         private void animateDecorAlpha(View view, float targetAlpha) {
