@@ -557,13 +557,9 @@ public class PopUpWindowController {
 
     void updateFocusedApp() {
         final DisplayContent defaultDisplay = mService.getDefaultDisplayContentLocked();
-        final ActivityRecord previousFocusedApp = defaultDisplay.mFocusedApp;
         defaultDisplay.mFocusedApp = null;
         final WindowState win = defaultDisplay.findFocusedWindow();
-        defaultDisplay.mFocusedApp = previousFocusedApp;
-        if (win != null && win.getActivityRecord() != null) {
-            defaultDisplay.setFocusedApp(win.getActivityRecord());
-        } else if (win != null && win.getTask() != null) {
+        if (win != null && win.getTask() != null) {
             mAtmService.setFocusedTask(win.getTask().mTaskId);
         }
     }
