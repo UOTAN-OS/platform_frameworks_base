@@ -231,22 +231,6 @@ public class TopActivityRecorder {
         }
     }
 
-    /**
-     * Remove a mini-window task from the tracking list only (no DimmerWindow detach).
-     * Used when the DimmerWindow has already been detached elsewhere.
-     */
-    void removeMiniWindowTaskFromList(Task task) {
-        synchronized (mFocusLock) {
-            for (int i = mTopMiniWindowActivity.size() - 1; i >= 0; --i) {
-                if (mTopMiniWindowActivity.get(i).task == task) {
-                    final ActivityInfo ai = mTopMiniWindowActivity.remove(i);
-                    logD("removeMiniWindowTaskFromList: " + ai);
-                    return;
-                }
-            }
-        }
-    }
-
     void onForceStopPackage(String packageName) {
         if (packageName == null) {
             return;

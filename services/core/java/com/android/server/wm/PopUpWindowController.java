@@ -437,20 +437,12 @@ public class PopUpWindowController {
                         + ", reason=" + reasonToString(reason));
             }
             if (task != null && task.mWindowContainerExt.getTaskWindowSurfaceInfo() != null) {
-                // Reset mini-window input focus so the fullscreen app can regain input.
-                // Without this, mMiniWindowHasInputFocus stays true after dismissal,
-                // causing the fullscreen app to appear frozen (no touch response).
-                setMiniWindowInputFocus(false);
                 if (reason == MOVE_TO_BACK_TOUCH_OUTSIDE) {
                     TopActivityRecorder.getInstance().clearMiniWindow();
                 }
                 final TaskWindowSurfaceInfo info = task.mWindowContainerExt.getTaskWindowSurfaceInfo();
                 // Hide the DimmerWindow frame immediately to prevent flash after exit animation
                 DimmerWindowManager.getInstance().detachTask(task);
-                // Remove from TopActivityRecorder so hasMiniWindow() returns false
-                // immediately, allowing shouldSkipAppFocusChanged to let the fullscreen
-                // app regain focus without waiting for tryExitPopUpView (200ms delay).
-                TopActivityRecorder.getInstance().removeMiniWindowTaskFromList(task);
                 info.playExitAnimation(reason == MOVE_TO_BACK_FROM_LEAVE_BUTTON,
                         info.getWindowSurfaceRealScale(),
                         () -> {
