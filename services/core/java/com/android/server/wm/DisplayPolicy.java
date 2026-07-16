@@ -17,7 +17,6 @@
 package com.android.server.wm;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
-import static android.view.Display.TYPE_INTERNAL;
 import static android.view.InsetsFrameProvider.SOURCE_ARBITRARY_RECTANGLE;
 import static android.view.InsetsFrameProvider.SOURCE_CONTAINER_BOUNDS;
 import static android.view.InsetsFrameProvider.SOURCE_DISPLAY;
@@ -135,7 +134,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
 import com.android.internal.policy.ForceShowNavBarSettingsObserver;
 import com.android.internal.policy.GestureNavigationSettingsObserver;
-import com.android.internal.policy.ScreenDecorationsUtils;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.statusbar.LetterboxDetails;
 import com.android.internal.util.function.TriFunction;
@@ -2033,17 +2031,6 @@ public class DisplayPolicy {
                 });
     }
 
-    /**
-     * Return corner radius in pixels that should be used on windows in order to cover the display.
-     *
-     * <p>The radius is only valid for internal displays, since the corner radius of external
-     * displays is not known at build time when window corners are configured.
-     */
-    float getWindowCornerRadius() {
-        return mDisplayContent.getDisplay().getType() == TYPE_INTERNAL
-                ? ScreenDecorationsUtils.getWindowCornerRadius(mContext) : 0f;
-    }
-
     boolean isShowingDreamLw() {
         return mShowingDream;
     }
@@ -2610,16 +2597,6 @@ public class DisplayPolicy {
                 mFocusedWindow != null && (isRemoteControlling || fillsDisplayWindowingMode(
                         mFocusedWindow)) ? mFocusedWindow : mTopFullscreenOpaqueWindowState;
 
-        final int rotation = mDisplayContent.getRotation();
-        final boolean isPortrait = rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180;
-        final boolean hasMiniWindow = TopActivityRecorder.getInstance().hasMiniWindow();
-        if (hasMiniWindow && !isPortrait) {
-            final WindowState dimWinState = PopUpWindowController.getInstance().getDimWinState();
-            if (dimWinState != null) {
-                winCandidate = dimWinState;
-            }
-        }
-
         // Immersive mode confirmation should never affect the system bar visibility, otherwise
         // it will unhide the navigation bar and hide itself.
         if (winCandidate != null && (winCandidate.mAttrs.privateFlags
@@ -2649,7 +2626,7 @@ public class DisplayPolicy {
 
         final int displayId = getDisplayId();
         final int disableFlags = win != null ? win.getDisableFlags() : 0;
-        final int opaqueAppearance = updateSystemBarsLw(win, disableFlags, hasMiniWindow && isPortrait);
+        final int opaqueAppearance = updateSystemBarsLw(win, disableFlags);
         if (!mRelaunchingSystemBarColorApps.isEmpty()) {
             // The appearance of system bars might change while relaunching apps. We don't report
             // the intermediate state to system UI. Otherwise, it might trigger redundant effects.
@@ -2768,7 +2745,7 @@ public class DisplayPolicy {
         return appearance;
     }
 
-    private int updateSystemBarsLw(@Nullable WindowState win, int disableFlags, boolean inPortPopUpView) {
+    private int updateSystemBarsLw(@Nullable WindowState win, int disableFlags) {
         final TaskDisplayArea defaultTaskDisplayArea = mDisplayContent.getDefaultTaskDisplayArea();
         // TODO(b/407898759): Migrate to have WM Shell to override the insets visibility based on
         // top focused Task.
@@ -2798,8 +2775,7 @@ public class DisplayPolicy {
                 win,
                 mShowingPermanentInsetsTypes,
                 mHidingPermanentInsetsTypes,
-                showSystemBarsByLegacyPolicy,
-                inPortPopUpView);
+                showSystemBarsByLegacyPolicy);
 
         final boolean topAppHidesStatusBar = topAppHidesSystemBar(Type.statusBars());
         if (getStatusBar() != null) {
@@ -3358,13 +3334,5 @@ public class DisplayPolicy {
         mDisplayUiMode = uiModeManagerInternal != null
                 ? uiModeManagerInternal.getDisplayUiMode(getDisplayId())
                 : (Configuration.UI_MODE_TYPE_UNDEFINED | Configuration.UI_MODE_NIGHT_UNDEFINED);
-    }
-
-    public int getLeftGestureInset() {
-        return mLeftGestureInset;
-    }
-
-    public int getRightGestureInset() {
-        return mRightGestureInset;
     }
 }

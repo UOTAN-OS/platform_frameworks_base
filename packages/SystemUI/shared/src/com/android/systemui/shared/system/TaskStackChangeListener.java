@@ -120,7 +120,4 @@ public interface TaskStackChangeListener {
      * task is being replaced with a new one.
      */
     default void onRecentTaskRemovedForAddTask(int taskId) { }
-
-    /** @see ITaskStackListener#onTaskFocusChanged(int, boolean) */
-    default void onTaskFocusChanged(int taskId, boolean focused) { }
 }

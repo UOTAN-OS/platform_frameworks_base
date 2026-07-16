@@ -36,7 +36,6 @@ import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD_DIALOG;
 import static android.view.WindowManager.LayoutParams.TYPE_KEYGUARD_DIALOG;
 import static android.view.WindowManager.LayoutParams.TYPE_MAGNIFICATION_OVERLAY;
-import static android.view.WindowManager.LayoutParams.TYPE_MINI_WINDOW_DIMMER;
 import static android.view.WindowManager.LayoutParams.TYPE_NAVIGATION_BAR;
 import static android.view.WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_NOTIFICATION_SHADE;
@@ -536,7 +535,6 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
             case TYPE_DOCK_DIVIDER:
             case TYPE_QS_DIALOG:
             case TYPE_PHONE:
-            case TYPE_MINI_WINDOW_DIMMER:
                 return  3;
             case TYPE_SEARCH_BAR:
                 return  4;

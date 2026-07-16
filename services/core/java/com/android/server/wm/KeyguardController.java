@@ -853,8 +853,7 @@ class KeyguardController {
         @Nullable
         private Task getRootTaskForControllingOccluding(DisplayContent display) {
             return display.getRootTask(task ->
-                    task != null && task.isFocusableAndVisible() && !task.inPinnedWindowingMode()
-                    && !task.getWindowConfiguration().isPopUpWindowMode());
+                    task != null && task.isFocusableAndVisible() && !task.inPinnedWindowingMode());
         }
 
         void dumpStatus(PrintWriter pw, String prefix) {

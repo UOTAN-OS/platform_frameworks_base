@@ -48,10 +48,6 @@ class GestureMonitorSpyWindow {
             SurfaceControl sc, InputChannel inputChannel) {
         mMonitorToken = token;
         mClientChannel = inputChannel;
-
-        // Avoid gesture monitors being disposed
-        mClientChannel.setServerRetained(true);
-
         mInputSurface = sc;
 
         mApplicationHandle = new InputApplicationHandle(null, name,

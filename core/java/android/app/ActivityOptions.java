@@ -1497,9 +1497,6 @@ public class ActivityOptions extends ComponentOptions {
      * @return {@code this} {@link ActivityOptions} instance
      */
     public ActivityOptions setLaunchBounds(@Nullable Rect screenSpacePixelRect) {
-        if (ActivityOptionsExt.hookLauncherSetLaunchBounds()) {
-            return this;
-        }
         mLaunchBounds = screenSpacePixelRect != null ? new Rect(screenSpacePixelRect) : null;
         return this;
     }

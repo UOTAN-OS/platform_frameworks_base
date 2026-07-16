@@ -192,7 +192,6 @@ class Session extends IWindowSession.Stub implements IBinder.DeathRecipient {
             mCallback.asBinder().linkToDeath(this, 0);
         } catch (RemoteException e) {
             mClientDead = true;
-            Slog.e(TAG_WM, "Client dead: ", e);
         }
     }
 
@@ -334,11 +333,6 @@ class Session extends IWindowSession.Stub implements IBinder.DeathRecipient {
         }
         mService.finishDrawingWindow(this, window, postDrawTransaction, seqId);
         Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
-    }
-
-    @Override
-    public void getPopUpViewTouchOffset(IWindow window, float[] offsets) {
-        PopUpWindowController.getInstance().getPopUpViewTouchOffset(this, window, offsets);
     }
 
     /* Drag/drop */
@@ -544,7 +538,6 @@ class Session extends IWindowSession.Stub implements IBinder.DeathRecipient {
 
     @Override
     public void finishMovingTask(IWindow window) {
-        return;
     }
 
     @Override

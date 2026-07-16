@@ -136,9 +136,6 @@ interface IWindowSession {
     oneway void finishDrawing(IWindow window, in SurfaceControl.Transaction postDrawTransaction,
             int seqId);
 
-    @UnsupportedAppUsage
-    void getPopUpViewTouchOffset(IWindow window, out float[] offsets);
-
     /**
      * Initiate the drag operation itself
      *

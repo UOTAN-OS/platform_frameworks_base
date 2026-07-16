@@ -112,7 +112,6 @@ import com.android.wm.shell.keyguard.KeyguardTransitions;
 import com.android.wm.shell.onehanded.OneHanded;
 import com.android.wm.shell.onehanded.OneHandedController;
 import com.android.wm.shell.performance.PerfHintController;
-import com.android.wm.shell.popupview.PopUpViewTransitionHandler;
 import com.android.wm.shell.recents.RecentTasks;
 import com.android.wm.shell.recents.RecentTasksController;
 import com.android.wm.shell.recents.RecentsTransitionHandler;
@@ -753,21 +752,6 @@ public abstract class WMShellBaseModule {
     }
 
     //
-    // Pop-Up View
-    //
-
-    @BindsOptionalOf
-    @DynamicOverride
-    abstract PopUpViewTransitionHandler optionalPopUpViewTransitionHandler();
-
-    @WMSingleton
-    @Provides
-    static Optional<PopUpViewTransitionHandler> providesPopUpViewTransitionHandler(
-            @DynamicOverride Optional<PopUpViewTransitionHandler> popUpViewTransitionHandler) {
-        return popUpViewTransitionHandler;
-    }
-
-    //
     // Recent tasks
     //
 
@@ -1201,7 +1185,6 @@ public abstract class WMShellBaseModule {
             Optional<RecentsTransitionHandler> recentsTransitionHandlerOptional,
             Optional<OneHandedController> oneHandedControllerOptional,
             Optional<AppZoomOutController> appZoomOutControllerOptional,
-            Optional<PopUpViewTransitionHandler> popUpViewTransitionHandlerOptional,
             Optional<AppHandles> appHandlesOptional,
             Optional<HideDisplayCutoutController> hideDisplayCutoutControllerOptional,
             Optional<ActivityEmbeddingController> activityEmbeddingOptional,

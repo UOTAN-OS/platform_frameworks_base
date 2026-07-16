@@ -175,15 +175,6 @@ public final class TransitionInfo implements Parcelable {
     /** The first unused bit. This can be used by remotes to attach custom flags to this change. */
     public static final int FLAG_FIRST_CUSTOM = 1 << 24;
 
-    /** Pop-Up View flags */
-    public static final int FLAG_SCHEDULE_POP_UP_VIEW = FLAG_FIRST_CUSTOM << 1;
-    public static final int FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS = FLAG_FIRST_CUSTOM << 2;
-    public static final int FLAG_EXIT_POP_UP_VIEW_BY_DRAG = FLAG_FIRST_CUSTOM << 3;
-    public static final int FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION = FLAG_FIRST_CUSTOM << 4;
-    public static final int FLAG_POP_UP_VIEW = FLAG_SCHEDULE_POP_UP_VIEW |
-                                               FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS |
-                                               FLAG_EXIT_POP_UP_VIEW_BY_DRAG;
-
     /** The change belongs to a window that won't contain activities. */
     public static final int FLAGS_IS_NON_APP_WINDOW =
             FLAG_IS_WALLPAPER | FLAG_IS_INPUT_METHOD | FLAG_IS_SYSTEM_WINDOW;
@@ -218,12 +209,7 @@ public final class TransitionInfo implements Parcelable {
             FLAG_SYNC,
             FLAG_CONFIG_AT_END,
             FLAG_IS_TASK_DISPLAY_AREA,
-            FLAG_FIRST_CUSTOM,
-            FLAG_SCHEDULE_POP_UP_VIEW,
-            FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS,
-            FLAG_EXIT_POP_UP_VIEW_BY_DRAG,
-            FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION,
-            FLAG_POP_UP_VIEW
+            FLAG_FIRST_CUSTOM
     })
     public @interface ChangeFlags {}
 
@@ -544,18 +530,6 @@ public final class TransitionInfo implements Parcelable {
         if ((flags & FLAG_IS_TASK_DISPLAY_AREA) != 0) {
             sb.append(sb.length() == 0 ? "" : "|").append("FLAG_IS_TASK_DISPLAY_AREA");
         }
-        if ((flags & FLAG_SCHEDULE_POP_UP_VIEW) != 0) {
-            sb.append(sb.length() == 0 ? "" : "|").append("SCHEDULE_POP_UP_VIEW");
-        }
-        if ((flags & FLAG_LAUNCH_POP_UP_VIEW_FROM_RECENTS) != 0) {
-            sb.append(sb.length() == 0 ? "" : "|").append("LAUNCH_POP_UP_VIEW_FROM_RECENTS");
-        }
-        if ((flags & FLAG_EXIT_POP_UP_VIEW_BY_DRAG) != 0) {
-            sb.append(sb.length() == 0 ? "" : "|").append("EXIT_POP_UP_VIEW_BY_DRAG");
-        }
-        if ((flags & FLAG_EXIT_POP_UP_VIEW_DISPLAY_ROTATION) != 0) {
-            sb.append(sb.length() == 0 ? "" : "|").append("EXIT_POP_UP_VIEW_DISPLAY_ROTATION");
-        }
         return sb.toString();
     }
 
@@ -685,8 +659,6 @@ public final class TransitionInfo implements Parcelable {
         private AnimationOptions mAnimationOptions = null;
         private IBinder mTaskFragmentToken = null;
 
-        public PopUpView mPopUpView = new PopUpView();
-
         public Change(@Nullable WindowContainerToken container, @NonNull SurfaceControl leash) {
             mContainer = container;
             mLeash = leash;
@@ -718,7 +690,6 @@ public final class TransitionInfo implements Parcelable {
             mActivityTransitionInfo = in.readTypedObject(ActivityTransitionInfo.CREATOR);
             mAnimationOptions = in.readTypedObject(AnimationOptions.CREATOR);
             mTaskFragmentToken = in.readStrongBinder();
-            mPopUpView = in.readTypedObject(PopUpView.CREATOR);
         }
 
         private Change localRemoteCopy() {
@@ -747,7 +718,6 @@ public final class TransitionInfo implements Parcelable {
             }
             out.mAnimationOptions = mAnimationOptions;
             out.mTaskFragmentToken = mTaskFragmentToken;
-            out.mPopUpView = mPopUpView;
             return out;
         }
 
@@ -868,28 +838,6 @@ public final class TransitionInfo implements Parcelable {
          */
         public void setTaskFragmentToken(@Nullable IBinder token) {
             mTaskFragmentToken = token;
-        }
-
-        /** Sets Pop-Up View info. */
-        public void setPopUpViewInfo(
-                Point startPos,
-                Point endPos,
-                float startScale,
-                float endScale,
-                float startCornerRadius,
-                float endCornerRadius,
-                Rect appBounds,
-                Rect windowCrop,
-                Rect startDragBounds) {
-            mPopUpView.mStartPos = startPos;
-            mPopUpView.mEndPos = endPos;
-            mPopUpView.mStartScale = startScale;
-            mPopUpView.mEndScale = endScale;
-            mPopUpView.mStartCornerRadius = startCornerRadius;
-            mPopUpView.mEndCornerRadius = endCornerRadius;
-            mPopUpView.mAppBounds = appBounds;
-            mPopUpView.mWindowCrop = windowCrop;
-            mPopUpView.mStartDragBounds = startDragBounds;
         }
 
         /** @return the container that is changing. May be null if non-remotable (eg. activity) */
@@ -1092,7 +1040,6 @@ public final class TransitionInfo implements Parcelable {
             dest.writeTypedObject(mActivityTransitionInfo, flags);
             dest.writeTypedObject(mAnimationOptions, flags);
             dest.writeStrongBinder(mTaskFragmentToken);
-            dest.writeTypedObject(mPopUpView, flags);
         }
 
         @NonNull
@@ -1181,90 +1128,6 @@ public final class TransitionInfo implements Parcelable {
             }
             sb.append('}');
             return sb.toString();
-        }
-
-        public static final class PopUpView implements Parcelable {
-            public Point mStartPos;
-            public Point mEndPos;
-            public float mStartScale;
-            public float mEndScale;
-            public float mStartCornerRadius;
-            public float mEndCornerRadius;
-            public Rect mAppBounds;
-            public Rect mWindowCrop;
-            public Rect mStartDragBounds;
-
-            public PopUpView() {
-                mStartPos = new Point();
-                mEndPos = new Point();
-                mAppBounds = new Rect();
-                mWindowCrop = new Rect();
-                mStartDragBounds = new Rect();
-            }
-
-            private PopUpView(Parcel in) {
-                mStartPos = new Point();
-                mEndPos = new Point();
-                mAppBounds = new Rect();
-                mWindowCrop = new Rect();
-                mStartDragBounds = new Rect();
-                mStartPos.readFromParcel(in);
-                mEndPos.readFromParcel(in);
-                mStartScale = in.readFloat();
-                mEndScale = in.readFloat();
-                mStartCornerRadius = in.readFloat();
-                mEndCornerRadius = in.readFloat();
-                mAppBounds.readFromParcel(in);
-                mWindowCrop.readFromParcel(in);
-                mStartDragBounds.readFromParcel(in);
-            }
-
-            @Override
-            public void writeToParcel(Parcel dest, int flags) {
-                mStartPos.writeToParcel(dest, flags);
-                mEndPos.writeToParcel(dest, flags);
-                dest.writeFloat(mStartScale);
-                dest.writeFloat(mEndScale);
-                dest.writeFloat(mStartCornerRadius);
-                dest.writeFloat(mEndCornerRadius);
-                mAppBounds.writeToParcel(dest, flags);
-                mWindowCrop.writeToParcel(dest, flags);
-                mStartDragBounds.writeToParcel(dest, flags);
-            }
-
-            @NonNull
-            public static final Creator<PopUpView> CREATOR =
-                    new Creator<PopUpView>() {
-                        @Override
-                        public PopUpView createFromParcel(Parcel in) {
-                            return new PopUpView(in);
-                        }
-
-                        @Override
-                        public PopUpView[] newArray(int size) {
-                            return new PopUpView[size];
-                        }
-                    };
-
-            /** @hide */
-            @Override
-            public int describeContents() {
-                return 0;
-            }
-
-            @Override
-            public String toString() {
-                return "{mStartPos=" + mStartPos
-                        + " mEndPos=" + mEndPos
-                        + " mStartScale=" + mStartScale
-                        + " mEndScale=" + mEndScale
-                        + " mStartCornerRadius=" + mStartCornerRadius
-                        + " mEndCornerRadius=" + mEndCornerRadius
-                        + " mAppBounds=" + mAppBounds
-                        + " mWindowCrop=" + mWindowCrop
-                        + " mStartDragBounds=" + mStartDragBounds
-                        + "}";
-            }
         }
     }
 

@@ -40,9 +40,7 @@ import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.view.WindowManager.TRANSIT_FLAG_AOD_APPEARING;
 import static android.view.WindowManager.TRANSIT_FLAG_IS_RECENTS;
-import static android.view.WindowManager.TRANSIT_FLAG_KEYGUARD_GOING_AWAY;
 import static android.view.WindowManager.TRANSIT_FLAG_KEYGUARD_LOCKED;
-import static android.view.WindowManager.TRANSIT_FLAG_MOVE_TASK_TO_BACK;
 import static android.view.WindowManager.TRANSIT_OPEN;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
 import static android.view.WindowManager.TRANSIT_TO_FRONT;
@@ -87,17 +85,13 @@ import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_PREDICT_BACK;
 import static com.android.server.wm.WindowContainer.AnimationFlags.PARENTS;
 import static com.android.server.wm.WindowState.BLAST_TIMEOUT_DURATION;
 
-import static org.rising.DebugConstants.DEBUG_POP_UP;
-
 import android.annotation.ColorInt;
-
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.IApplicationThread;
-import android.app.WindowConfiguration;
 import android.content.pm.ActivityInfo;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -1204,16 +1198,6 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
             if (target.getParent() == null) continue;
             final SurfaceControl targetLeash = getLeashSurface(target, null /* t */);
             final SurfaceControl origParent = getOrigParentSurface(target);
-            if ((mTargets.get(i).mFlags & ChangeInfo.FLAG_CHANGE_SHOULD_SKIP_TRANSITIONS) != 0) {
-                if (mTargets.get(i).mIsKeyguardGoingAway) {
-                    t.reparent(targetLeash, origParent);
-                    t.setLayer(targetLeash, target.getLastLayer());
-                }
-                if (DEBUG_POP_UP) {
-                    Slog.d(TAG, "skip buildFinishTransaction, target=" + mTargets.get(i));
-                }
-                continue;
-            }
             // Ensure surfaceControls are re-parented back into the hierarchy.
             t.reparent(targetLeash, origParent);
             t.setLayer(targetLeash, target.getLastLayer());
@@ -3190,12 +3174,6 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
             change.setMode(info.getTransitMode(target));
             info.mReadyMode = change.getMode();
             change.setStartAbsBounds(info.mAbsoluteBounds);
-            if ((flags & TRANSIT_FLAG_KEYGUARD_GOING_AWAY) != 0) {
-                info.mIsKeyguardGoingAway = true;
-            }
-            if ((flags & TRANSIT_FLAG_MOVE_TASK_TO_BACK) != 0) {
-                info.mIsMoveTaskToBack = true;
-            }
             change.setFlags(info.getChangeFlags(target));
             info.mReadyFlags = change.getFlags();
             change.setDisplayId(info.mDisplayId, getDisplayId(target));
@@ -3326,33 +3304,8 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
                 change.setSnapshot(info.mSnapshot, info.mSnapshotLuma);
             }
 
-            info.mPopUpViewInfo = target.mWindowContainerExt.getPopUpViewInfo();
-            if (info.mPopUpViewInfo != null) {
-                change.setPopUpViewInfo(
-                        info.mPopUpViewInfo.mStartPos,
-                        info.mPopUpViewInfo.mEndPos,
-                        info.mPopUpViewInfo.mStartScale,
-                        info.mPopUpViewInfo.mEndScale,
-                        info.mPopUpViewInfo.mStartCornerRadius,
-                        info.mPopUpViewInfo.mEndCornerRadius,
-                        info.mPopUpViewInfo.mAppBounds,
-                        info.mPopUpViewInfo.mWindowCrop,
-                        info.mPopUpViewInfo.mStartDragBounds);
-            }
-
-            if ((info.mFlags & ChangeInfo.FLAG_CHANGE_SHOULD_SKIP_TRANSITIONS) != 0) {
-                if (info.mIsKeyguardGoingAway) {
-                    startT.reparent(getLeashSurface(target, null), out.getRootLeash());
-                    startT.setLayer(getLeashSurface(target, null), Integer.MAX_VALUE);
-                }
-                if (DEBUG_POP_UP) {
-                    Slog.d(TAG, "skip addChange for changeInfo=" + info);
-                }
-            } else {
-                out.addChange(change);
-            }
+            out.addChange(change);
         }
-        PopUpWindowController.getInstance().calculateTransitionInfo(sortedTargets, out);
         return out;
     }
 
@@ -3813,9 +3766,6 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
          */
         private static final int FLAG_BELOW_BACK_GESTURE_ANIMATION = 0x100;
 
-        /** Whether this change should skip transitions. */
-        static final int FLAG_CHANGE_SHOULD_SKIP_TRANSITIONS = 0x80;
-
         @IntDef(prefix = { "FLAG_" }, value = {
                 FLAG_NONE,
                 FLAG_SEAMLESS_ROTATION,
@@ -3826,8 +3776,7 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
                 FLAG_CHANGE_MOVED_TO_TOP,
                 FLAG_CHANGE_CONFIG_AT_END,
                 FLAG_BACK_GESTURE_ANIMATION,
-                FLAG_BELOW_BACK_GESTURE_ANIMATION,
-                FLAG_CHANGE_SHOULD_SKIP_TRANSITIONS
+                FLAG_BELOW_BACK_GESTURE_ANIMATION
         })
         @Retention(RetentionPolicy.SOURCE)
         @interface ChangeInfoFlag {}
@@ -3876,11 +3825,6 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
         /** The flags which is set when the transition is ready. */
         @TransitionInfo.ChangeFlags
         int mReadyFlags;
-
-        /** Pop-Up View */
-        PopUpViewInfo mPopUpViewInfo;
-        boolean mIsKeyguardGoingAway;
-        boolean mIsMoveTaskToBack;
 
         ChangeInfo(@NonNull WindowContainer origState) {
             mContainer = origState;
@@ -3948,7 +3892,7 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
                 return TRANSIT_TO_FRONT;
             }
             final boolean nowVisible = wc.isVisibleRequested();
-            if (nowVisible == mVisible || PopUpWindowController.getInstance().isLaunchPopUpViewFromRecents()) {
+            if (nowVisible == mVisible) {
                 return TRANSIT_CHANGE;
             }
             if (mExistenceChanged) {
@@ -4061,7 +4005,7 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
             if ((mFlags & FLAG_CHANGE_CONFIG_AT_END) != 0) {
                 flags |= FLAG_CONFIG_AT_END;
             }
-            return PopUpWindowController.getInstance().getChangeFlags(this, flags);
+            return flags;
         }
 
         /** Whether the container fills its parent Task bounds before and after the transition. */
@@ -4078,32 +4022,6 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
                     || (taskWidth == endBounds.width() && taskHeight == endBounds.height());
             return isInvisibleOrFillingTaskBeforeTransition
                     && isInVisibleOrFillingTaskAfterTransition;
-        }
-
-        static final class PopUpViewInfo {
-            Point mStartPos = new Point();
-            Point mEndPos = new Point();
-            float mStartScale;
-            float mEndScale;
-            float mStartCornerRadius;
-            float mEndCornerRadius;
-            Rect mAppBounds = new Rect();
-            Rect mWindowCrop = new Rect();
-            Rect mStartDragBounds = new Rect();
-
-            @Override
-            public String toString() {
-                return "{mStartPos=" + mStartPos
-                        + " mEndPos=" + mEndPos
-                        + " mStartScale=" + mStartScale
-                        + " mEndScale=" + mEndScale
-                        + " mStartCornerRadius=" + mStartCornerRadius
-                        + " mEndCornerRadius=" + mEndCornerRadius
-                        + " mAppBounds=" + mAppBounds
-                        + " mWindowCrop=" + mWindowCrop
-                        + " mStartDragBounds=" + mStartDragBounds
-                        + "}";
-            }
         }
     }
 
