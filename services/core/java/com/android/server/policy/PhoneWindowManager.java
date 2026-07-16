@@ -5579,18 +5579,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         }
     };
 
-    BroadcastReceiver mGestureSettingsReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if ("org.avium.UPDATE_GESTURE_SETTINGS".equals(intent.getAction())) {
-                if (AVIUM_DEBUG) {
-                    Slog.d(TAG_GESTURE, "Received gesture settings update broadcast");
-                }
-                updateGestureParams();
-            }
-        }
-    };
-
     @Override
     public void startedWakingUpGlobal(@WakeReason int reason) {
 
@@ -6395,9 +6383,6 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mKeyguardDelegate.onSystemReady();
         //Ext add
         updateGestureParams();
-        IntentFilter gestureSettingsFilter = new IntentFilter("org.avium.UPDATE_GESTURE_SETTINGS");
-        mContext.registerReceiver(mGestureSettingsReceiver, gestureSettingsFilter,
-                Context.RECEIVER_NOT_EXPORTED);
         mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {
