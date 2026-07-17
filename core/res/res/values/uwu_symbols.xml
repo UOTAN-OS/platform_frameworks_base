@@ -37,6 +37,7 @@
     <java-symbol type="string" name="app_jump_blocked_toast" />
     <java-symbol type="string" name="app_jump_remember_choice" />
     <java-symbol type="string" name="app_jump_footer_message" />
+    <java-symbol type="string" name="moment_launch_disabled" />
     <java-symbol type="layout" name="app_jump_prompt_dialog" />
     <java-symbol type="drawable" name="app_jump_action_background_single" />
     <java-symbol type="drawable" name="app_jump_action_background_top" />

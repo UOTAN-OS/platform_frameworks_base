@@ -74,6 +74,7 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.os.SystemProperties;
 import android.os.Trace;
 import android.provider.DeviceConfig;
 import android.telecom.TelecomManager;
@@ -96,6 +97,7 @@ import android.view.WindowInsets.Type.InsetsType;
 import android.view.WindowInsetsController.Appearance;
 import android.view.WindowInsetsController.Behavior;
 import android.view.WindowManager;
+import android.view.WindowManagerGlobal;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.inputmethod.InputMethodManager;
@@ -416,6 +418,35 @@ public class NavigationBar extends ViewController<NavigationBarView> implements 
         @Override
         public void animateNavBarLongPress(boolean isTouchDown, boolean shrink, long durationMs) {
             mView.getHomeHandle().animateLongPress(isTouchDown, shrink, durationMs);
+        }
+
+        @Override
+        public void onNavHandleDoubleTap(int displayId, int taskId) {
+            if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                Log.d(TAG, "Received nav handle double tap displayId=" + displayId
+                        + " barDisplayId=" + mDisplayId + " taskId=" + taskId);
+            }
+            if (displayId != mDisplayId) {
+                if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                    Log.d(TAG, "Ignoring nav handle double tap for another display");
+                }
+                return;
+            }
+            try {
+                final boolean handled = WindowManagerGlobal.getWindowManagerService()
+                        .handleMomentNavHandleDoubleTap(taskId);
+                if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                    Log.d(TAG, "WM handled nav handle double tap=" + handled);
+                }
+                if (handled) {
+                    final View homeHandle = mView.getHomeHandle().getCurrentView();
+                    if (homeHandle != null) {
+                        homeHandle.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
+                    }
+                }
+            } catch (RemoteException | SecurityException e) {
+                Log.w(TAG, "Failed to convert top task to Moment", e);
+            }
         }
 
         @Override

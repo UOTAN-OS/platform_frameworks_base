@@ -31,6 +31,7 @@ import static android.app.ActivityManager.isStartResultSuccessful;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.app.PendingIntent.FLAG_CANCEL_CURRENT;
 import static android.app.PendingIntent.FLAG_ONE_SHOT;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK;
@@ -1385,6 +1386,15 @@ class ActivityStarter {
             }
         }
 
+        if (checkedOptions != null
+                && checkedOptions.getLaunchWindowingMode() == WINDOWING_MODE_MOMENT
+                && !mService.mWindowManager.mMomentController.isEnabledForUser(userId)) {
+            abort = true;
+            UiThread.getHandler().post(() -> Toast.makeText(mService.mContext,
+                    com.android.internal.R.string.moment_launch_disabled,
+                    Toast.LENGTH_SHORT).show());
+        }
+
         if (abort) {
             if (resultRecord != null) {
                 resultRecord.sendResult(INVALID_UID, resultWho, requestCode, RESULT_CANCELED,
@@ -2036,6 +2046,8 @@ class ActivityStarter {
             mPriorAboveTask = TaskDisplayArea.getRootTaskAbove(targetTask.getRootTask());
         }
 
+        ensureExplicitMomentLaunchWindowingMode(targetTask);
+
         final ActivityRecord targetTaskTop = newTask
                 ? null : targetTask.getTopNonFinishingActivity();
         if (targetTaskTop != null) {
@@ -2084,7 +2096,7 @@ class ActivityStarter {
         } else if (mAddingToTask) {
             // Layout the task to ensure the Task is in correct bounds.
             mSupervisor.getLaunchParamsController().layoutTask(targetTask,
-                    mStartActivity.info.windowLayout, mStartActivity, mSourceRecord, options);
+                    mStartActivity.info.windowLayout, mStartActivity, mSourceRecord, mOptions);
             addOrReparentStartingActivity(targetTask, "adding to task");
         }
 
@@ -2204,6 +2216,20 @@ class ActivityStarter {
                 .onNewActivityLaunched(mStartActivity);
 
         return START_SUCCESS;
+    }
+
+    private void ensureExplicitMomentLaunchWindowingMode(@Nullable Task targetTask) {
+        if (targetTask == null || mOptions == null
+                || mOptions.getLaunchWindowingMode() != WINDOWING_MODE_MOMENT
+                || !mService.mWindowManager.mMomentController.isEnabled()) {
+            return;
+        }
+        final Task rootTask = targetTask.getRootTask();
+        if (rootTask == null || rootTask.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+            return;
+        }
+        rootTask.mTransitionController.collect(rootTask);
+        rootTask.setRootTaskWindowingMode(WINDOWING_MODE_MOMENT);
     }
 
     // TODO (b/316135632) Post V release, remove this log method.
@@ -2751,7 +2777,7 @@ class ActivityStarter {
         // Preferred display id is the only state we need for now and it could be updated again
         // after we located a reusable task (which might be resided in another display).
         mSupervisor.getLaunchParamsController().calculate(inTask, r.info.windowLayout, r,
-                sourceRecord, options, mRequest, PHASE_DISPLAY, mLaunchParams);
+                sourceRecord, mOptions, mRequest, PHASE_DISPLAY, mLaunchParams);
         mPreferredTaskDisplayArea = mLaunchParams.hasPreferredTaskDisplayArea()
                 ? mLaunchParams.mPreferredTaskDisplayArea
                 : mRootWindowContainer.getDefaultTaskDisplayArea();

@@ -6962,4 +6962,6 @@ ul.</string>
     <string name="tv_watchdog_notification_channel_name">System Resource Alerts</string>
     <string name="tv_watchdog_notification_title">Resource Overuse</string>
     <string name="tv_watchdog_notification_content">"App '<xliff:g id="app_name">%1$s</xliff:g>' is using too many resources."</string>
+    <!-- Toast shown when an app requests Moment while Moment is disabled. -->
+    <string name="moment_launch_disabled">Unable to start process in windowing mode 110</string>
 </resources>

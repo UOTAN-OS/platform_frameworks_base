@@ -28,6 +28,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.ROTATION_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.content.pm.ActivityInfo.FLAG_ALLOW_UNTRUSTED_ACTIVITY_EMBEDDING;
@@ -1427,6 +1428,12 @@ class TaskFragment extends WindowContainer<WindowContainer> {
             }
 
             if (!hasRunningActivities) {
+                continue;
+            }
+
+            final Task otherTask = other.asTask();
+            if (otherTask != null && otherTask.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+                // Moment keeps fullscreen app bounds but only occupies its scaled task surface.
                 continue;
             }
 

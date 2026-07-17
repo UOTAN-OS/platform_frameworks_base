@@ -120,6 +120,12 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
     public static final int WINDOWING_MODE_FREEFORM = 5;
     /** Generic multi-window with no presentation attribution from the window manager. */
     public static final int WINDOWING_MODE_MULTI_WINDOW = 6;
+    /**
+     * Moment is a temporary space that lets users interact with another app without leaving the
+     * current experience.
+     * @hide
+     */
+    public static final int WINDOWING_MODE_MOMENT = 110;
 
     /** @hide */
     @IntDef(prefix = { "WINDOWING_MODE_" }, value = {
@@ -128,6 +134,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
             WINDOWING_MODE_MULTI_WINDOW,
             WINDOWING_MODE_PINNED,
             WINDOWING_MODE_FREEFORM,
+            WINDOWING_MODE_MOMENT,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface WindowingMode {
@@ -821,7 +828,18 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
 
     /** Returns true if the windowingMode represents a floating window. */
     public static boolean isFloating(@WindowingMode int windowingMode) {
-        return windowingMode == WINDOWING_MODE_FREEFORM || windowingMode == WINDOWING_MODE_PINNED;
+        return windowingMode == WINDOWING_MODE_FREEFORM || windowingMode == WINDOWING_MODE_PINNED
+                || windowingMode == WINDOWING_MODE_MOMENT;
+    }
+
+    /** @hide */
+    public boolean isMomentWindowingMode() {
+        return isMomentWindowingMode(mWindowingMode);
+    }
+
+    /** @hide */
+    public static boolean isMomentWindowingMode(@WindowingMode int windowingMode) {
+        return windowingMode == WINDOWING_MODE_MOMENT;
     }
 
     /**
@@ -903,6 +921,7 @@ public class WindowConfiguration implements Parcelable, Comparable<WindowConfigu
             case WINDOWING_MODE_MULTI_WINDOW: return "multi-window";
             case WINDOWING_MODE_PINNED: return "pinned";
             case WINDOWING_MODE_FREEFORM: return "freeform";
+            case WINDOWING_MODE_MOMENT: return "moment";
             default: return String.valueOf(windowingMode);
         }
     }

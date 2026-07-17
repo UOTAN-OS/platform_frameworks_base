@@ -24,6 +24,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_DREAM;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_RECENTS;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
@@ -981,6 +982,7 @@ class RecentTasks {
         includedUsers.add(Integer.valueOf(userId));
 
         final ArrayList<ActivityManager.RecentTaskInfo> res = new ArrayList<>();
+        final ArraySet<String> presentedMomentPackages = new ArraySet<>();
         final int size = mTasks.size();
         int numVisibleTasks = 0;
         for (int i = 0; i < size; i++) {
@@ -1045,6 +1047,14 @@ class RecentTasks {
                 // but is useful when running CTS.
                 Slog.d(TAG_RECENTS, "Skipping, user setup not complete: " + task);
                 continue;
+            }
+
+            if (task.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+                final String packageName = task.getBasePackageName();
+                if (!TextUtils.isEmpty(packageName)
+                        && !presentedMomentPackages.add(task.mUserId + ":" + packageName)) {
+                    continue;
+                }
             }
 
             res.add(createRecentTaskInfo(task, true /* stripExtras */, getTasksAllowed));

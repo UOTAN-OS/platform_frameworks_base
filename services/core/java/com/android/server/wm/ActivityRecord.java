@@ -8769,6 +8769,9 @@ final class ActivityRecord extends WindowToken {
         if ((changes & CONFIG_WINDOW_CONFIGURATION) != 0) {
             changes &= ~CONFIG_WINDOW_CONFIGURATION;
         }
+        if (mWmService.mMomentController.shouldSuppressRelaunchForConversion(this)) {
+            changes = 0;
+        }
 
         return changes;
     }

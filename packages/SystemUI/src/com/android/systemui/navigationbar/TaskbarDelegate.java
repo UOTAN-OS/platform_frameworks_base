@@ -48,6 +48,7 @@ import android.inputmethodservice.InputMethodService.BackDispositionMode;
 import android.inputmethodservice.InputMethodService.ImeWindowVisibility;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.os.SystemProperties;
 import android.os.Trace;
 import android.util.Log;
 import android.view.Display;
@@ -56,6 +57,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsets.Type.InsetsType;
 import android.view.WindowInsetsController.Appearance;
 import android.view.WindowInsetsController.Behavior;
+import android.view.WindowManagerGlobal;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -98,6 +100,26 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
         LauncherProxyService.LauncherProxyListener, NavigationModeController.ModeChangedListener,
         Dumpable {
     private static final String TAG = TaskbarDelegate.class.getSimpleName();
+
+    @Override
+    public void onNavHandleDoubleTap(int displayId, int taskId) {
+        if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+            Log.d(TAG, "Received nav handle double tap displayId=" + displayId
+                    + " taskbarDisplayId=" + mDefaultDisplayId + " taskId=" + taskId);
+        }
+        if (displayId != mDefaultDisplayId) {
+            return;
+        }
+        try {
+            final boolean handled = WindowManagerGlobal.getWindowManagerService()
+                    .handleMomentNavHandleDoubleTap(taskId);
+            if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                Log.d(TAG, "WM handled nav handle double tap=" + handled);
+            }
+        } catch (RemoteException | SecurityException e) {
+            Log.w(TAG, "Failed to convert top task to Moment", e);
+        }
+    }
 
     private EdgeBackGestureHandler mEdgeBackGestureHandler;
     private final LightBarTransitionsController.Factory mLightBarTransitionsControllerFactory;

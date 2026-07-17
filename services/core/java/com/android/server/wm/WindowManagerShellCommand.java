@@ -16,8 +16,10 @@
 
 package com.android.server.wm;
 
+import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.os.Build.IS_USER;
 import static android.view.CrossWindowBlurListeners.CROSS_WINDOW_BLUR_SUPPORTED;
@@ -34,6 +36,8 @@ import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_VERTICAL_RE
 import static com.android.server.wm.AppCompatConfiguration.LETTERBOX_VERTICAL_REACHABILITY_POSITION_TOP;
 
 import android.app.WindowConfiguration;
+import android.content.ComponentName;
+import android.content.Intent;
 import android.content.res.Resources.NotFoundException;
 import android.graphics.Color;
 import android.graphics.Point;
@@ -106,6 +110,8 @@ public class WindowManagerShellCommand extends ShellCommand {
                     return runDisplayFoldedArea(pw);
                 case "scaling":
                     return runDisplayScaling(pw);
+                case "moment":
+                    return runMoment(pw);
                 case "dismiss-keyguard":
                     return runDismissKeyguard(pw);
                 case "tracing":
@@ -399,6 +405,124 @@ public class WindowManagerShellCommand extends ShellCommand {
             return -1;
         }
         return 0;
+    }
+
+    private int runMoment(PrintWriter pw) {
+        final String command = getNextArg();
+        if (command == null || "help".equals(command)) {
+            printMomentHelp(pw);
+            return 0;
+        }
+        try {
+            switch (command) {
+                case "enable":
+                    mInternal.mMomentController.setEnabled(true);
+                    pw.println("Moment enabled");
+                    return 0;
+                case "disable":
+                    mInternal.mMomentController.setEnabled(false);
+                    pw.println("Moment disabled");
+                    return 0;
+                case "status":
+                    mInternal.mMomentController.dumpStatus(pw);
+                    return 0;
+                case "list":
+                    mInternal.mMomentController.dumpTasks(pw);
+                    return 0;
+                case "start":
+                    return runMomentStart(pw);
+                case "convert":
+                    return runMomentConvert(pw);
+                case "stop":
+                case "fullscreen":
+                    return runMomentStop(pw);
+                case "close-all":
+                    mInternal.mMomentController.exitAll();
+                    pw.println("Exited all Moment tasks");
+                    return 0;
+                case "set-scale":
+                    return runMomentSetScale(pw);
+                default:
+                    getErrPrintWriter().println("Unknown moment command: " + command);
+                    printMomentHelp(getErrPrintWriter());
+                    return -1;
+            }
+        } catch (Exception e) {
+            getErrPrintWriter().println("Error: " + e.getMessage());
+            return -1;
+        }
+    }
+
+    private int runMomentStart(PrintWriter pw) {
+        int userId = UserHandle.USER_CURRENT;
+        String arg = getNextArgRequired();
+        if ("--user".equals(arg)) {
+            userId = Integer.parseInt(getNextArgRequired());
+            arg = getNextArgRequired();
+        }
+
+        final ComponentName component = ComponentName.unflattenFromString(arg);
+        if (component == null) {
+            getErrPrintWriter().println("Error: component must be PACKAGE/CLASS");
+            return -1;
+        }
+
+        final Intent intent = new Intent(Intent.ACTION_MAIN);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.setComponent(component);
+        final int result = mInternal.mMomentController.startActivityInMoment(intent, userId);
+        pw.println("Moment start result=" + result);
+        return 0;
+    }
+
+    private int runMomentStop(PrintWriter pw) {
+        final String arg = getNextArg();
+        if (arg == null) {
+            getErrPrintWriter().println("Error: task id required");
+            return -1;
+        }
+        final int taskId = Integer.parseInt(arg);
+        mInternal.mMomentController.exitMomentTask(taskId);
+        pw.println("Exited Moment task " + taskId);
+        return 0;
+    }
+
+    private int runMomentConvert(PrintWriter pw) {
+        final String arg = getNextArg();
+        final int taskId = arg != null ? Integer.parseInt(arg) : INVALID_TASK_ID;
+        final int convertedTaskId = mInternal.mMomentController.convertTaskToMoment(taskId);
+        pw.println("Converted task " + convertedTaskId + " to Moment");
+        return 0;
+    }
+
+    private int runMomentSetScale(PrintWriter pw) {
+        final float scale = Float.parseFloat(getNextArgRequired());
+        mInternal.mMomentController.setDefaultScale(scale);
+        pw.println("Moment default scale=" + mInternal.mMomentController.getDefaultScale());
+        return 0;
+    }
+
+    private void printMomentHelp(PrintWriter pw) {
+        pw.println("  moment enable");
+        pw.println("    Enables launching activities into Moment.");
+        pw.println("  moment disable");
+        pw.println("    Disables Moment and restores existing Moment tasks to fullscreen.");
+        pw.println("  moment status");
+        pw.println("    Prints Moment state and active Moment tasks.");
+        pw.println("  moment list");
+        pw.println("    Lists active Moment tasks.");
+        pw.println("  moment start [--user USER_ID] PACKAGE/CLASS");
+        pw.println("    Starts an activity in Moment.");
+        pw.println("  moment convert [TASK_ID]");
+        pw.println("    Converts the focused fullscreen task, or TASK_ID, to Moment in place.");
+        pw.println("  moment stop TASK_ID");
+        pw.println("    Restores a Moment task to fullscreen.");
+        pw.println("  moment fullscreen TASK_ID");
+        pw.println("    Alias for moment stop.");
+        pw.println("  moment close-all");
+        pw.println("    Restores all Moment tasks to fullscreen.");
+        pw.println("  moment set-scale SCALE");
+        pw.println("    Sets the fixed Moment surface scale for debugging.");
     }
 
     /**
@@ -1573,6 +1697,7 @@ public class WindowManagerShellCommand extends ShellCommand {
         pw.println("    Return or override folded area.");
         pw.println("  scaling [off|auto] [-d DISPLAY_ID]");
         pw.println("    Set display scaling mode.");
+        printMomentHelp(pw);
         pw.println("  dismiss-keyguard");
         pw.println("    Dismiss the keyguard, prompting user for auth if necessary.");
         pw.println("  disable-blur [true|1|false|0]");
@@ -1599,7 +1724,7 @@ public class WindowManagerShellCommand extends ShellCommand {
         pw.println("  set-display-windowing-mode [-d DISPLAY_ID] [mode_id]");
         pw.println("    As mode_id, use " + WINDOWING_MODE_UNDEFINED + " for undefined, "
                 + WINDOWING_MODE_FREEFORM + " for freeform, " + WINDOWING_MODE_FULLSCREEN + " for"
-                + " fullscreen");
+                + " fullscreen, " + WINDOWING_MODE_MOMENT + " for moment");
         pw.println("  get-display-windowing-mode [-d DISPLAY_ID]");
 
         pw.println("  reset [-d DISPLAY_ID]");

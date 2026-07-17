@@ -24,6 +24,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.ROTATION_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
@@ -893,6 +894,16 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
                     + " focusable using new focus @ %s", w);
             mTmpWindow = w;
             return true;
+        }
+
+        if (activity != null && focusedApp != activity) {
+            final Task rootTask = activity.getRootTask();
+            if (rootTask != null && rootTask.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+                if (mTmpWindow == null) {
+                    mTmpWindow = w;
+                }
+                return false;
+            }
         }
 
         // Descend through all of the app tokens and find the first that either matches
@@ -5808,6 +5819,7 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
             case WINDOWING_MODE_FREEFORM -> mAtmService.mSupportsFreeformWindowManagement;
             case WINDOWING_MODE_PINNED -> mAtmService.mSupportsPictureInPicture;
             case WINDOWING_MODE_MULTI_WINDOW -> mAtmService.mSupportsMultiWindow;
+            case WINDOWING_MODE_MOMENT -> true;
             default -> true;
         };
     }
@@ -6223,7 +6235,8 @@ class DisplayContent extends RootDisplayArea implements WindowManagerPolicy.Disp
                 && (windowingMode == WINDOWING_MODE_FULLSCREEN
                 || windowingMode == WINDOWING_MODE_FREEFORM
                 || windowingMode == WINDOWING_MODE_PINNED
-                || windowingMode == WINDOWING_MODE_MULTI_WINDOW);
+                || windowingMode == WINDOWING_MODE_MULTI_WINDOW
+                || windowingMode == WINDOWING_MODE_MOMENT);
     }
 
     @Nullable

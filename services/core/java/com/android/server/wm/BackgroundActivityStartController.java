@@ -26,6 +26,7 @@ import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_I
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_COMPAT;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_DENIED;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.Build.VERSION_CODES.BAKLAVA;
@@ -70,6 +71,7 @@ import android.os.IBinder;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.util.ArrayMap;
@@ -113,6 +115,7 @@ public class BackgroundActivityStartController {
     private static final long ASM_GRACEPERIOD_TIMEOUT_MS = TIMEOUT_MS;
     private static final int ASM_GRACEPERIOD_MAX_REPEATS = 5;
     private static final String DOC_LINK = "go/android-asm";
+    private static final String MOMENT_DEBUG_PROPERTY = "persist.debug.wm.moment";
 
     /** Used to determine which version of the ASM logic was used in logs while we iterate */
     private static final int ASM_VERSION = 12;
@@ -1475,6 +1478,21 @@ public class BackgroundActivityStartController {
         BlockActivityStart bas = new BlockActivityStart();
         if (sourceRecord != null) {
             Task sourceTask = sourceRecord.getTask();
+            final boolean homeCoveredByMoment = isHomeTaskCoveredByMoment(sourceTask);
+            if (isMomentDebugEnabled()) {
+                Slog.d(TAG, "[Moment][ASM] check source=" + sourceRecord
+                        + " sourceTask=" + sourceTask
+                        + " sourceVisible=" + sourceRecord.isVisible()
+                        + " sourceVisibleRequested=" + sourceRecord.isVisibleRequested()
+                        + " target=" + targetRecord
+                        + " targetTask=" + targetTask
+                        + " newTask=" + newTask
+                        + " taskToFront=" + taskToFront
+                        + " avoidMoveToFront=" + avoidMoveTaskToFront
+                        + " homeCoveredByMoment=" + homeCoveredByMoment
+                        + " launchFlags=0x" + Integer.toHexString(launchFlags)
+                        + " balVerdict=" + balVerdict);
+            }
 
             Task taskToCheck = taskToFront ? sourceTask : targetTask;
             bas = checkTopActivityForAsm(taskToCheck, sourceRecord.getUid(),
@@ -1487,6 +1505,13 @@ public class BackgroundActivityStartController {
             if (taskToFront && bas.mTopActivityMatchesSource) {
                 bas.mTopActivityMatchesSource = (sourceTask != null
                         && (sourceTask.isVisible() || sourceTask == targetTask));
+            }
+            if (taskToFront && !bas.mTopActivityMatchesSource && homeCoveredByMoment) {
+                bas.mTopActivityMatchesSource = true;
+                if (isMomentDebugEnabled()) {
+                    Slog.d(TAG, "[Moment][ASM] allow home source covered by Moment: "
+                            + sourceRecord);
+                }
             }
         } else if (targetTask != null && (!taskToFront || avoidMoveTaskToFront)) {
             // We don't have a sourceRecord, and we're launching into an existing task.
@@ -1529,6 +1554,24 @@ public class BackgroundActivityStartController {
                 bas, taskToFront);
     }
 
+    private static boolean isHomeTaskCoveredByMoment(@Nullable Task sourceTask) {
+        if (sourceTask == null || !sourceTask.isActivityTypeHome()) {
+            return false;
+        }
+        final TaskDisplayArea displayArea = sourceTask.getDisplayArea();
+        if (displayArea == null) {
+            return false;
+        }
+        final ArrayList<Task> visibleTasks = displayArea.getVisibleTasks();
+        for (int i = 0; i < visibleTasks.size(); i++) {
+            final Task task = visibleTasks.get(i);
+            if (task != sourceTask && task.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean logAsmFailureAndCheckFeatureEnabled(ActivityRecord sourceRecord, int callingUid,
             int realCallingUid, boolean newTask, boolean avoidMoveTaskToFront, Task targetTask,
             ActivityRecord targetRecord, BalVerdict balVerdict, int launchFlags,
@@ -1553,6 +1596,10 @@ public class BackgroundActivityStartController {
                 targetRecord, targetTask, targetTopActivity, realCallingUid, balVerdict,
                 enforceBlock, taskToFront, avoidMoveTaskToFront, allowedByGracePeriod,
                 bas.mActivityOptedIn);
+        if (isMomentDebugEnabled()) {
+            Slog.i(TAG, "[Moment][ASM] failed check. enforceBlock=" + enforceBlock
+                    + " allowedByGracePeriod=" + allowedByGracePeriod + "\n" + asmDebugInfo);
+        }
 
         FrameworkStatsLog.write(FrameworkStatsLog.ACTIVITY_ACTION_BLOCKED,
                 /* caller_uid */
@@ -2316,6 +2363,10 @@ public class BackgroundActivityStartController {
         } catch (Exception e) {
             return -1;
         }
+    }
+
+    private static boolean isMomentDebugEnabled() {
+        return SystemProperties.getBoolean(MOMENT_DEBUG_PROPERTY, false);
     }
 
     private class FinishedActivityEntry {

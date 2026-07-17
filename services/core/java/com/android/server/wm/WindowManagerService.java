@@ -26,11 +26,13 @@ import static android.Manifest.permission.REGISTER_WINDOW_MANAGER_LISTENERS;
 import static android.Manifest.permission.START_TASKS_FROM_RECENTS;
 import static android.Manifest.permission.STATUS_BAR_SERVICE;
 import static android.Manifest.permission.WRITE_SECURE_SETTINGS;
+import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.app.ActivityManagerInternal.ALLOW_FULL_ONLY;
 import static android.app.ActivityManagerInternal.ALLOW_NON_FULL;
 import static android.app.AppOpsManager.OP_SYSTEM_ALERT_WINDOW;
 import static android.app.StatusBarManager.DISABLE_MASK;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.admin.DevicePolicyManager.ACTION_DEVICE_POLICY_MANAGER_STATE_CHANGED;
 import static android.content.pm.PackageManager.FEATURE_FREEFORM_WINDOW_MANAGEMENT;
 import static android.content.pm.PackageManager.FEATURE_PC;
@@ -777,6 +779,7 @@ public class WindowManagerService extends IWindowManager.Stub
 
     final TaskSnapshotController mTaskSnapshotController;
     final SnapshotController mSnapshotController;
+    final MomentController mMomentController;
 
     final BlurController mBlurController;
     final TaskFpsCallbackController mTaskFpsCallbackController;
@@ -837,6 +840,8 @@ public class WindowManagerService extends IWindowManager.Stub
                 Settings.Secure.getUriFor(Settings.Secure.DISABLE_SECURE_WINDOWS);
         private final Uri mMagnifyImeEnabledUri = Settings.Secure.getUriFor(
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME);
+        private final Uri mMomentEnabledUri =
+                Settings.Secure.getUriFor(Settings.Secure.MOMENT_ENABLED);
         private final Uri mPolicyControlUri =
                 Settings.Global.getUriFor(Settings.Global.POLICY_CONTROL);
         private final Uri mForceDesktopModeOnExternalDisplaysUri = Settings.Global.getUriFor(
@@ -868,6 +873,8 @@ public class WindowManagerService extends IWindowManager.Stub
             resolver.registerContentObserver(mImmersiveModeConfirmationsUri, false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(mDisableSecureWindowsUri, false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(mMomentEnabledUri, false, this,
                     UserHandle.USER_ALL);
             if (com.android.server.accessibility.Flags.enableMagnificationMagnifyNavBarAndIme()) {
                 resolver.registerContentObserver(mMagnifyImeEnabledUri, false, this,
@@ -938,6 +945,11 @@ public class WindowManagerService extends IWindowManager.Stub
                 updateMagnifyIme();
             }
 
+            if (mMomentEnabledUri.equals(uri)) {
+                updateMomentEnabled();
+                return;
+            }
+
             if (mDevelopmentOverrideDesktopExperienceUri.equals(uri)) {
                 updateDevelopmentOverrideDesktopExperience();
                 return;
@@ -963,6 +975,7 @@ public class WindowManagerService extends IWindowManager.Stub
             updateMaximumObscuringOpacityForTouch();
             updateDisableSecureWindows();
             updateMagnifyIme();
+            updateMomentEnabled();
         }
 
         void updateMaximumObscuringOpacityForTouch() {
@@ -1090,6 +1103,13 @@ public class WindowManagerService extends IWindowManager.Stub
             synchronized (mGlobalLock) {
                 mMagnifyIme = enabledMagnifyIme;
             }
+        }
+
+        void updateMomentEnabled() {
+            final boolean enabled = Settings.Secure.getIntForUser(
+                    mContext.getContentResolver(), Settings.Secure.MOMENT_ENABLED, 0,
+                    mCurrentUserId) != 0;
+            mMomentController.setEnabledFromSettings(enabled);
         }
     }
 
@@ -1362,6 +1382,7 @@ public class WindowManagerService extends IWindowManager.Stub
         mWindowPlacerLocked = new WindowSurfacePlacer(this);
         mSnapshotController = new SnapshotController(this);
         mTaskSnapshotController = mSnapshotController.mTaskSnapshotController;
+        mMomentController = new MomentController(this);
 
         mWindowTracing = WindowTracing.createDefaultAndStartLooper(this,
                 Choreographer.getInstance());
@@ -1485,6 +1506,7 @@ public class WindowManagerService extends IWindowManager.Stub
         mLatencyTracker = LatencyTracker.getInstance(context);
 
         mSettingsObserver = new SettingsObserver();
+        mSettingsObserver.updateMomentEnabled();
 
         mSurfaceAnimationRunner = new SurfaceAnimationRunner(mTransactionFactory,
                 mPowerManagerInternal);
@@ -4022,6 +4044,7 @@ public class WindowManagerService extends IWindowManager.Stub
             // This call is crucial on user switch to ensure the Magnify IME state
             // is correctly re-evaluated and applied for the new user.
             mSettingsObserver.updateMagnifyIme();
+            mSettingsObserver.updateMomentEnabled();
         }
     }
 
@@ -6980,6 +7003,55 @@ public class WindowManagerService extends IWindowManager.Stub
     }
 
     @Override
+    @EnforcePermission(android.Manifest.permission.STATUS_BAR)
+    public boolean handleMomentNavHandleDoubleTap(int taskId) {
+        handleMomentNavHandleDoubleTap_enforcePermission();
+        final int userId = mCurrentUserId;
+        final boolean debugMoment = SystemProperties.getBoolean("persist.debug.wm.moment", false);
+        final boolean momentEnabled = mMomentController.isEnabledForUser(userId);
+        final int gestureSetting = Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                Settings.Secure.MOMENT_NAV_HANDLE_DOUBLE_TAP_ENABLED, 1, userId);
+        if (!momentEnabled || gestureSetting == 0) {
+            if (debugMoment) {
+                Slog.d("MomentNavHandle", "Rejected double tap: enabled=" + momentEnabled
+                        + " gestureSetting=" + gestureSetting);
+            }
+            return false;
+        }
+        try {
+            final boolean isHome;
+            synchronized (mGlobalLock) {
+                final Task task = mRoot.anyTaskForId(taskId);
+                if (task == null) {
+                    if (debugMoment) {
+                        Slog.d("MomentNavHandle", "Rejected double tap: task not found " + taskId);
+                    }
+                    return false;
+                }
+                isHome = task.isActivityTypeHome();
+            }
+            if (isHome) {
+                if (debugMoment) {
+                    Slog.d("MomentNavHandle", "Home task: launching MomentAllAppsActivity");
+                }
+                final Intent intent = new Intent(Intent.ACTION_MAIN)
+                        .setClassName("org.uwuaosp.settingsext",
+                                "org.uwuaosp.settingsext.moment.MomentAllAppsActivity");
+                mMomentController.startActivityInMoment(intent, userId);
+                return true;
+            }
+            mMomentController.convertTaskToMoment(taskId);
+            if (debugMoment) {
+                Slog.d("MomentNavHandle", "Converted focused task to Moment");
+            }
+            return true;
+        } catch (IllegalStateException e) {
+            Slog.d("MomentNavHandle", "Unable to handle double tap: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
     public void createInputConsumer(IBinder token, String name, int displayId,
             InputChannel inputChannel) {
         if (!mAtmService.isCallerRecents(Binder.getCallingUid())
@@ -8102,6 +8174,11 @@ public class WindowManagerService extends IWindowManager.Stub
             final WindowState w = mWindowMap.get(token);
             if (w == null || w != w.mDisplayContent.getDisplayPolicy().getNotificationShade()) {
                 return;
+            }
+            final DisplayContent displayContent = w.mDisplayContent;
+            if (displayContent.getDisplayPolicy()
+                    .setNotificationShadeExpandedFromWindow(expanded)) {
+                mMomentController.onNotificationShadeExpandedLocked(displayContent, expanded);
             }
             final WindowProcessController topApp = mAtmService.mTopApp;
             // Demotes the priority of top app if notification shade is expanded to occlude the app.
@@ -9507,6 +9584,18 @@ public class WindowManagerService extends IWindowManager.Stub
         if (task == null) {
             return;
         }
+        final WindowState curFocusedWindow = getFocusedWindow();
+        final Task focusedTask = curFocusedWindow != null ? curFocusedWindow.getTask() : null;
+        if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+            Slog.d("Moment", "handleTaskFocusChange task=" + task
+                    + " taskMode=" + task.getWindowingMode()
+                    + " taskActivityType=" + task.getActivityType()
+                    + " touched=" + touchedActivity
+                    + " currentFocus=" + curFocusedWindow
+                    + " focusedTask=" + focusedTask
+                    + " focusedTaskMode="
+                    + (focusedTask != null ? focusedTask.getWindowingMode() : "null"));
+        }
 
         // We ignore root home task since we don't want root home task to move to front when
         // touched. Specifically, in freeform we don't want tapping on home to cause the freeform
@@ -9515,10 +9604,20 @@ public class WindowManagerService extends IWindowManager.Stub
             // Only ignore root home task if the requested focus home Task is in the same
             // TaskDisplayArea as the current focus Task.
             TaskDisplayArea homeTda = task.getDisplayArea();
-            WindowState curFocusedWindow = getFocusedWindow();
             if (curFocusedWindow != null && homeTda != null
                     && curFocusedWindow.isDescendantOf(homeTda)) {
-                return;
+                if (focusedTask == null
+                        || focusedTask.getWindowingMode() != WINDOWING_MODE_MOMENT) {
+                    if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                        Slog.d("Moment", "ignore home focus task=" + task
+                                + " focusedTask=" + focusedTask);
+                    }
+                    return;
+                }
+                if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                    Slog.d("Moment", "allow home focus below Moment task=" + task
+                            + " focusedTask=" + focusedTask);
+                }
             }
         }
 

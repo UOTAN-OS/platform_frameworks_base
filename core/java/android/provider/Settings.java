@@ -13103,6 +13103,35 @@ public final class Settings {
         public static final String NAVIGATION_BAR_HINT = "navigation_bar_hint";
 
         /**
+         * Whether Moment, including its launch and gesture entry points, is enabled.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_ENABLED = "moment_enabled";
+
+        /**
+         * Whether the bottom-corner gesture for MomentArc is enabled.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_ARC_GESTURE_ENABLED =
+                "moment_arc_gesture_enabled";
+
+        /**
+         * Whether double tapping the gestural navigation handle invokes Moment.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_NAV_HANDLE_DOUBLE_TAP_ENABLED =
+                "moment_nav_handle_double_tap_enabled";
+
+        /**
          * Indicates whether themed icons should also be used in the all apps drawer.
          * <p>Type: int (0 for false, 1 for true)
          *

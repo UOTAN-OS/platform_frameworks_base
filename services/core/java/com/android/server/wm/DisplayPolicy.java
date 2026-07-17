@@ -17,6 +17,7 @@
 package com.android.server.wm;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.view.InsetsFrameProvider.SOURCE_ARBITRARY_RECTANGLE;
 import static android.view.InsetsFrameProvider.SOURCE_CONTAINER_BOUNDS;
 import static android.view.InsetsFrameProvider.SOURCE_DISPLAY;
@@ -274,6 +275,9 @@ public class DisplayPolicy {
 
     private WindowState mStatusBar = null;
     private volatile WindowState mNotificationShade;
+    private volatile boolean mNotificationShadeExpanded;
+    private boolean mNotificationShadeExpansionReported;
+    private int mNotificationShadeGeneration;
     private WindowState mNavigationBar = null;
     private boolean mHasBottomNavigationBar = true;
 
@@ -1209,6 +1213,7 @@ public class DisplayPolicy {
         switch (attrs.type) {
             case TYPE_NOTIFICATION_SHADE:
                 mNotificationShade = win;
+                mNotificationShadeExpansionReported = false;
                 break;
             case TYPE_STATUS_BAR:
                 mStatusBar = win;
@@ -1347,6 +1352,12 @@ public class DisplayPolicy {
             mNavigationBar = null;
         } else if (mNotificationShade == win) {
             mNotificationShade = null;
+            mNotificationShadeExpansionReported = false;
+            final int shadeGeneration = ++mNotificationShadeGeneration;
+            if (mNotificationShadeExpanded) {
+                mService.mMomentController.onNotificationShadeRemovedLocked(
+                        mDisplayContent, win, shadeGeneration);
+            }
         }
         if (mLastFocusedWindow == win) {
             mLastFocusedWindow = null;
@@ -1374,6 +1385,31 @@ public class DisplayPolicy {
 
     WindowState getNotificationShade() {
         return mNotificationShade;
+    }
+
+    boolean isNotificationShadeExpanded() {
+        return mNotificationShadeExpanded;
+    }
+
+    boolean setNotificationShadeExpanded(boolean expanded) {
+        if (mNotificationShadeExpanded == expanded) {
+            return false;
+        }
+        mNotificationShadeExpanded = expanded;
+        return true;
+    }
+
+    boolean setNotificationShadeExpandedFromWindow(boolean expanded) {
+        mNotificationShadeExpansionReported = true;
+        return setNotificationShadeExpanded(expanded);
+    }
+
+    boolean hasNotificationShadeExpansionReport() {
+        return mNotificationShadeExpansionReported;
+    }
+
+    int getNotificationShadeGeneration() {
+        return mNotificationShadeGeneration;
     }
 
     WindowState getNavigationBar() {
@@ -1531,6 +1567,7 @@ public class DisplayPolicy {
             mHasBottomNavigationBar = hasBottomNavigationBar();
         }
         final boolean affectsSystemUi = win.canAffectSystemUiFlags();
+        final boolean canControlSystemBars = win.getWindowingMode() != WINDOWING_MODE_MOMENT;
         if (DEBUG_LAYOUT) Slog.i(TAG, "Win " + win + ": affectsSystemUi=" + affectsSystemUi);
         applyKeyguardPolicy(win, imeLayeringTarget);
 
@@ -1610,8 +1647,8 @@ public class DisplayPolicy {
         }
 
         // Check the windows that overlap with system bars to determine system bars' appearance.
-        if ((appWindow && attached == null && attrs.isFullscreen())
-                || attrs.type == TYPE_VOICE_INTERACTION) {
+        if (canControlSystemBars && ((appWindow && attached == null && attrs.isFullscreen())
+                || attrs.type == TYPE_VOICE_INTERACTION)) {
 
             // If this is the exiting starting window, don't let it control the system bars.
             // The app window behind it should be the controlling window instead. Reason: when an
@@ -1671,7 +1708,7 @@ public class DisplayPolicy {
                     mLetterboxDetails.add(currentLetterboxDetails);
                 }
             }
-        } else if (win.isDimming()) {
+        } else if (canControlSystemBars && win.isDimming()) {
             if (mStatusBar != null) {
                 // If the dim window is below status bar window, we should update the appearance
                 // region if needed. Otherwise, leave it as it is.
@@ -1688,7 +1725,7 @@ public class DisplayPolicy {
                 mNavBarColorWindowCandidate = win;
                 addSystemBarColorApp(win);
             }
-        } else if (appWindow && attached == null
+        } else if (canControlSystemBars && appWindow && attached == null
                 && (mNavBarColorWindowCandidate == null || mNavBarBackgroundWindowCandidate == null)
                 && win.getFrame().contains(
                         getBarContentFrameForWindow(win, Type.navigationBars()))) {
@@ -2564,6 +2601,9 @@ public class DisplayPolicy {
     }
 
     private boolean fillsDisplayWindowingMode(@NonNull WindowState win) {
+        if (win.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+            return false;
+        }
         if (!WindowConfiguration.inMultiWindowMode(win.getWindowingMode())) {
             // Always accept the window not in multi-window mode.
             return true;
@@ -2576,6 +2616,9 @@ public class DisplayPolicy {
     }
 
     private boolean fillsDisplayWindowingMode(@NonNull ActivityRecord app) {
+        if (app.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+            return false;
+        }
         if (!WindowConfiguration.inMultiWindowMode(app.getWindowingMode())) {
             // Always accept the app not in multi-window mode.
             return true;
@@ -2594,8 +2637,10 @@ public class DisplayPolicy {
         // If there is no window focused, there will be nobody to handle the events
         // anyway, so just hang on in whatever state we're in until things settle down.
         WindowState winCandidate =
-                mFocusedWindow != null && (isRemoteControlling || fillsDisplayWindowingMode(
-                        mFocusedWindow)) ? mFocusedWindow : mTopFullscreenOpaqueWindowState;
+                mFocusedWindow != null
+                        && mFocusedWindow.getWindowingMode() != WINDOWING_MODE_MOMENT
+                        && (isRemoteControlling || fillsDisplayWindowingMode(mFocusedWindow))
+                        ? mFocusedWindow : mTopFullscreenOpaqueWindowState;
 
         // Immersive mode confirmation should never affect the system bar visibility, otherwise
         // it will unhide the navigation bar and hide itself.
@@ -2605,6 +2650,7 @@ public class DisplayPolicy {
                 // Let notification shade control the system bar visibility.
                 winCandidate = mNotificationShade;
             } else if (mLastFocusedWindow != null && mLastFocusedWindow.canReceiveKeys()
+                    && mLastFocusedWindow.getWindowingMode() != WINDOWING_MODE_MOMENT
                     && (isRemoteControlling || fillsDisplayWindowingMode(mLastFocusedWindow))) {
                 // Immersive mode confirmation took the focus from mLastFocusedWindow which was
                 // controlling the system bar visibility. Let it keep controlling the visibility.
@@ -2616,6 +2662,7 @@ public class DisplayPolicy {
         if (winCandidate == null) {
             final ActivityRecord focusedApp = mDisplayContent.mFocusedApp;
             if (focusedApp == null
+                    || focusedApp.getWindowingMode() == WINDOWING_MODE_MOMENT
                     || (isRemoteControlling || fillsDisplayWindowingMode(focusedApp))) {
                 // Don't change the system UI controlling window when the new one is not ready.
                 return;

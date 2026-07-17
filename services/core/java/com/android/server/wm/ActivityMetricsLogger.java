@@ -11,6 +11,7 @@ import static android.app.WaitResult.LAUNCH_STATE_RELAUNCH;
 import static android.app.WaitResult.LAUNCH_STATE_WARM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 
@@ -627,6 +628,7 @@ class ActivityMetricsLogger {
                 mWindowState = WINDOW_STATE_FREEFORM;
                 break;
             case WINDOWING_MODE_MULTI_WINDOW:
+            case WINDOWING_MODE_MOMENT:
                 mWindowState = WINDOW_STATE_MULTI_WINDOW;
                 break;
             default:

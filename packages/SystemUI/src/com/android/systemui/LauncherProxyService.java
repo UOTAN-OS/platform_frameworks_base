@@ -64,6 +64,7 @@ import android.os.IRemoteCallback;
 import android.os.Looper;
 import android.os.PatternMatcher;
 import android.os.RemoteException;
+import android.os.SystemProperties;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.os.UserHandle;
@@ -332,6 +333,16 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         public void animateNavBarLongPress(boolean isTouchDown, boolean shrink, long durationMs) {
             verifyCallerAndClearCallingIdentityPostMain("animateNavBarLongPress", () ->
                     notifyAnimateNavBarLongPress(isTouchDown, shrink, durationMs));
+        }
+
+        @Override
+        public void onNavHandleDoubleTap(int displayId, int taskId) {
+            if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+                Log.d(TAG_OPS, "Received nav handle double tap displayId=" + displayId
+                        + " taskId=" + taskId);
+            }
+            verifyCallerAndClearCallingIdentityPostMain("onNavHandleDoubleTap",
+                    () -> notifyNavHandleDoubleTap(displayId, taskId));
         }
 
         @Override
@@ -1247,6 +1258,16 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         }
     }
 
+    private void notifyNavHandleDoubleTap(int displayId, int taskId) {
+        if (SystemProperties.getBoolean("persist.debug.wm.moment", false)) {
+            Log.d(TAG_OPS, "Notify nav handle double tap displayId=" + displayId
+                    + " taskId=" + taskId + " callbacks=" + mConnectionCallbacks.size());
+        }
+        for (int i = mConnectionCallbacks.size() - 1; i >= 0; --i) {
+            mConnectionCallbacks.get(i).onNavHandleDoubleTap(displayId, taskId);
+        }
+    }
+
     private void notifySetOverrideHomeButtonLongPress(long duration, float slopMultiplier,
             boolean haptic) {
         for (int i = mConnectionCallbacks.size() - 1; i >= 0; --i) {
@@ -1414,6 +1435,7 @@ public class LauncherProxyService implements CallbackController<LauncherProxyLis
         default void startAssistant(Bundle bundle) {}
         default void setAssistantOverridesRequested(int[] invocationTypes) {}
         default void animateNavBarLongPress(boolean isTouchDown, boolean shrink, long durationMs) {}
+        default void onNavHandleDoubleTap(int displayId, int taskId) {}
         /** Set override of home button long press duration, touch slop multiplier, and haptic. */
         default void setOverrideHomeButtonLongPress(
                 long override, float slopMultiplier, boolean haptic) {}

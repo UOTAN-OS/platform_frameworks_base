@@ -16,6 +16,8 @@
 
 package com.android.wm.shell.shared;
 
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
+
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.view.RemoteAnimationTarget.MODE_CHANGING;
 import static android.view.RemoteAnimationTarget.MODE_CLOSING;
@@ -246,8 +248,11 @@ public class TransitionUtil {
         t.reparent(leash, info.getRoot(rootIdx).getLeash());
         final Rect absBounds =
                 (mode == TRANSIT_OPEN) ? change.getEndAbsBounds() : change.getStartAbsBounds();
-        t.setPosition(leash, absBounds.left - info.getRoot(rootIdx).getOffset().x,
-                absBounds.top - info.getRoot(rootIdx).getOffset().y);
+        if (change.getTaskInfo() == null || change.getTaskInfo().configuration
+                .windowConfiguration.getWindowingMode() != WINDOWING_MODE_MOMENT) {
+            t.setPosition(leash, absBounds.left - info.getRoot(rootIdx).getOffset().x,
+                    absBounds.top - info.getRoot(rootIdx).getOffset().y);
+        }
 
         if (isDividerBar(change)) {
             if (isOpeningType(mode)) {
@@ -314,7 +319,9 @@ public class TransitionUtil {
         t.reparent(change.getLeash(), leashSurface);
 
         t.setAlpha(change.getLeash(), 1.0f);
-        if (!isDividerBar(change)) {
+        if (!isDividerBar(change) && (change.getTaskInfo() == null
+                || change.getTaskInfo().configuration.windowConfiguration.getWindowingMode()
+                != WINDOWING_MODE_MOMENT)) {
             // For divider, don't modify its inner leash position when creating the outer leash
             // for the transition. In case the position being wrong after the transition finished.
             t.setPosition(change.getLeash(), 0, 0);
