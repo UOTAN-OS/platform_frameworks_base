@@ -35,6 +35,7 @@ import android.view.Display;
 import android.view.InputApplicationHandle;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.SurfaceControl;
 
 import com.android.internal.os.TimeoutRecord;
@@ -418,5 +419,10 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
         if (mInputFreezeReason != null) {
             pw.println(prefix + "mInputFreezeReason=" + mInputFreezeReason);
         }
+    }
+
+    @Override
+    public int interceptMotionBeforeQueueing(MotionEvent event) {
+        return mService.mPolicy.interceptMotionBeforeQueueing(event);
     }
 }

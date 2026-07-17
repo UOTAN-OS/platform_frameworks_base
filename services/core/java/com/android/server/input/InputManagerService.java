@@ -3633,6 +3633,8 @@ public class InputManagerService extends IInputManager.Stub
          */
         void notifyConfigurationChanged();
 
+        int interceptMotionBeforeQueueing(MotionEvent event);
+
         /**
          * This callback is invoked when the pointer location changes.
          */
@@ -4702,5 +4704,10 @@ public class InputManagerService extends IInputManager.Stub
         default void notifyUserActivity() {}
         default void systemRunning() {}
         default void dump(PrintWriter pw) {}
+    }
+
+    @SuppressWarnings("unused")
+    private int interceptMotionBeforeQueueing(MotionEvent event) {
+        return mWindowManagerCallbacks.interceptMotionBeforeQueueing(event);
     }
 }

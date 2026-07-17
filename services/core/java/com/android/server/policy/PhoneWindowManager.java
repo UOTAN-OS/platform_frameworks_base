@@ -148,6 +148,8 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.database.ContentObserver;
+import android.graphics.Point;
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.hardware.SensorPrivacyManager;
 import android.hardware.display.BrightnessInfo;
@@ -406,6 +408,31 @@ public class PhoneWindowManager implements WindowManagerPolicy {
     public static final String EXTRA_TRIGGER_HUB = "extra_trigger_hub";
 
     private static final int POWER_BUTTON_SUPPRESSION_DELAY_DEFAULT_MILLIS = 800;
+
+    private static final float MOMENT_ARC_GESTURE_HEIGHT_DP = 20f;
+    private static final float MOMENT_ARC_GESTURE_WIDTH_DP = 30f;
+    private static final float MOMENT_ARC_TRIGGER_DISTANCE_DP = 30f;
+    private static final float MOMENT_ARC_TRIGGER_MAX_ANGLE_RAD =
+            (float) Math.toRadians(80);
+    private static final String ACTION_SHOW_MOMENT_ARC =
+            "com.android.systemui.action.SHOW_MOMENT_ARC";
+    private static final String ACTION_UPDATE_MOMENT_ARC_TOUCH =
+            "com.android.systemui.action.UPDATE_MOMENT_ARC_TOUCH";
+    private static final String SYSTEMUI_PACKAGE = "com.android.systemui";
+
+    private final PointF mMomentArcGestureStart = new PointF();
+    private boolean mTrackingMomentArcGesture;
+    private boolean mMomentArcGestureTriggered;
+    private volatile boolean mMomentEnabled;
+    private volatile boolean mMomentArcGestureEnabled;
+    private int mMomentArcDisplayWidth;
+    private int mMomentArcDisplayHeight;
+    private float mMomentArcGestureHeightPx;
+    private float mMomentArcGestureWidthPx;
+    private float mMomentArcTriggerDistancePx;
+
+    private static final String ACTION_TORCH_OFF =
+            "com.android.server.policy.PhoneWindowManager.ACTION_TORCH_OFF";
 
     /**
      * Keyguard stuff
@@ -944,6 +971,12 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.ALERT_SLIDER_ORDER), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.Secure.getUriFor(
+                    Settings.Secure.MOMENT_ENABLED), false, this,
+                    UserHandle.USER_ALL);
+            resolver.registerContentObserver(Settings.Secure.getUriFor(
+                    Settings.Secure.MOMENT_ARC_GESTURE_ENABLED), false, this,
                     UserHandle.USER_ALL);
             resolver.registerContentObserver(Settings.System.getUriFor(
                     Settings.System.LOCKSCREEN_ENABLE_POWER_MENU), true, this,
@@ -3092,6 +3125,11 @@ public class PhoneWindowManager implements WindowManagerPolicy {
             mSystemNavigationKeysEnabled = Settings.Secure.getIntForUser(resolver,
                     Settings.Secure.SYSTEM_NAVIGATION_KEYS_ENABLED,
                     0, UserHandle.USER_CURRENT) == 1;
+            mMomentEnabled = Settings.Secure.getIntForUser(resolver,
+                    Settings.Secure.MOMENT_ENABLED, 0, UserHandle.USER_CURRENT) != 0;
+            mMomentArcGestureEnabled = Settings.Secure.getIntForUser(resolver,
+                    Settings.Secure.MOMENT_ARC_GESTURE_ENABLED, 1,
+                    UserHandle.USER_CURRENT) != 0;
             mRingerToggleChord = Settings.Secure.getIntForUser(resolver,
                     Settings.Secure.VOLUME_HUSH_GESTURE, VOLUME_HUSH_OFF,
                     UserHandle.USER_CURRENT);
@@ -6149,12 +6187,146 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         bindKeyguard();
     }
 
+    @Override
+    public int interceptMotionBeforeQueueing(MotionEvent event) {
+        if (event.getDisplayId() != Display.DEFAULT_DISPLAY) {
+            return SYSTEM_GESTURE_NONE;
+        }
+        if (!mMomentEnabled || !mMomentArcGestureEnabled) {
+            if (mTrackingMomentArcGesture || mMomentArcGestureTriggered) {
+                mTrackingMomentArcGesture = false;
+                mMomentArcGestureTriggered = false;
+                return SYSTEM_GESTURE_RESET;
+            }
+            return SYSTEM_GESTURE_NONE;
+        }
+        final int action = event.getActionMasked();
+        final float x = event.getRawX();
+        final float y = event.getRawY();
+
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                mTrackingMomentArcGesture = false;
+                mMomentArcGestureTriggered = false;
+                final boolean inBottomCorner =
+                        y > mMomentArcDisplayHeight - mMomentArcGestureHeightPx
+                                && (x < mMomentArcGestureWidthPx
+                                || x > mMomentArcDisplayWidth - mMomentArcGestureWidthPx);
+                if (inBottomCorner) {
+                    mTrackingMomentArcGesture = true;
+                    mMomentArcGestureStart.set(x, y);
+                    return SYSTEM_GESTURE_DOWN;
+                }
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if (mTrackingMomentArcGesture || mMomentArcGestureTriggered) {
+                    if (!mMomentArcGestureTriggered) {
+                        final float dx = x - mMomentArcGestureStart.x;
+                        final float dy = y - mMomentArcGestureStart.y;
+                        if (Math.hypot(dx, dy) > mMomentArcTriggerDistancePx) {
+                            final float angle = (float) Math.atan2(Math.abs(dy), Math.abs(dx));
+                            final boolean fromLeft = mMomentArcGestureStart.x
+                                    < mMomentArcGestureWidthPx && dx > 0;
+                            final boolean fromRight = mMomentArcGestureStart.x
+                                    > mMomentArcDisplayWidth - mMomentArcGestureWidthPx && dx < 0;
+                            if (dy < 0 && angle < MOMENT_ARC_TRIGGER_MAX_ANGLE_RAD
+                                    && (fromLeft || fromRight)) {
+                                showMomentArc(fromLeft, mMomentArcGestureStart.x,
+                                        mMomentArcGestureStart.y);
+                                mMomentArcGestureTriggered = true;
+                                mTrackingMomentArcGesture = false;
+                            } else {
+                                mTrackingMomentArcGesture = false;
+                                return SYSTEM_GESTURE_RESET;
+                            }
+                        }
+                    }
+                    if (mMomentArcGestureTriggered) {
+                        updateMomentArcTouch(x, y, false);
+                        return SYSTEM_GESTURE_MOVE_TRIGGERED;
+                    }
+                    return SYSTEM_GESTURE_MOVE;
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_CANCEL:
+                if (mMomentArcGestureTriggered) {
+                    updateMomentArcTouch(x, y, true);
+                    mMomentArcGestureTriggered = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
+                if (mTrackingMomentArcGesture) {
+                    mTrackingMomentArcGesture = false;
+                    return SYSTEM_GESTURE_RESET;
+                }
+                break;
+        }
+        return SYSTEM_GESTURE_NONE;
+    }
+
+    private void showMomentArc(boolean fromLeft, float touchX, float touchY) {
+        final Intent intent = new Intent(ACTION_SHOW_MOMENT_ARC)
+                .setPackage(SYSTEMUI_PACKAGE)
+                .putExtra("is_left", fromLeft)
+                .putExtra("touch_x", touchX)
+                .putExtra("touch_y", touchY)
+                .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY
+                        | Intent.FLAG_RECEIVER_FOREGROUND);
+        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
+    }
+
+    private void updateMomentArcTouch(float touchX, float touchY, boolean isUp) {
+        final Intent intent = new Intent(ACTION_UPDATE_MOMENT_ARC_TOUCH)
+                .setPackage(SYSTEMUI_PACKAGE)
+                .putExtra("touch_x", touchX)
+                .putExtra("touch_y", touchY)
+                .putExtra("is_up", isUp)
+                .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY
+                        | Intent.FLAG_RECEIVER_FOREGROUND);
+        mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
+    }
+
+    private void updateMomentArcGestureParams() {
+        final Display display = mDisplayManager.getDisplay(Display.DEFAULT_DISPLAY);
+        if (display != null) {
+            final Point size = new Point();
+            display.getRealSize(size);
+            mMomentArcDisplayWidth = size.x;
+            mMomentArcDisplayHeight = size.y;
+        }
+        final float density = mContext.getResources().getDisplayMetrics().density;
+        mMomentArcGestureHeightPx = MOMENT_ARC_GESTURE_HEIGHT_DP * density;
+        mMomentArcGestureWidthPx = MOMENT_ARC_GESTURE_WIDTH_DP * density;
+        mMomentArcTriggerDistancePx = MOMENT_ARC_TRIGGER_DISTANCE_DP * density;
+    }
+
+    private final DisplayManager.DisplayListener mMomentArcDisplayListener =
+            new DisplayManager.DisplayListener() {
+                @Override
+                public void onDisplayAdded(int displayId) {}
+
+                @Override
+                public void onDisplayRemoved(int displayId) {}
+
+                @Override
+                public void onDisplayChanged(int displayId) {
+                    if (displayId == Display.DEFAULT_DISPLAY) {
+                        updateMomentArcGestureParams();
+                        mTrackingMomentArcGesture = false;
+                        mMomentArcGestureTriggered = false;
+                    }
+                }
+            };
+
     /** {@inheritDoc} */
     @Override
     public void systemReady() {
         // In normal flow, systemReady is called before other system services are ready.
         // So it is better not to bind keyguard here.
         mKeyguardDelegate.onSystemReady();
+
+        updateMomentArcGestureParams();
+        mDisplayManager.registerDisplayListener(mMomentArcDisplayListener, mHandler);
 
         mVrManagerInternal = LocalServices.getService(VrManagerInternal.class);
         if (mVrManagerInternal != null) {
