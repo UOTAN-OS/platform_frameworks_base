@@ -36,6 +36,7 @@ import android.view.Display;
 import android.view.InputApplicationHandle;
 import android.view.InputDevice;
 import android.view.KeyEvent;
+import android.view.MotionEvent;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
 import android.view.WindowManagerPolicyConstants;
@@ -428,5 +429,10 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
         if (mInputFreezeReason != null) {
             pw.println(prefix + "mInputFreezeReason=" + mInputFreezeReason);
         }
+    }
+
+    @Override
+    public int interceptMotionBeforeQueueing(MotionEvent event) {
+        return mService.mPolicy.interceptMotionBeforeQueueing(event);
     }
 }
