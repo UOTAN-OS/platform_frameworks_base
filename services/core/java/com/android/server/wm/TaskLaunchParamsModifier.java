@@ -18,6 +18,7 @@ package com.android.server.wm;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
@@ -222,14 +223,15 @@ class TaskLaunchParamsModifier extends DefaultLaunchParamsModifier {
             } else {
                 appendLog("empty-window-layout");
             }
-        } else if (launchMode == WINDOWING_MODE_MULTI_WINDOW
+        } else if ((launchMode == WINDOWING_MODE_MULTI_WINDOW
+                || launchMode == WINDOWING_MODE_MOMENT)
                 && options != null && options.getLaunchBounds() != null) {
             // TODO: Investigate whether we can migrate this clause to the
             //  |canApplyBoundsFromActivityOptions| case above.
             outParams.mBounds.set(options.getLaunchBounds());
             outParams.mBoundsSet = true;
             hasInitialBounds = true;
-            appendLog("multiwindow-activity-options-bounds=" + outParams.mBounds);
+            appendLog("windowing-mode-activity-options-bounds=" + outParams.mBounds);
         }
 
         // STEP 2.2: Check if previous modifier or the controller (referred as "callers" below) has

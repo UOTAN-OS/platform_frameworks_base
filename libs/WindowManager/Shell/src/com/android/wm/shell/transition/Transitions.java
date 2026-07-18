@@ -18,6 +18,7 @@ package com.android.wm.shell.transition;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_CLOSE;
@@ -632,6 +633,18 @@ public class Transitions implements RemoteCallable<Transitions>,
             }
             final SurfaceControl leash = change.getLeash();
             final int mode = change.getMode();
+
+            if (change.getTaskInfo() != null && change.getTaskInfo().configuration
+                    .windowConfiguration.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+                if (mode == TRANSIT_OPEN || mode == TRANSIT_TO_FRONT || mode == TRANSIT_CHANGE) {
+                    t.show(leash);
+                    t.setAlpha(leash, 1.f);
+                    finishT.show(leash);
+                } else if (mode == TRANSIT_CLOSE || mode == TRANSIT_TO_BACK) {
+                    finishT.hide(leash);
+                }
+                continue;
+            }
 
             if (mode == TRANSIT_TO_FRONT) {
                 // When the window is moved to front, make sure the crop is updated to prevent it

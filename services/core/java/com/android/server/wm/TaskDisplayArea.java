@@ -21,6 +21,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
@@ -1310,6 +1311,9 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         }
         if (mDisplayContent != null && !mDisplayContent.isWindowingModeSupported(windowingMode)) {
             return false;
+        }
+        if (windowingMode == WINDOWING_MODE_MOMENT) {
+            return true;
         }
         if (!supportsMultiWindow) {
             return false;

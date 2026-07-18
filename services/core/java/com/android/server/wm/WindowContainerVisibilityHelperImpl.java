@@ -19,6 +19,7 @@ package com.android.server.wm;
 
 import static android.app.ActivityManager.LOCK_TASK_MODE_LOCKED;
 import static android.app.ActivityManager.LOCK_TASK_MODE_PINNED;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 
 import static com.android.server.wm.TaskFragment.TASK_FRAGMENT_VISIBILITY_INVISIBLE;
 import static com.android.server.wm.TaskFragment.TASK_FRAGMENT_VISIBILITY_VISIBLE;
@@ -124,6 +125,13 @@ final class WindowContainerVisibilityHelperImpl implements WindowContainerVisibi
             }
 
             if (!containsCanBeVisibleActivity) {
+                continue;
+            }
+
+            final Task otherTask = other.asTask();
+            if (otherTask != null
+                    && otherTask.getWindowingMode() == WINDOWING_MODE_MOMENT) {
+                // Moment keeps fullscreen app bounds but only occupies its scaled task surface.
                 continue;
             }
 

@@ -25,6 +25,7 @@ import static android.app.ActivityOptions.ANIM_SCALE_UP;
 import static android.app.ActivityOptions.ANIM_SCENE_TRANSITION;
 import static android.app.ActivityOptions.ANIM_THUMBNAIL_SCALE_DOWN;
 import static android.app.ActivityOptions.ANIM_THUMBNAIL_SCALE_UP;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.admin.DevicePolicyManager.ACTION_DEVICE_POLICY_RESOURCE_UPDATED;
@@ -89,8 +90,10 @@ import android.graphics.drawable.Drawable;
 import android.hardware.HardwareBuffer;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.util.ArrayMap;
+import android.util.Log;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
 import android.view.animation.Animation;
@@ -128,6 +131,9 @@ import java.util.function.Consumer;
 
 /** The default handler that handles anything not already handled. */
 public class DefaultTransitionHandler implements Transitions.TransitionHandler {
+    private static final String TAG_MOMENT = "Moment";
+    private static final String MOMENT_DEBUG_PROPERTY = "persist.debug.wm.moment";
+
     private static final int SIZE_CHANGE_ANIMATION_DURATION = 400;
     private static final int MERGE_ANIMATION_DURATION = 400;
 
@@ -341,6 +347,9 @@ public class DefaultTransitionHandler implements Transitions.TransitionHandler {
             @NonNull Transitions.TransitionFinishCallback finishCallback) {
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
                 "start default transition animation, info = %s", info);
+        if (isMomentDebugEnabled() && containsMomentChange(info)) {
+            Log.d(TAG_MOMENT, "[Shell] startAnimation info=" + info);
+        }
         // If keyguard goes away, we should loadKeyguardExitAnimation. Otherwise this just
         // immediately finishes since there is no animation for screen-wake.
         if (info.getType() == WindowManager.TRANSIT_WAKE && !info.isKeyguardGoingAway()) {
@@ -408,6 +417,24 @@ public class DefaultTransitionHandler implements Transitions.TransitionHandler {
             final boolean isFreeform = isTask && change.getTaskInfo().isFreeform();
             final int mode = change.getMode();
             boolean isSeamlessDisplayChange = false;
+
+            if (isMomentChange(change)) {
+                if (isMomentDebugEnabled()) {
+                    Log.d(TAG_MOMENT, "[Shell] skip Moment default animation"
+                            + " type=" + WindowManager.transitTypeToString(info.getType())
+                            + " mode=" + TransitionInfo.modeToString(mode)
+                            + " flags=0x" + Integer.toHexString(change.getFlags())
+                            + " taskId=" + change.getTaskInfo().taskId
+                            + " startBounds=" + change.getStartAbsBounds()
+                            + " endBounds=" + change.getEndAbsBounds()
+                            + " endRelOffset=" + change.getEndRelOffset());
+                }
+                if (mode == TRANSIT_OPEN || mode == TRANSIT_TO_FRONT || mode == TRANSIT_CHANGE) {
+                    startTransaction.show(change.getLeash())
+                            .setAlpha(change.getLeash(), 1.f);
+                }
+                continue;
+            }
 
             if (mode == TRANSIT_CHANGE && change.hasFlags(FLAG_IS_DISPLAY)) {
                 if (info.getType() == TRANSIT_CHANGE || isOnlyTranslucent) {
@@ -720,6 +747,24 @@ public class DefaultTransitionHandler implements Transitions.TransitionHandler {
             disabled |= mDisplayController.isAnimationsDisabled(info.getRoot(i).getDisplayId());
         }
         return disabled;
+    }
+
+    private static boolean isMomentChange(@NonNull TransitionInfo.Change change) {
+        return change.getTaskInfo() != null && change.getTaskInfo().configuration
+                .windowConfiguration.getWindowingMode() == WINDOWING_MODE_MOMENT;
+    }
+
+    private static boolean containsMomentChange(@NonNull TransitionInfo info) {
+        for (int i = 0; i < info.getChanges().size(); i++) {
+            if (isMomentChange(info.getChanges().get(i))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isMomentDebugEnabled() {
+        return SystemProperties.getBoolean(MOMENT_DEBUG_PROPERTY, false);
     }
 
     private void addBackgroundColor(@NonNull TransitionInfo info,

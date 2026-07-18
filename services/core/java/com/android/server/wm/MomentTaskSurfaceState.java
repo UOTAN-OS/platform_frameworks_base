@@ -1,0 +1,548 @@
+/*
+ * Copyright (C) 2026 The uwuAOSP Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.server.wm;
+
+import static android.view.WindowInsets.Type.systemBars;
+
+import android.graphics.Insets;
+import android.graphics.Point;
+import android.graphics.Rect;
+import android.view.InsetsState;
+import android.view.Surface;
+import android.view.SurfaceControl;
+
+final class MomentTaskSurfaceState {
+
+    private final Task mTask;
+    private final Rect mBaseBounds = new Rect();
+    private final Rect mContentCrop = new Rect();
+    private final Rect mAnimatedCrop = new Rect();
+    private final Rect mFullscreenBounds = new Rect();
+    private final Rect mSurfaceBounds = new Rect();
+    private final Rect mDecorationBounds = new Rect();
+    private final Point mCenter = new Point();
+    private final MomentHandleSurfaces mHandleSurfaces;
+    private final MomentMorphLayer mMorphLayer;
+
+    private float mScale;
+    private boolean mHasUserCenter;
+    private boolean mApplied;
+    private boolean mPreserveTaskBounds;
+    private boolean mSuppressConversionRelaunch;
+    private boolean mMomentCompact;
+    private float mCompactRestoreScale;
+    private float mCompactScale;
+    private int mCompactStashedSide;
+    private boolean mTransformAnimating;
+    private boolean mOpening;
+    private boolean mClosing;
+    private float mAnimatedScaleX;
+    private float mAnimatedScaleY;
+    private float mAnimatedCenterX;
+    private float mAnimatedCenterY;
+    private float mAnimatedAlpha = 1f;
+    private float mAnimatedCornerProgress = 1f;
+    private float mCornerRadius;
+    private int mAnimationGeneration;
+    private boolean mLandscapeLayout;
+    private float mScaleBeforeLandscape;
+
+    MomentTaskSurfaceState(Task task, float scale) {
+        mTask = task;
+        mScale = scale;
+        mHandleSurfaces = new MomentHandleSurfaces(task);
+        mMorphLayer = new MomentMorphLayer(task);
+    }
+
+    void setScale(float scale) {
+        mScale = scale;
+    }
+
+    void updateLandscapeLayout(boolean landscape, float maxScale) {
+        if (landscape && !mLandscapeLayout) {
+            mScaleBeforeLandscape = mMomentCompact ? mCompactRestoreScale : mScale;
+            mLandscapeLayout = true;
+        } else if (!landscape && mLandscapeLayout) {
+            if (!mMomentCompact) {
+                mScale = mScaleBeforeLandscape;
+            }
+            mLandscapeLayout = false;
+            return;
+        }
+        if (landscape) {
+            mScale = Math.min(mScale, maxScale);
+        }
+    }
+
+    float getScale() {
+        return mScale;
+    }
+
+    void prepareForFullscreenConversion() {
+        mPreserveTaskBounds = true;
+        mSuppressConversionRelaunch = true;
+        mApplied = true;
+    }
+
+    boolean shouldPreserveTaskBounds() {
+        return mPreserveTaskBounds;
+    }
+
+    boolean shouldSuppressConversionRelaunch() {
+        return mSuppressConversionRelaunch;
+    }
+
+    void finishFullscreenConversion() {
+        mSuppressConversionRelaunch = false;
+    }
+
+    boolean isMomentCompact() {
+        return mMomentCompact;
+    }
+
+    synchronized boolean isTransformAnimating() {
+        return mTransformAnimating;
+    }
+
+    synchronized boolean isClosing() {
+        return mClosing;
+    }
+
+    synchronized boolean isOpening() {
+        return mOpening;
+    }
+
+    synchronized boolean isOpenAnimation(int generation) {
+        return mOpening && generation == mAnimationGeneration;
+    }
+
+    synchronized boolean isCloseAnimation(int generation) {
+        return mClosing && generation == mAnimationGeneration;
+    }
+
+    synchronized boolean isTransformAnimation(int generation) {
+        return mTransformAnimating && generation == mAnimationGeneration;
+    }
+
+    void enterCompact(float restoreScale) {
+        if (mMomentCompact) {
+            return;
+        }
+        mCompactRestoreScale = restoreScale;
+        mCompactScale = mScale;
+        mCompactStashedSide = 0;
+        mMomentCompact = true;
+    }
+
+    float getCompactRestoreScale() {
+        return mCompactRestoreScale;
+    }
+
+    float getCompactScale() {
+        return mCompactScale;
+    }
+
+    int getCompactStashedSide() {
+        return mCompactStashedSide;
+    }
+
+    void setCompactStashedSide(int side) {
+        mCompactStashedSide = side;
+    }
+
+    void setCompactDragTransform(float scale, int centerX, int centerY) {
+        mScale = scale;
+        setCenter(centerX, centerY);
+    }
+
+    void finishCompactRestore(float scale) {
+        mScale = scale;
+        mMomentCompact = false;
+        mCompactStashedSide = 0;
+        mTransformAnimating = false;
+        mAnimatedAlpha = 1f;
+        mAnimatedCornerProgress = 1f;
+    }
+
+    Rect getSurfaceBounds() {
+        updateBounds();
+        return new Rect(mSurfaceBounds);
+    }
+
+    Rect getFullscreenBounds() {
+        updateBounds();
+        return new Rect(mFullscreenBounds);
+    }
+
+    int getCenterX() {
+        updateBounds();
+        return mCenter.x;
+    }
+
+    int getCenterY() {
+        updateBounds();
+        return mCenter.y;
+    }
+
+    Rect getDecorationBounds() {
+        updateBounds();
+        return new Rect(mDecorationBounds);
+    }
+
+    Rect getHandleBounds() {
+        updateBounds();
+        return new Rect(mSurfaceBounds);
+    }
+
+    void setCenter(int centerX, int centerY) {
+        mCenter.set(centerX, centerY);
+        mHasUserCenter = true;
+    }
+
+    void setScaleFromCorner(float scale, int fixedX, int fixedY,
+            boolean resizeFromLeft, boolean resizeFromTop) {
+        updateBounds();
+        mScale = scale;
+        final int width = Math.round(mContentCrop.width() * mScale);
+        final int height = Math.round(mContentCrop.height() * mScale);
+        mCenter.set(
+                resizeFromLeft ? fixedX - (width - width / 2) : fixedX + width / 2,
+                resizeFromTop ? fixedY - (height - height / 2) : fixedY + height / 2);
+        mHasUserCenter = true;
+    }
+
+    void animateHandlePress(boolean isTouchDown) {
+        mHandleSurfaces.animateBottomPress(isTouchDown);
+    }
+
+    MomentHandleSurfaces getHandleSurfaces() {
+        return mHandleSurfaces;
+    }
+
+    synchronized void apply(SurfaceControl.Transaction t, boolean showHandle) {
+        if (mTask.mSurfaceControl == null) {
+            return;
+        }
+        if (mOpening || mClosing) {
+            t.hide(mTask.mSurfaceControl);
+            mHandleSurfaces.hideBottom(t);
+            return;
+        }
+        updateBounds();
+        mCornerRadius = MomentGeometry.getCornerRadius(getDensity());
+        applyTaskTransform(t);
+        if (showHandle && !mMomentCompact && !mTransformAnimating) {
+            mHandleSurfaces.showOrUpdateBottom(t, getHandleBounds());
+        } else {
+            mHandleSurfaces.hideBottom(t);
+        }
+        if (mTask.isVisibleRequested()) {
+            mApplied = true;
+        }
+    }
+
+    synchronized int beginTransformAnimation() {
+        updateBounds();
+        return beginTransformAnimation(mScale, mScale, mSurfaceBounds.exactCenterX(),
+                mSurfaceBounds.exactCenterY(), 1f, 1f);
+    }
+
+    synchronized int beginTransformAnimation(float scaleX, float scaleY, float centerX,
+            float centerY, float alpha, float cornerProgress) {
+        updateBounds();
+        mCornerRadius = MomentGeometry.getCornerRadius(getDensity());
+        mTransformAnimating = true;
+        mAnimatedScaleX = scaleX;
+        mAnimatedScaleY = scaleY;
+        mAnimatedCenterX = centerX;
+        mAnimatedCenterY = centerY;
+        mAnimatedAlpha = alpha;
+        mAnimatedCornerProgress = cornerProgress;
+        return ++mAnimationGeneration;
+    }
+
+    synchronized boolean applyAnimatedTransform(SurfaceControl.Transaction t, int generation,
+            float scaleX, float scaleY, float centerX, float centerY, float alpha,
+            float cornerProgress) {
+        if (!mTransformAnimating || generation != mAnimationGeneration
+                || mTask.mSurfaceControl == null || !mTask.mSurfaceControl.isValid()) {
+            return false;
+        }
+        mAnimatedScaleX = scaleX;
+        mAnimatedScaleY = scaleY;
+        mAnimatedCenterX = centerX;
+        mAnimatedCenterY = centerY;
+        mAnimatedAlpha = alpha;
+        mAnimatedCornerProgress = cornerProgress;
+        applyTaskTransform(t);
+        return true;
+    }
+
+    synchronized boolean finishTransformAnimation(int generation) {
+        if (generation != mAnimationGeneration) {
+            return false;
+        }
+        mTransformAnimating = false;
+        mAnimatedAlpha = 1f;
+        mAnimatedCornerProgress = 1f;
+        return true;
+    }
+
+    synchronized void cancelTransformAnimation() {
+        mAnimationGeneration++;
+        mTransformAnimating = false;
+        mAnimatedAlpha = 1f;
+        mAnimatedCornerProgress = 1f;
+    }
+
+    synchronized int beginCloseAnimation(SurfaceControl.Transaction t, int color,
+            float cornerRadius) throws Surface.OutOfResourcesException {
+        if (mClosing || mTask.mSurfaceControl == null) {
+            return -1;
+        }
+        final SurfaceControl parent = mTask.getParentSurfaceControl();
+        if (parent == null) {
+            return -1;
+        }
+        updateBounds();
+        mMorphLayer.create(parent, "MomentCloseLayer#" + mTask.mTaskId);
+        mClosing = true;
+        final int generation = ++mAnimationGeneration;
+        mMorphLayer.show(t, color, mSurfaceBounds.exactCenterX(), mSurfaceBounds.exactCenterY(),
+                mSurfaceBounds.width(), mSurfaceBounds.height(), cornerRadius, 1f);
+        t.hide(mTask.mSurfaceControl);
+        mHandleSurfaces.hideBottom(t);
+        return generation;
+    }
+
+    synchronized int beginOpenAnimation(SurfaceControl.Transaction t, int color, float centerX,
+            float centerY, float width, float height, float cornerRadius) {
+        if (mOpening || mClosing || mTask.mSurfaceControl == null) {
+            return -1;
+        }
+        final SurfaceControl parent = mTask.getParentSurfaceControl();
+        if (parent == null) {
+            return -1;
+        }
+        updateBounds();
+        try {
+            mMorphLayer.create(parent, "MomentOpenLayer#" + mTask.mTaskId);
+        } catch (Surface.OutOfResourcesException e) {
+            return -1;
+        }
+        mOpening = true;
+        mApplied = true;
+        final int generation = ++mAnimationGeneration;
+        mCornerRadius = MomentGeometry.getCornerRadius(getDensity());
+        applyTaskTransform(t);
+        mMorphLayer.show(t, color, centerX, centerY, width, height, cornerRadius, 0f);
+        t.hide(mTask.mSurfaceControl);
+        mHandleSurfaces.hideBottom(t);
+        return generation;
+    }
+
+    synchronized boolean applyOpenAnimationFrame(SurfaceControl.Transaction t, int generation,
+            float centerX, float centerY, float width, float height, float cornerRadius,
+            float alpha) {
+        if (!mOpening || generation != mAnimationGeneration || !mMorphLayer.isValid()) {
+            return false;
+        }
+        mMorphLayer.applyFrame(t, centerX, centerY, width, height, cornerRadius, alpha);
+        t.hide(mTask.mSurfaceControl);
+        return true;
+    }
+
+    synchronized boolean finishOpenAnimation(SurfaceControl.Transaction t, int generation) {
+        if (!mOpening || generation != mAnimationGeneration) {
+            return false;
+        }
+        mMorphLayer.destroy(t);
+        mOpening = false;
+        applyTaskTransform(t);
+        return true;
+    }
+
+    synchronized boolean applyCloseAnimationFrame(SurfaceControl.Transaction t, int generation,
+            float centerX, float centerY, float width, float height, float cornerRadius,
+            float alpha) {
+        if (!mClosing || generation != mAnimationGeneration || !mMorphLayer.isValid()) {
+            return false;
+        }
+        return mMorphLayer.applyFrame(t, centerX, centerY, width, height, cornerRadius, alpha);
+    }
+
+    synchronized boolean completeCloseAnimation(SurfaceControl.Transaction t, int generation) {
+        if (!mClosing || generation != mAnimationGeneration || !mMorphLayer.isValid()) {
+            return false;
+        }
+        mMorphLayer.hide(t);
+        if (mTask.mSurfaceControl != null && mTask.mSurfaceControl.isValid()) {
+            t.hide(mTask.mSurfaceControl);
+        }
+        return true;
+    }
+
+    synchronized void prepareForTaskRemoval(SurfaceControl.Transaction t) {
+        mAnimationGeneration++;
+        mTransformAnimating = false;
+        mOpening = false;
+        mClosing = true;
+        mMorphLayer.hide(t);
+        if (mTask.mSurfaceControl != null && mTask.mSurfaceControl.isValid()) {
+            t.hide(mTask.mSurfaceControl);
+        }
+        mHandleSurfaces.hideBottom(t);
+    }
+
+    synchronized void cancelCloseAnimation(SurfaceControl.Transaction t, boolean restoreTask) {
+        if (!mOpening && !mClosing && !mMorphLayer.isValid()) {
+            return;
+        }
+        mAnimationGeneration++;
+        mOpening = false;
+        mClosing = false;
+        mMorphLayer.destroy(t);
+        if (restoreTask && mTask.mSurfaceControl != null && mTask.mSurfaceControl.isValid()) {
+            t.show(mTask.mSurfaceControl);
+        }
+    }
+
+    private void applyTaskTransform(SurfaceControl.Transaction t) {
+        final float scaleX = mTransformAnimating ? mAnimatedScaleX : mScale;
+        final float scaleY = mTransformAnimating ? mAnimatedScaleY : mScale;
+        final float centerX = mTransformAnimating ? mAnimatedCenterX : mSurfaceBounds.exactCenterX();
+        final float centerY = mTransformAnimating ? mAnimatedCenterY : mSurfaceBounds.exactCenterY();
+        final float cropProgress = mTransformAnimating ? mAnimatedCornerProgress : 1f;
+        mAnimatedCrop.set(
+                Math.round(mContentCrop.left * cropProgress),
+                Math.round(mContentCrop.top * cropProgress),
+                mBaseBounds.width() - Math.round(
+                        (mBaseBounds.width() - mContentCrop.right) * cropProgress),
+                mBaseBounds.height() - Math.round(
+                        (mBaseBounds.height() - mContentCrop.bottom) * cropProgress));
+        final float width = mAnimatedCrop.width() * scaleX;
+        final float height = mAnimatedCrop.height() * scaleY;
+        t.setPosition(mTask.mSurfaceControl,
+                centerX - width / 2f - mAnimatedCrop.left * scaleX,
+                centerY - height / 2f - mAnimatedCrop.top * scaleY)
+                .setWindowCrop(mTask.mSurfaceControl, mAnimatedCrop)
+                .setCornerRadius(mTask.mSurfaceControl,
+                        mCornerRadius * (mTransformAnimating ? mAnimatedCornerProgress : 1f))
+                .setScale(mTask.mSurfaceControl, scaleX, scaleY)
+                .setAlpha(mTask.mSurfaceControl, mTransformAnimating ? mAnimatedAlpha : 1f)
+                .show(mTask.mSurfaceControl);
+    }
+
+    boolean hasApplied() {
+        return mApplied;
+    }
+
+    boolean ensureForceTranslucent() {
+        return mTask.setForceTranslucent(true);
+    }
+
+    void reset(SurfaceControl.Transaction t) {
+        if (mTask.mSurfaceControl == null) {
+            return;
+        }
+        t.setPosition(mTask.mSurfaceControl, 0f, 0f)
+                .setWindowCrop(mTask.mSurfaceControl, null)
+                .setScale(mTask.mSurfaceControl, 1f, 1f)
+                .setAlpha(mTask.mSurfaceControl, 1f)
+                .setCornerRadius(mTask.mSurfaceControl, 0f);
+        mTask.setForceTranslucent(false);
+        mHandleSurfaces.hideBottom(t);
+        cancelCloseAnimation(t, false /* restoreTask */);
+        cancelTransformAnimation();
+        mMomentCompact = false;
+        mCompactStashedSide = 0;
+        mPreserveTaskBounds = false;
+        mSuppressConversionRelaunch = false;
+        mApplied = false;
+    }
+
+    void destroy(SurfaceControl.Transaction t) {
+        cancelCloseAnimation(t, false /* restoreTask */);
+        cancelTransformAnimation();
+        mTask.setForceTranslucent(false);
+        mHandleSurfaces.destroy(t);
+    }
+
+    private float getDensity() {
+        final DisplayContent displayContent = mTask.getDisplayContent();
+        return displayContent != null ? displayContent.getDisplayMetrics().density : 1f;
+    }
+
+    private void updateBounds() {
+        mBaseBounds.set(mTask.getBounds());
+        if (mBaseBounds.isEmpty()) {
+            final DisplayContent displayContent = mTask.getDisplayContent();
+            if (displayContent != null) {
+                displayContent.getBounds(mBaseBounds);
+            }
+        }
+        final Rect displayBounds = new Rect();
+        final DisplayContent displayContent = mTask.getDisplayContent();
+        if (displayContent != null) {
+            displayContent.getBounds(displayBounds);
+        } else {
+            displayBounds.set(mBaseBounds);
+        }
+
+        mContentCrop.set(0, 0, mBaseBounds.width(), mBaseBounds.height());
+        mFullscreenBounds.set(displayBounds);
+        if (displayContent != null) {
+            final InsetsState insetsState = displayContent.getInsetsStateController()
+                    .getRawInsetsState();
+            final Rect displayFrame = insetsState.getDisplayFrame();
+            final Insets systemBarInsets = insetsState.calculateInsets(displayFrame, displayFrame,
+                    systemBars(), true /* ignoreVisibility */);
+            mContentCrop.inset(systemBarInsets.left, systemBarInsets.top,
+                    systemBarInsets.right, systemBarInsets.bottom);
+            if (mContentCrop.isEmpty()) {
+                mContentCrop.set(0, 0, mBaseBounds.width(), mBaseBounds.height());
+            }
+        }
+
+        final int width = Math.round(mContentCrop.width() * mScale);
+        final int height = Math.round(mContentCrop.height() * mScale);
+        if (!mHasUserCenter) {
+            mCenter.set(displayBounds.centerX(), displayBounds.centerY());
+        }
+        final int left = mCenter.x - width / 2;
+        final int top = mCenter.y - height / 2;
+        mSurfaceBounds.set(left, top, left + width, top + height);
+
+        mDecorationBounds.set(mSurfaceBounds);
+        final ActivityRecord topActivity = mTask.topRunningActivity();
+        final WindowState mainWindow = topActivity != null
+                ? topActivity.findMainWindow(false /* includeStartingApp */) : null;
+        if (mainWindow != null && !mainWindow.getFrame().isEmpty()) {
+            final Rect frame = mainWindow.getFrame();
+            mDecorationBounds.set(
+                    left + Math.round((frame.left - mBaseBounds.left - mContentCrop.left) * mScale),
+                    top + Math.round((frame.top - mBaseBounds.top - mContentCrop.top) * mScale),
+                    left + Math.round(
+                            (frame.right - mBaseBounds.left - mContentCrop.left) * mScale),
+                    top + Math.round(
+                            (frame.bottom - mBaseBounds.top - mContentCrop.top) * mScale));
+            if (!mDecorationBounds.intersect(mSurfaceBounds)) {
+                mDecorationBounds.set(mSurfaceBounds);
+            }
+        }
+    }
+}

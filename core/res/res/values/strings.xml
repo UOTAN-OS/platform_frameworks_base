@@ -6987,6 +6987,9 @@
     <!-- Action label of notification for user to check background apps. [CHAR LIMIT=NONE]  -->
     <string name="notification_action_check_bg_apps">Check active apps</string>
 
+    <!-- Toast shown when an app requests Moment while Moment is disabled. -->
+    <string name="moment_launch_disabled">Unable to start process in windowing mode 110</string>
+
     <!-- Strings for VirtualDeviceManager -->
     <!-- Error message indicating the camera cannot be accessed when running on a virtual device. [CHAR LIMIT=NONE] -->
     <string name="vdm_camera_access_denied" product="default">Can’t access the phone’s camera from your <xliff:g id="device" example="Chromebook">%1$s</xliff:g></string>

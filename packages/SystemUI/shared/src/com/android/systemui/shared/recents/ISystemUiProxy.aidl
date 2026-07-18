@@ -201,5 +201,8 @@ interface ISystemUiProxy {
      */
     oneway void onOverviewHidden(int displayId) = 62;
 
-    // Next id = 63
+    /** Notifies SystemUI that the gestural navigation handle was double tapped. */
+    oneway void onNavHandleDoubleTap(int displayId, int taskId) = 63;
+
+    // Next id = 64
 }

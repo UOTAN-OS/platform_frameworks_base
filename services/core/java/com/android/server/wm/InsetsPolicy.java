@@ -19,6 +19,7 @@ package com.android.server.wm;
 import static android.app.StatusBarManager.WINDOW_STATE_HIDDEN;
 import static android.app.StatusBarManager.WINDOW_STATE_SHOWING;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.FAKE_NAV_CONTROL_TARGET;
@@ -436,6 +437,9 @@ class InsetsPolicy {
                 || (windowingMode == WINDOWING_MODE_MULTI_WINDOW && target.isAlwaysOnTop())) {
             // Keep frames, caption, and IME.
             int types = WindowInsets.Type.captionBar();
+            if (windowingMode == WINDOWING_MODE_MOMENT) {
+                types |= WindowInsets.Type.systemBars();
+            }
             if (windowingMode != WINDOWING_MODE_PINNED
                     && mDisplayContent.getImeInputTarget() instanceof WindowState imeTarget
                     && (target == imeTarget

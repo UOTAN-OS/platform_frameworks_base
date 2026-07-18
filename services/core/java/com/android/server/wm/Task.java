@@ -25,6 +25,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.app.WindowConfiguration.activityTypeToString;
@@ -152,6 +153,7 @@ import android.os.Message;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.os.SystemProperties;
 import android.os.Trace;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -217,6 +219,8 @@ class Task extends TaskFragment {
     private static final String ATTR_TASKID = "task_id";
     private static final String TAG_INTENT = "intent";
     private static final String TAG_AFFINITYINTENT = "affinity_intent";
+    private static final String TAG_MOMENT = "Moment";
+    private static final String MOMENT_DEBUG_PROPERTY = "persist.debug.wm.moment";
     private static final String ATTR_REALACTIVITY = "real_activity";
     private static final String ATTR_REALACTIVITY_SUSPENDED = "real_activity_suspended";
     private static final String ATTR_REALACTIVITY_APP_LOCK_ENABLED =
@@ -2563,6 +2567,18 @@ class Task extends TaskFragment {
     }
 
     @Override
+    void prepareSurfaces() {
+        super.prepareSurfaces();
+        if (mSurfaceControl == null || !isRootTask()) {
+            return;
+        }
+        if (getWindowingMode() == WINDOWING_MODE_MOMENT
+                && mWmService.mMomentController.shouldApplyMomentSurface(this)) {
+            mWmService.mMomentController.applyMomentSurface(this, getPendingTransaction());
+        }
+    }
+
+    @Override
     public void writeIdentifierToProto(ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         proto.write(HASH_CODE, System.identityHashCode(this));
@@ -2977,6 +2993,9 @@ class Task extends TaskFragment {
 
         EventLogTags.writeWmTaskRemoved(mTaskId, getRootTaskId(), getDisplayId(), reason);
         clearPinnedTaskIfNeed();
+        if (getWindowingMode() == WINDOWING_MODE_MOMENT) {
+            mWmService.mMomentController.onTaskRemoved(this);
+        }
         clearExcludeLayersFromTaskSnapshot();
         if (mChildPipActivity != null) {
             mChildPipActivity.clearLastParentBeforePip();
@@ -4704,7 +4723,7 @@ class Task extends TaskFragment {
 
     @Override
     public boolean isAlwaysOnTop() {
-        return !isForceHidden() && super.isAlwaysOnTop();
+        return !isForceHidden() && isAlwaysOnTopWhenVisible();
     }
 
     /**
@@ -4714,7 +4733,13 @@ class Task extends TaskFragment {
      */
     @Deprecated
     boolean isAlwaysOnTopWhenVisible() {
-        return super.isAlwaysOnTop();
+        return (isRootTask() && getWindowingMode() == WINDOWING_MODE_MOMENT)
+                || super.isAlwaysOnTop();
+    }
+
+    boolean isMomentCompact() {
+        return getWindowingMode() == WINDOWING_MODE_MOMENT
+                && mWmService.mMomentController.isMomentCompact(this);
     }
 
     /**
@@ -4833,6 +4858,7 @@ class Task extends TaskFragment {
 
     @Override
     public void setWindowingMode(int windowingMode) {
+        final int previousWindowingMode = getWindowingMode();
         if (!Flags.idempotentWctResolution()) {
             if (!isOverrideWindowingModeAllowed()
                     && windowingMode != WINDOWING_MODE_UNDEFINED) {
@@ -4848,10 +4874,19 @@ class Task extends TaskFragment {
                 mMultiWindowRestoreWindowingMode = INVALID_WINDOWING_MODE;
             }
             super.setWindowingMode(windowingMode);
+            notifyMomentWindowingModeChanged(previousWindowingMode);
             return;
         }
 
         setWindowingModeInner(windowingMode, false /* creating */);
+        notifyMomentWindowingModeChanged(previousWindowingMode);
+    }
+
+    private void notifyMomentWindowingModeChanged(int previousWindowingMode) {
+        if (previousWindowingMode == WINDOWING_MODE_MOMENT
+                && getWindowingMode() != WINDOWING_MODE_MOMENT) {
+            mWmService.mMomentController.onTaskLeftMomentWindowingMode(this);
+        }
     }
 
     /**
@@ -4862,13 +4897,16 @@ class Task extends TaskFragment {
      *         previous non-transient mode if this root task is currently in a transient mode.
      */
     public void setRootTaskWindowingMode(int preferredWindowingMode) {
+        final int previousWindowingMode = getWindowingMode();
         if (!isRootTask()) {
             Slog.wtf(TAG, "Trying to set root-task windowing-mode on a non-root-task: " + this,
                     new Throwable());
             super.setWindowingMode(preferredWindowingMode);
+            notifyMomentWindowingModeChanged(previousWindowingMode);
             return;
         }
         setWindowingModeInner(preferredWindowingMode, false /* creating */);
+        notifyMomentWindowingModeChanged(previousWindowingMode);
     }
 
     /**
@@ -5543,9 +5581,37 @@ class Task extends TaskFragment {
         if (DEBUG_TRANSITION) Slog.v(TAG_TRANSITION, "Prepare open transition: starting " + r);
 
         // Place a new activity at top of root task, so it is next to interact with the user.
-        if ((r.intent.getFlags() & Intent.FLAG_ACTIVITY_NO_ANIMATION) != 0) {
+        final boolean momentLaunch = getWindowingMode() == WINDOWING_MODE_MOMENT
+                || (activityTask != null
+                        && activityTask.getWindowingMode() == WINDOWING_MODE_MOMENT);
+        if (momentLaunch && isMomentDebugEnabled()) {
+            Slog.d(TAG_MOMENT, "startActivityLocked momentLaunch r=" + r
+                    + " source=" + sourceRecord
+                    + " newTask=" + newTask
+                    + " isTaskSwitch=" + isTaskSwitch
+                    + " thisTaskId=" + mTaskId
+                    + " thisMode=" + getWindowingMode()
+                    + " activityTask="
+                    + (activityTask != null ? activityTask.mTaskId : "null")
+                    + " activityTaskMode="
+                    + (activityTask != null ? activityTask.getWindowingMode() : "null")
+                    + " collectingThis=" + mTransitionController.isCollecting(this)
+                    + " collectingActivityTask="
+                    + (activityTask != null && mTransitionController.isCollecting(activityTask))
+                    + " intentFlags=0x" + Integer.toHexString(r.intent.getFlags()));
+        }
+        if ((r.intent.getFlags() & Intent.FLAG_ACTIVITY_NO_ANIMATION) != 0 || momentLaunch) {
             mTaskSupervisor.mNoAnimActivities.add(r);
             mTransitionController.setNoAnimation(r);
+            if (momentLaunch) {
+                if (mTransitionController.isCollecting(this)) {
+                    mTransitionController.setNoAnimation(this);
+                }
+                if (activityTask != null && activityTask != this
+                        && mTransitionController.isCollecting(activityTask)) {
+                    mTransitionController.setNoAnimation(activityTask);
+                }
+            }
         } else {
             mTaskSupervisor.mNoAnimActivities.remove(r);
         }
@@ -5560,6 +5626,9 @@ class Task extends TaskFragment {
             }
         }
         boolean doShow = true;
+        if (momentLaunch) {
+            doShow = false;
+        }
         if (newTask) {
             // Even though this activity is starting fresh, we still need
             // to reset it to make sure we apply affinities to move any
@@ -5602,6 +5671,10 @@ class Task extends TaskFragment {
             mWmService.mStartingSurfaceController.showStartingWindow(r, prev, newTask,
                     isTaskSwitch, sourceRecord);
         }
+    }
+
+    private static boolean isMomentDebugEnabled() {
+        return SystemProperties.getBoolean(MOMENT_DEBUG_PROPERTY, false);
     }
 
     /** On Task switch, finds the top activity that supports PiP. */

@@ -482,6 +482,10 @@ interface IWindowManager
      */
     oneway void setRecentsVisibility(boolean visible);
 
+    /** Handles the Moment action for a double tap on the gestural navigation handle. */
+    @EnforcePermission("STATUS_BAR")
+    boolean handleMomentNavHandleDoubleTap(int taskId);
+
     /**
     * Called by System UI to indicate the maximum bounds of the system Privacy Indicator, for the
     * current orientation, whether the indicator is showing or not. Should be an array of length

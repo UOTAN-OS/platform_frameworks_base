@@ -25,6 +25,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.ROTATION_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MOMENT;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.hardware.SyncFence.SIGNAL_TIME_PENDING;
 import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
@@ -1317,17 +1318,22 @@ class Transition implements BLASTSyncEngine.TransactionReadyListener {
             if (target.getParent() == null) continue;
             final SurfaceControl targetLeash = getLeashSurface(target, null /* t */);
             final SurfaceControl origParent = getOrigParentSurface(target);
+            final Task targetTask = target.asTask();
+            final boolean preserveMomentSurface = targetTask != null && targetTask.isRootTask()
+                    && targetTask.getWindowingMode() == WINDOWING_MODE_MOMENT;
             // Ensure surfaceControls are re-parented back into the hierarchy.
             t.reparent(targetLeash, origParent);
             t.setLayer(targetLeash, target.getLastLayer());
-            t.setCornerRadius(targetLeash, 0);
+            if (!preserveMomentSurface) {
+                t.setCornerRadius(targetLeash, 0);
+            }
             t.setShadowRadius(targetLeash, 0);
             t.setAlpha(targetLeash, 1);
             // For config-at-end, the end-transform will be reset after the config is actually
             // applied in the client (since the transform depends on config). The other properties
             // remain here because shell might want to persistently override them.
-            if (target.asActivityRecord() == null
-                    || (mTargets.get(i).mFlags & ChangeInfo.FLAG_CHANGE_CONFIG_AT_END) == 0) {
+            if (!preserveMomentSurface && (target.asActivityRecord() == null
+                    || (mTargets.get(i).mFlags & ChangeInfo.FLAG_CHANGE_CONFIG_AT_END) == 0)) {
                 resetSurfaceTransform(t, target, targetLeash);
             }
         }

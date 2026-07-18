@@ -13422,6 +13422,35 @@ public final class Settings {
         public static final String NAVIGATIONBAR_KEY_ORDER = "navigationbar_key_order";
 
         /**
+         * Whether Moment, including its launch and gesture entry points, is enabled.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_ENABLED = "moment_enabled";
+
+        /**
+         * Whether the bottom-corner gesture for MomentArc is enabled.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_ARC_GESTURE_ENABLED =
+                "moment_arc_gesture_enabled";
+
+        /**
+         * Whether double tapping the gestural navigation handle invokes Moment.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_NAV_HANDLE_DOUBLE_TAP_ENABLED =
+                "moment_nav_handle_double_tap_enabled";
+
+        /**
          * Navigation bar mode.
          *  0 = 3 button
          *  1 = 2 button
