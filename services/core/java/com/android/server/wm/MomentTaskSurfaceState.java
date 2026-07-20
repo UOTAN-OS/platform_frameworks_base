@@ -55,7 +55,8 @@ final class MomentTaskSurfaceState {
     private float mAnimatedCenterX;
     private float mAnimatedCenterY;
     private float mAnimatedAlpha = 1f;
-    private float mAnimatedCornerProgress = 1f;
+    private float mAnimatedCropProgress = 1f;
+    private float mAnimatedDisplayedCornerRadius;
     private float mCornerRadius;
     private int mAnimationGeneration;
     private boolean mLandscapeLayout;
@@ -175,7 +176,7 @@ final class MomentTaskSurfaceState {
         mCompactStashedSide = 0;
         mTransformAnimating = false;
         mAnimatedAlpha = 1f;
-        mAnimatedCornerProgress = 1f;
+        mAnimatedCropProgress = 1f;
     }
 
     Rect getSurfaceBounds() {
@@ -206,6 +207,11 @@ final class MomentTaskSurfaceState {
     Rect getHandleBounds() {
         updateBounds();
         return new Rect(mSurfaceBounds);
+    }
+
+    float getDisplayedCornerRadius() {
+        updateBounds();
+        return MomentGeometry.getCornerRadius(getDensity()) * mScale;
     }
 
     void setCenter(int centerX, int centerY) {
@@ -258,11 +264,11 @@ final class MomentTaskSurfaceState {
     synchronized int beginTransformAnimation() {
         updateBounds();
         return beginTransformAnimation(mScale, mScale, mSurfaceBounds.exactCenterX(),
-                mSurfaceBounds.exactCenterY(), 1f, 1f);
+                mSurfaceBounds.exactCenterY(), 1f, getDisplayedCornerRadius(), 1f);
     }
 
     synchronized int beginTransformAnimation(float scaleX, float scaleY, float centerX,
-            float centerY, float alpha, float cornerProgress) {
+            float centerY, float alpha, float displayedCornerRadius, float cropProgress) {
         updateBounds();
         mCornerRadius = MomentGeometry.getCornerRadius(getDensity());
         mTransformAnimating = true;
@@ -271,13 +277,14 @@ final class MomentTaskSurfaceState {
         mAnimatedCenterX = centerX;
         mAnimatedCenterY = centerY;
         mAnimatedAlpha = alpha;
-        mAnimatedCornerProgress = cornerProgress;
+        mAnimatedDisplayedCornerRadius = displayedCornerRadius;
+        mAnimatedCropProgress = cropProgress;
         return ++mAnimationGeneration;
     }
 
     synchronized boolean applyAnimatedTransform(SurfaceControl.Transaction t, int generation,
             float scaleX, float scaleY, float centerX, float centerY, float alpha,
-            float cornerProgress) {
+            float displayedCornerRadius, float cropProgress) {
         if (!mTransformAnimating || generation != mAnimationGeneration
                 || mTask.mSurfaceControl == null || !mTask.mSurfaceControl.isValid()) {
             return false;
@@ -287,7 +294,8 @@ final class MomentTaskSurfaceState {
         mAnimatedCenterX = centerX;
         mAnimatedCenterY = centerY;
         mAnimatedAlpha = alpha;
-        mAnimatedCornerProgress = cornerProgress;
+        mAnimatedDisplayedCornerRadius = displayedCornerRadius;
+        mAnimatedCropProgress = cropProgress;
         applyTaskTransform(t);
         return true;
     }
@@ -298,7 +306,7 @@ final class MomentTaskSurfaceState {
         }
         mTransformAnimating = false;
         mAnimatedAlpha = 1f;
-        mAnimatedCornerProgress = 1f;
+        mAnimatedCropProgress = 1f;
         return true;
     }
 
@@ -306,7 +314,7 @@ final class MomentTaskSurfaceState {
         mAnimationGeneration++;
         mTransformAnimating = false;
         mAnimatedAlpha = 1f;
-        mAnimatedCornerProgress = 1f;
+        mAnimatedCropProgress = 1f;
     }
 
     synchronized int beginCloseAnimation(SurfaceControl.Transaction t, int color,
@@ -426,7 +434,7 @@ final class MomentTaskSurfaceState {
         final float scaleY = mTransformAnimating ? mAnimatedScaleY : mScale;
         final float centerX = mTransformAnimating ? mAnimatedCenterX : mSurfaceBounds.exactCenterX();
         final float centerY = mTransformAnimating ? mAnimatedCenterY : mSurfaceBounds.exactCenterY();
-        final float cropProgress = mTransformAnimating ? mAnimatedCornerProgress : 1f;
+        final float cropProgress = mTransformAnimating ? mAnimatedCropProgress : 1f;
         mAnimatedCrop.set(
                 Math.round(mContentCrop.left * cropProgress),
                 Math.round(mContentCrop.top * cropProgress),
@@ -436,12 +444,16 @@ final class MomentTaskSurfaceState {
                         (mBaseBounds.height() - mContentCrop.bottom) * cropProgress));
         final float width = mAnimatedCrop.width() * scaleX;
         final float height = mAnimatedCrop.height() * scaleY;
+        final float scale = Math.max(Math.abs(scaleX), Math.abs(scaleY));
+        final float cornerRadius = mTransformAnimating
+                ? mAnimatedDisplayedCornerRadius / Math.max(0.001f, scale)
+                : mCornerRadius;
         t.setPosition(mTask.mSurfaceControl,
                 centerX - width / 2f - mAnimatedCrop.left * scaleX,
                 centerY - height / 2f - mAnimatedCrop.top * scaleY)
                 .setWindowCrop(mTask.mSurfaceControl, mAnimatedCrop)
                 .setCornerRadius(mTask.mSurfaceControl,
-                        mCornerRadius * (mTransformAnimating ? mAnimatedCornerProgress : 1f))
+                        cornerRadius)
                 .setScale(mTask.mSurfaceControl, scaleX, scaleY)
                 .setAlpha(mTask.mSurfaceControl, mTransformAnimating ? mAnimatedAlpha : 1f)
                 .show(mTask.mSurfaceControl);
