@@ -436,10 +436,12 @@ class TaskLaunchParamsModifier implements LaunchParamsModifier {
             return false;
         }
 
-        // Only fullscreen and freeform sources are allowed to inherit their windowing mode.
+        // Only fullscreen, freeform, and Moment sources are allowed to inherit their windowing
+        // mode.
         final int sourceWindowingMode = source.getTask().getWindowingMode();
         if (sourceWindowingMode != WINDOWING_MODE_FULLSCREEN
-                && sourceWindowingMode != WINDOWING_MODE_FREEFORM) {
+                && sourceWindowingMode != WINDOWING_MODE_FREEFORM
+                && sourceWindowingMode != WINDOWING_MODE_MOMENT) {
             return false;
         }
 
