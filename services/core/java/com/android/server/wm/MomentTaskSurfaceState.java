@@ -212,6 +212,43 @@ final class MomentTaskSurfaceState {
         return new Rect(mSurfaceBounds);
     }
 
+    String getDebugGeometry() {
+        updateBounds();
+        final DisplayContent displayContent = mTask.getDisplayContent();
+        final WindowState mainWindow = mTask.getTopVisibleAppMainWindow();
+        if (displayContent == null) {
+            return "baseBounds=" + mBaseBounds
+                    + " contentCrop=" + mContentCrop
+                    + " surfaceBounds=" + mSurfaceBounds
+                    + " display=null";
+        }
+        final InsetsState rawInsetsState = displayContent.getInsetsStateController()
+                .getRawInsetsState();
+        final Rect displayFrame = rawInsetsState.getDisplayFrame();
+        final Insets rawSystemBarInsets = rawInsetsState.calculateInsets(displayFrame, displayFrame,
+                systemBars(), true /* ignoreVisibility */);
+        final InsetsState windowInsetsState = mainWindow != null ? mainWindow.getInsetsState() : null;
+        final Insets windowSystemBarInsets = windowInsetsState != null
+                ? windowInsetsState.calculateInsets(mainWindow.getFrame(), mainWindow.getBounds(),
+                        systemBars(), true /* ignoreVisibility */)
+                : Insets.NONE;
+        return "baseBounds=" + mBaseBounds
+                + " contentCrop=" + mContentCrop
+                + " animatedCrop=" + mAnimatedCrop
+                + " fullscreenBounds=" + mFullscreenBounds
+                + " surfaceBounds=" + mSurfaceBounds
+                + " center=" + mCenter
+                + " scale=" + mScale
+                + " displayBounds=" + displayContent.getBounds()
+                + " displayFrame=" + displayFrame
+                + " displayRotation=" + displayContent.getRotation()
+                + " taskRotation=" + mTask.getWindowConfiguration().getRotation()
+                + " rawSystemBarInsets=" + rawSystemBarInsets
+                + " mainWindowFrame=" + (mainWindow != null ? mainWindow.getFrame() : "null")
+                + " mainWindowBounds=" + (mainWindow != null ? mainWindow.getBounds() : "null")
+                + " windowSystemBarInsets=" + windowSystemBarInsets;
+    }
+
     float getDisplayedCornerRadius() {
         updateBounds();
         return MomentGeometry.getCornerRadius(getDensity()) * mScale;
