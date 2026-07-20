@@ -84,6 +84,12 @@ public interface DeviceIdleInternal {
     String[] getFullPowerWhitelistExceptIdle();
 
     /**
+     * Replaces the independent Full-mode allowlist supplied by AppBackgroundModeController.
+     * This source is kept separate from system and user allowlists.
+     */
+    void setAppBackgroundModeWhitelist(@NonNull String[] packageNames, @NonNull int[] appIds);
+
+    /**
      * Listener to be notified when DeviceIdleController determines that the device has moved or is
      * stationary.
      */

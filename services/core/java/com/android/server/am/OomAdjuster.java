@@ -1816,7 +1816,20 @@ public abstract class OomAdjuster {
             }
         }
 
+        if (mService.mAppBackgroundModeController != null) {
+            final int adjustedAdj = mService.mAppBackgroundModeController.adjustOomAdj(app, adj);
+            if (adjustedAdj != adj && adjustedAdj <= PERCEPTIBLE_LOW_APP_ADJ) {
+                schedGroup = SCHED_GROUP_DEFAULT;
+            }
+            adj = adjustedAdj;
+        }
+
         app.setCurAdj(adj);
+        if (mService.mAppBackgroundModeInternal != null) {
+            mService.mAppBackgroundModeInternal.onProcessActivityStateChanged(
+                    app.uid, app.getPid(), app.getApplicationUid(),
+                    app.getHasForegroundActivities() || app.hasVisibleActivities());
+        }
         return schedGroup;
     }
 

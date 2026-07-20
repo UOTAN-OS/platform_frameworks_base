@@ -570,6 +570,13 @@ public class DeviceIdleController extends SystemService
      */
     private final ArrayMap<String, Integer> mPowerSaveWhitelistUserApps = new ArrayMap<>();
 
+    /** Full-mode packages added by AppBackgroundModeController, separate from user choices. */
+    private final ArraySet<String> mAppBackgroundModeWhitelistPackages = new ArraySet<>();
+
+    /** Full-mode app IDs added by AppBackgroundModeController. */
+    private final SparseBooleanArray mAppBackgroundModeWhitelistAppIds =
+            new SparseBooleanArray();
+
     /**
      * App IDs of built-in system apps that have been white-listed except for idle modes.
      */
@@ -2400,6 +2407,29 @@ public class DeviceIdleController extends SystemService
         }
 
         @Override
+        public void setAppBackgroundModeWhitelist(String[] packageNames, int[] appIds) {
+            synchronized (DeviceIdleController.this) {
+                final ArraySet<String> packages = new ArraySet<>(Arrays.asList(packageNames));
+                final SparseBooleanArray ids = new SparseBooleanArray(appIds.length);
+                for (int appId : appIds) {
+                    ids.put(appId, true);
+                }
+                if (mAppBackgroundModeWhitelistPackages.equals(packages)
+                        && sparseBooleanArraysEqual(mAppBackgroundModeWhitelistAppIds, ids)) {
+                    return;
+                }
+                mAppBackgroundModeWhitelistPackages.clear();
+                mAppBackgroundModeWhitelistPackages.addAll(packages);
+                mAppBackgroundModeWhitelistAppIds.clear();
+                for (int i = 0; i < ids.size(); i++) {
+                    mAppBackgroundModeWhitelistAppIds.put(ids.keyAt(i), true);
+                }
+                updateWhitelistAppIdsLocked();
+                reportPowerSaveWhitelistChangedLocked();
+            }
+        }
+
+        @Override
         public int[] getPowerSaveWhitelistSystemAppIds() {
             return DeviceIdleController.this.getPowerSaveWhitelistSystemAppIds();
         }
@@ -2662,6 +2692,20 @@ public class DeviceIdleController extends SystemService
             array[i] = sparseArray.keyAt(i);
         }
         return array;
+    }
+
+    private static boolean sparseBooleanArraysEqual(
+            SparseBooleanArray first, SparseBooleanArray second) {
+        if (first.size() != second.size()) {
+            return false;
+        }
+        for (int i = 0; i < first.size(); i++) {
+            if (first.keyAt(i) != second.keyAt(i)
+                    || first.valueAt(i) != second.valueAt(i)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -3149,18 +3193,15 @@ public class DeviceIdleController extends SystemService
             final int callingUserId) {
         final String[] apps;
         synchronized (this) {
-            int size =
-                    mPowerSaveWhitelistAppsExceptIdle.size() + mPowerSaveWhitelistUserApps.size();
-            apps = new String[size];
-            int cur = 0;
+            final ArraySet<String> packages = new ArraySet<>();
             for (int i = 0; i < mPowerSaveWhitelistAppsExceptIdle.size(); i++) {
-                apps[cur] = mPowerSaveWhitelistAppsExceptIdle.keyAt(i);
-                cur++;
+                packages.add(mPowerSaveWhitelistAppsExceptIdle.keyAt(i));
             }
             for (int i = 0; i < mPowerSaveWhitelistUserApps.size(); i++) {
-                apps[cur] = mPowerSaveWhitelistUserApps.keyAt(i);
-                cur++;
+                packages.add(mPowerSaveWhitelistUserApps.keyAt(i));
             }
+            packages.addAll(mAppBackgroundModeWhitelistPackages);
+            apps = packages.toArray(new String[0]);
         }
         return ArrayUtils.filter(apps, String[]::new,
                 (pkg) -> !mPackageManagerInternal.filterAppAccess(pkg, callingUid, callingUserId));
@@ -3173,32 +3214,31 @@ public class DeviceIdleController extends SystemService
 
     private String[] getFullPowerWhitelistInternalUnchecked() {
         synchronized (this) {
-            int size = mPowerSaveWhitelistApps.size() + mPowerSaveWhitelistUserApps.size();
-            final String[] apps = new String[size];
-            int cur = 0;
+            final ArraySet<String> apps = new ArraySet<>();
             for (int i = 0; i < mPowerSaveWhitelistApps.size(); i++) {
-                apps[cur] = mPowerSaveWhitelistApps.keyAt(i);
-                cur++;
+                apps.add(mPowerSaveWhitelistApps.keyAt(i));
             }
             for (int i = 0; i < mPowerSaveWhitelistUserApps.size(); i++) {
-                apps[cur] = mPowerSaveWhitelistUserApps.keyAt(i);
-                cur++;
+                apps.add(mPowerSaveWhitelistUserApps.keyAt(i));
             }
-            return apps;
+            apps.addAll(mAppBackgroundModeWhitelistPackages);
+            return apps.toArray(new String[0]);
         }
     }
 
     public boolean isPowerSaveWhitelistExceptIdleAppInternal(String packageName) {
         synchronized (this) {
             return mPowerSaveWhitelistAppsExceptIdle.containsKey(packageName)
-                    || mPowerSaveWhitelistUserApps.containsKey(packageName);
+                    || mPowerSaveWhitelistUserApps.containsKey(packageName)
+                    || mAppBackgroundModeWhitelistPackages.contains(packageName);
         }
     }
 
     public boolean isPowerSaveWhitelistAppInternal(String packageName) {
         synchronized (this) {
             return mPowerSaveWhitelistApps.containsKey(packageName)
-                    || mPowerSaveWhitelistUserApps.containsKey(packageName);
+                    || mPowerSaveWhitelistUserApps.containsKey(packageName)
+                    || mAppBackgroundModeWhitelistPackages.contains(packageName);
         }
     }
 
@@ -4461,6 +4501,14 @@ public class DeviceIdleController extends SystemService
                 mPowerSaveWhitelistUserApps, mPowerSaveWhitelistExceptIdleAppIds);
         mPowerSaveWhitelistAllAppIdArray = buildAppIdArray(mPowerSaveWhitelistApps,
                 mPowerSaveWhitelistUserApps, mPowerSaveWhitelistAllAppIds);
+        for (int i = 0; i < mAppBackgroundModeWhitelistAppIds.size(); i++) {
+            final int appId = mAppBackgroundModeWhitelistAppIds.keyAt(i);
+            mPowerSaveWhitelistExceptIdleAppIds.put(appId, true);
+            mPowerSaveWhitelistAllAppIds.put(appId, true);
+        }
+        mPowerSaveWhitelistExceptIdleAppIdArray =
+                keysToIntArray(mPowerSaveWhitelistExceptIdleAppIds);
+        mPowerSaveWhitelistAllAppIdArray = keysToIntArray(mPowerSaveWhitelistAllAppIds);
         mPowerSaveWhitelistUserAppIdArray = buildAppIdArray(null,
                 mPowerSaveWhitelistUserApps, mPowerSaveWhitelistUserAppIds);
         if (mLocalActivityManager != null) {
