@@ -345,15 +345,42 @@ final class MomentController {
             final boolean showHandle = shouldShowHandleLocked(task, state);
             state.apply(t, showHandle);
             if (isDebugEnabled()) {
+                final Rect letterboxInnerBounds = new Rect();
+                if (topActivity != null) {
+                    topActivity.getLetterboxInnerBounds(letterboxInnerBounds);
+                }
                 Slog.d(TAG, "applySurface taskId=" + task.mTaskId
                         + " mode=" + task.getWindowingMode()
                         + " visibleRequested=" + task.isVisibleRequested()
                         + " visible=" + task.isVisible()
-                        + " top=" + task.topRunningActivity()
+                        + " top=" + topActivity
                         + " taskBounds=" + task.getBounds()
                         + " surfaceBounds=" + state.getSurfaceBounds()
                         + " decorationBounds=" + state.getDecorationBounds()
                         + " handleBounds=" + state.getHandleBounds()
+                        + " activityBounds="
+                        + (topActivity != null ? topActivity.getBounds() : "null")
+                        + " requestedOrientation="
+                        + (topActivity != null ? topActivity.getRequestedOrientation() : "null")
+                        + " configOrientation="
+                        + (topActivity != null ? topActivity.getConfiguration().orientation : "null")
+                        + " configRotation="
+                        + (topActivity != null
+                                ? topActivity.getWindowConfiguration().getRotation() : "null")
+                        + " sizeCompat="
+                        + (topActivity != null && topActivity.inSizeCompatMode())
+                        + " sizeCompatBounds="
+                        + (topActivity != null && topActivity.hasSizeCompatBounds())
+                        + " compatScale="
+                        + (topActivity != null ? topActivity.getCompatScale() : "null")
+                        + " letterboxed="
+                        + (topActivity != null && topActivity.areBoundsLetterboxed())
+                        + " appCompatState="
+                        + (topActivity != null ? topActivity.getAppCompatState() : "null")
+                        + " letterboxInsets="
+                        + (topActivity != null ? topActivity.getLetterboxInsets() : "null")
+                        + " letterboxInnerBounds=" + letterboxInnerBounds
+                        + " geometry={" + state.getDebugGeometry() + "}"
                         + " showHandle=" + showHandle
                         + " forceTranslucentChanged=" + visibilityChanged);
             }
