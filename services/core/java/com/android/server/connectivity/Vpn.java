@@ -149,6 +149,7 @@ import com.android.net.module.util.BinderUtils;
 import com.android.net.module.util.LinkPropertiesUtils;
 import com.android.net.module.util.NetdUtils;
 import com.android.net.module.util.NetworkStackConstants;
+import com.android.server.AppBackgroundModeInternal;
 import com.android.server.DeviceIdleInternal;
 import com.android.server.LocalServices;
 import com.android.server.net.BaseNetworkObserver;
@@ -762,6 +763,16 @@ public class Vpn {
                 throw new IllegalArgumentException("Illegal state argument " + detailedState);
         }
         updateAlwaysOnNotification(detailedState);
+        final AppBackgroundModeInternal backgroundMode =
+                LocalServices.getService(AppBackgroundModeInternal.class);
+        if (backgroundMode != null) {
+            if (detailedState == DetailedState.CONNECTED) {
+                backgroundMode.onVpnStateChanged(mOwnerUID, true);
+            } else if (detailedState == DetailedState.DISCONNECTED
+                    || detailedState == DetailedState.FAILED) {
+                backgroundMode.onVpnStateChanged(mOwnerUID, false);
+            }
+        }
     }
 
     private void resetNetworkCapabilities() {

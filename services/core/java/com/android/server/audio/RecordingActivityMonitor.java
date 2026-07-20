@@ -30,14 +30,18 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.server.AppBackgroundModeInternal;
+import com.android.server.LocalServices;
 import com.android.server.utils.EventLogger;
 
 import java.io.PrintWriter;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -255,6 +259,7 @@ public final class RecordingActivityMonitor implements AudioSystem.AudioRecordin
         if (configs == null) { // null means "no changes"
             return;
         }
+        notifyAppBackgroundRecordingState(configs);
         synchronized (mClients) {
             // list of recording configurations for "public consumption". It is only computed if
             // there are non-system recording activity listeners.
@@ -273,6 +278,25 @@ public final class RecordingActivityMonitor implements AudioSystem.AudioRecordin
                 }
             }
         }
+    }
+
+    private static void notifyAppBackgroundRecordingState(
+            List<AudioRecordingConfiguration> configs) {
+        final AppBackgroundModeInternal service =
+                LocalServices.getService(AppBackgroundModeInternal.class);
+        if (service == null) {
+            return;
+        }
+        final Set<Integer> activeUids = new HashSet<>();
+        for (AudioRecordingConfiguration config : configs) {
+            activeUids.add(config.getClientUid());
+        }
+        final int[] uids = new int[activeUids.size()];
+        int index = 0;
+        for (int uid : activeUids) {
+            uids[index++] = uid;
+        }
+        service.onAudioRecordingActiveUidsChanged(uids);
     }
 
     protected void dump(PrintWriter pw) {

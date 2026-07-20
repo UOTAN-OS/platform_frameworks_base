@@ -99,6 +99,7 @@ import android.util.TimeUtils;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.Preconditions;
+import com.android.server.AppBackgroundModeInternal;
 import com.android.server.FgThread;
 import com.android.server.IoThread;
 import com.android.server.LocalServices;
@@ -2196,6 +2197,11 @@ public class LocationProviderManager extends
     @GuardedBy("mMultiplexerLock")
     @Override
     protected void onRegistrationAdded(Object key, Registration registration) {
+        final AppBackgroundModeInternal backgroundMode =
+                LocalServices.getService(AppBackgroundModeInternal.class);
+        if (backgroundMode != null) {
+            backgroundMode.onLocationListenerChanged(registration.getIdentity().getUid(), true);
+        }
         mLocationUsageLogger.logLocationApiUsage(
                 LocationStatsEnums.USAGE_STARTED,
                 LocationStatsEnums.API_REQUEST_LOCATION_UPDATES,
@@ -2223,6 +2229,11 @@ public class LocationProviderManager extends
     @GuardedBy("mMultiplexerLock")
     @Override
     protected void onRegistrationRemoved(Object key, Registration registration) {
+        final AppBackgroundModeInternal backgroundMode =
+                LocalServices.getService(AppBackgroundModeInternal.class);
+        if (backgroundMode != null) {
+            backgroundMode.onLocationListenerChanged(registration.getIdentity().getUid(), false);
+        }
         mLocationUsageLogger.logLocationApiUsage(
                 LocationStatsEnums.USAGE_ENDED,
                 LocationStatsEnums.API_REQUEST_LOCATION_UPDATES,
