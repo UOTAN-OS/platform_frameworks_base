@@ -1269,12 +1269,18 @@ public class CachedAppOptimizer {
             int freezeInfo = mFreezer.getBinderFreezeInfo(pid);
 
             if ((freezeInfo & SYNC_RECEIVED_WHILE_FROZEN) != 0) {
-                Slog.d(TAG_AM, "pid " + pid + " " + app.processName
-                        + " received sync transactions while frozen, killing");
-                app.killLocked("Sync transaction while in frozen state",
-                        ApplicationExitInfo.REASON_FREEZER,
-                        ApplicationExitInfo.SUBREASON_FREEZER_BINDER_TRANSACTION, true);
-                processKilled = true;
+                if (handleTombstoneBinderActivity(app, "sync transaction while frozen")) {
+                    Slog.i(AppBackgroundModeController.TAG,
+                            "Preserving frozen process after sync binder uid="
+                                    + app.getApplicationUid() + " pid=" + pid);
+                } else {
+                    Slog.d(TAG_AM, "pid " + pid + " " + app.processName
+                            + " received sync transactions while frozen, killing");
+                    app.killLocked("Sync transaction while in frozen state",
+                            ApplicationExitInfo.REASON_FREEZER,
+                            ApplicationExitInfo.SUBREASON_FREEZER_BINDER_TRANSACTION, true);
+                    processKilled = true;
+                }
             }
 
             if ((freezeInfo & ASYNC_RECEIVED_WHILE_FROZEN) != 0 && DEBUG_FREEZER) {
@@ -1998,6 +2004,10 @@ public class CachedAppOptimizer {
 
         @GuardedBy({"mAm", "mProcLock"})
         private void handleBinderFreezerFailure(final ProcessRecord proc, final String reason) {
+            if (handleTombstoneBinderActivity(proc, reason)) {
+                unfreezeAppLSP(proc, UNFREEZE_REASON_BINDER_TXNS, true);
+                return;
+            }
             if (!mFreezerBinderEnabled) {
                 // Just reschedule indefinitely.
                 unfreezeAppLSP(proc, UNFREEZE_REASON_BINDER_TXNS);
@@ -2376,6 +2386,23 @@ public class CachedAppOptimizer {
         }
     }
 
+    private boolean handleTombstoneBinderActivity(int pid, String reason) {
+        final ProcessRecord proc;
+        synchronized (mProcLock) {
+            proc = mFrozenProcesses.get(pid);
+        }
+        return handleTombstoneBinderActivity(proc, reason);
+    }
+
+    private boolean handleTombstoneBinderActivity(ProcessRecord proc, String reason) {
+        final AppBackgroundModeController controller = mAm.mAppBackgroundModeController;
+        if (proc == null || controller == null || !controller.isTombstoneMode(proc)) {
+            return false;
+        }
+        controller.onBinderActivity(proc.getApplicationUid(), reason);
+        return true;
+    }
+
     /**
      * Sending binder transactions to frozen apps most likely indicates there's a bug. Log it and
      * kill the frozen apps if they 1) receive sync binder transactions while frozen, or 2) miss
@@ -2419,9 +2446,12 @@ public class CachedAppOptimizer {
                 int freezeInfo = mFreezer.getBinderFreezeInfo(current);
 
                 if ((freezeInfo & SYNC_RECEIVED_WHILE_FROZEN) != 0) {
-                    killProcess(current, "Sync transaction while frozen",
-                            ApplicationExitInfo.REASON_FREEZER,
-                            ApplicationExitInfo.SUBREASON_FREEZER_BINDER_TRANSACTION);
+                    if (!handleTombstoneBinderActivity(current,
+                            "sync transaction callback")) {
+                        killProcess(current, "Sync transaction while frozen",
+                                ApplicationExitInfo.REASON_FREEZER,
+                                ApplicationExitInfo.SUBREASON_FREEZER_BINDER_TRANSACTION);
+                    }
 
                     // No need to check async transactions in this case
                     continue;
@@ -2461,10 +2491,14 @@ public class CachedAppOptimizer {
                 (current, free) -> {
                     if (free < mFreezerBinderAsyncThreshold) {
                         Slog.w(TAG_AM, "pid " + current
-                                + " has " + free + " free async space, killing");
-                        killProcess(current, "Async binder space running out while frozen",
-                                ApplicationExitInfo.REASON_FREEZER,
-                                ApplicationExitInfo.SUBREASON_FREEZER_BINDER_ASYNC_FULL);
+                                + " has " + free + " free async space");
+                        if (!handleTombstoneBinderActivity(current,
+                                "async binder buffer full")) {
+                            killProcess(current,
+                                    "Async binder space running out while frozen",
+                                    ApplicationExitInfo.REASON_FREEZER,
+                                    ApplicationExitInfo.SUBREASON_FREEZER_BINDER_ASYNC_FULL);
+                        }
                     }
                 },
 

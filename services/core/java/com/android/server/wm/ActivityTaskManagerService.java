@@ -278,6 +278,7 @@ import com.android.internal.util.FastPrintWriter;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.PropImitationHooks;
 import com.android.internal.util.function.pooled.PooledLambda;
+import com.android.server.AppBackgroundModeInternal;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.LocalServices;
 import com.android.server.SystemConfig;
@@ -2237,8 +2238,23 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         mAmInternal.enforceCallingPermission(REMOVE_TASKS, "removeTask()");
         synchronized (mGlobalLock) {
             final int pid = Binder.getCallingPid();
+            final int uid = Binder.getCallingUid();
             final long ident = Binder.clearCallingIdentity();
             try {
+                final Task task = mRootWindowContainer.anyTaskForId(taskId,
+                        MATCH_ATTACHED_TASK_OR_RECENT_TASKS);
+                final AppBackgroundModeInternal backgroundMode =
+                        LocalServices.getService(AppBackgroundModeInternal.class);
+                if (task != null && uid == getRecentTasks().getRecentsComponentUid()
+                        && backgroundMode != null
+                        && backgroundMode.shouldKeepTaskAlive(task.effectiveUid)) {
+                    Slog.i(AppBackgroundModeInternal.TAG,
+                            "Hiding launcher task while keeping it alive taskId=" + taskId
+                                    + " uid=" + task.effectiveUid
+                                    + " package=" + task.getBasePackageName());
+                    getRecentTasks().remove(task);
+                    return true;
+                }
                 return removeTask(taskId, "remove-by-pid#" + pid);
             } finally {
                 Binder.restoreCallingIdentity(ident);

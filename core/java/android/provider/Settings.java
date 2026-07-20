@@ -13132,6 +13132,36 @@ public final class Settings {
                 "moment_nav_handle_double_tap_enabled";
 
         /**
+         * Per-user JSON map from package name to uwuAOSP background mode.
+         * Values are 1 for tombstone mode and 2 for Full mode. Default-mode entries are omitted.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String UWU_APP_BACKGROUND_MODES =
+                "uwu_app_background_modes";
+
+        /**
+         * Whether task removal should preserve processes using a non-default uwuAOSP background
+         * mode.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String UWU_APP_BACKGROUND_IGNORE_TASK_REMOVAL =
+                "uwu_app_background_ignore_task_removal";
+
+        /** @hide */
+        public static final int UWU_APP_BACKGROUND_MODE_DEFAULT = 0;
+
+        /** @hide */
+        public static final int UWU_APP_BACKGROUND_MODE_TOMBSTONE = 1;
+
+        /** @hide */
+        public static final int UWU_APP_BACKGROUND_MODE_FULL = 2;
+
+        /**
          * Indicates whether themed icons should also be used in the all apps drawer.
          * <p>Type: int (0 for false, 1 for true)
          *
