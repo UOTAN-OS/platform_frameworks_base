@@ -45,6 +45,8 @@ import android.view.SurfaceControl;
 import android.view.animation.Interpolator;
 import android.view.animation.PathInterpolator;
 
+import com.android.internal.policy.ScreenDecorationsUtils;
+
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
@@ -231,9 +233,13 @@ final class MomentController {
                 activity.ensureActivityConfiguration(true /* ignoreVisibility */);
             });
             startTaskTransformAnimationFromLocked(rootTask, state, startScaleX, startScaleY,
-                    fullscreenBounds.exactCenterX(), fullscreenBounds.exactCenterY(), 1f, 0f,
+                    fullscreenBounds.exactCenterX(), fullscreenBounds.exactCenterY(), 1f,
+                    getDisplayCornerRadiusLocked(rootTask),
                     state.getScale(), state.getScale(), targetBounds.exactCenterX(),
-                    targetBounds.exactCenterY(), 1f, 1f, EXPAND_ANIMATION_DURATION_MS,
+                    targetBounds.exactCenterY(), 1f,
+                    MomentGeometry.getCornerRadius(getDensityLocked(rootTask)) * state.getScale(),
+                    1f,
+                    EXPAND_ANIMATION_DURATION_MS,
                     ANIMATION_CONVERT_FULLSCREEN, TASK_TRANSFORM_REVERSE_INTERPOLATOR);
             return rootTask.mTaskId;
         }
@@ -457,9 +463,12 @@ final class MomentController {
                 return;
             }
             final Rect bounds = state.getSurfaceBounds();
-            startTaskTransformAnimationLocked(task, state,
-                    clampScaleLocked(task, state, MIN_SCALE), bounds.exactCenterX(),
-                    bounds.exactCenterY(), 1f, 1f, ENTER_COMPACT_ANIMATION_DURATION_MS,
+            final float endScale = clampScaleLocked(task, state, MIN_SCALE);
+            startTaskTransformAnimationLocked(task, state, endScale, bounds.exactCenterX(),
+                    bounds.exactCenterY(), 1f,
+                    MomentGeometry.getCornerRadius(getDensityLocked(task)) * endScale,
+                    1f,
+                    ENTER_COMPACT_ANIMATION_DURATION_MS,
                     ANIMATION_ENTER_COMPACT);
         }
     }
@@ -577,9 +586,11 @@ final class MomentController {
                 return;
             }
             final Rect bounds = state.getSurfaceBounds();
-            startTaskTransformAnimationLocked(task, state,
-                    clampScaleLocked(task, state, state.getCompactRestoreScale()),
-                    bounds.exactCenterX(), bounds.exactCenterY(), 1f, 1f,
+            final float endScale = clampScaleLocked(task, state, state.getCompactRestoreScale());
+            startTaskTransformAnimationLocked(task, state, endScale,
+                    bounds.exactCenterX(), bounds.exactCenterY(), 1f,
+                    MomentGeometry.getCornerRadius(getDensityLocked(task)) * endScale,
+                    1f,
                     RESTORE_ANIMATION_DURATION_MS, ANIMATION_RESTORE_COMPACT);
         }
     }
@@ -600,7 +611,9 @@ final class MomentController {
             final float endScaleX = (float) fullscreenBounds.width() / taskBounds.width();
             final float endScaleY = (float) fullscreenBounds.height() / taskBounds.height();
             startTaskTransformAnimationLocked(task, state, endScaleX, endScaleY,
-                    fullscreenBounds.exactCenterX(), fullscreenBounds.exactCenterY(), 1f, 0f,
+                    fullscreenBounds.exactCenterX(), fullscreenBounds.exactCenterY(), 1f,
+                    getDisplayCornerRadiusLocked(task),
+                    0f,
                     EXPAND_ANIMATION_DURATION_MS, ANIMATION_EXPAND_FULLSCREEN);
         }
     }
@@ -979,29 +992,32 @@ final class MomentController {
 
     private void startTaskTransformAnimationLocked(Task task, MomentTaskSurfaceState state,
             float endScale, float endCenterX, float endCenterY, float endAlpha,
-            float endCornerProgress, long duration, int endAction) {
+            float endDisplayedCornerRadius, float endCropProgress, long duration, int endAction) {
         startTaskTransformAnimationLocked(task, state, endScale, endScale, endCenterX, endCenterY,
-                endAlpha, endCornerProgress, duration, endAction);
+                endAlpha, endDisplayedCornerRadius, endCropProgress, duration, endAction);
     }
 
     private void startTaskTransformAnimationLocked(Task task, MomentTaskSurfaceState state,
             float endScaleX, float endScaleY, float endCenterX, float endCenterY, float endAlpha,
-            float endCornerProgress, long duration, int endAction) {
+            float endDisplayedCornerRadius, float endCropProgress, long duration, int endAction) {
         final Rect startBounds = state.getSurfaceBounds();
         final float startScale = state.getScale();
         startTaskTransformAnimationFromLocked(task, state, startScale, startScale,
-                startBounds.exactCenterX(), startBounds.exactCenterY(), 1f, 1f,
-                endScaleX, endScaleY, endCenterX, endCenterY, endAlpha, endCornerProgress,
+                startBounds.exactCenterX(), startBounds.exactCenterY(), 1f,
+                state.getDisplayedCornerRadius(), endScaleX, endScaleY, endCenterX, endCenterY,
+                endAlpha, endDisplayedCornerRadius, endCropProgress,
                 duration, endAction, TASK_TRANSFORM_INTERPOLATOR);
     }
 
     private void startTaskTransformAnimationFromLocked(Task task, MomentTaskSurfaceState state,
             float startScaleX, float startScaleY, float startCenterX, float startCenterY,
-            float startAlpha, float startCornerProgress, float endScaleX, float endScaleY,
-            float endCenterX, float endCenterY, float endAlpha, float endCornerProgress,
-            long duration, int endAction, Interpolator interpolator) {
+            float startAlpha, float startDisplayedCornerRadius, float endScaleX, float endScaleY,
+            float endCenterX, float endCenterY, float endAlpha, float endDisplayedCornerRadius,
+            float endCropProgress, long duration, int endAction, Interpolator interpolator) {
+        final float startCropProgress = endAction == ANIMATION_CONVERT_FULLSCREEN ? 0f : 1f;
         final int generation = state.beginTransformAnimation(startScaleX, startScaleY,
-                startCenterX, startCenterY, startAlpha, startCornerProgress);
+                startCenterX, startCenterY, startAlpha, startDisplayedCornerRadius,
+                startCropProgress);
         state.apply(task.getSyncTransaction(), false /* showHandle */);
         if (endAction == ANIMATION_RESTORE_COMPACT) {
             updateHandleWindowLocked(task);
@@ -1017,15 +1033,26 @@ final class MomentController {
                 final float centerX = lerp(startCenterX, endCenterX, progress);
                 final float centerY = lerp(startCenterY, endCenterY, progress);
                 final float alpha = lerp(startAlpha, endAlpha, progress);
-                final float cornerProgress = lerp(startCornerProgress, endCornerProgress, progress);
+                final float displayedCornerRadius = lerp(startDisplayedCornerRadius,
+                        endDisplayedCornerRadius, progress);
+                final float cropProgress = lerp(startCropProgress, endCropProgress, progress);
                 try (SurfaceControl.Transaction t = mService.mTransactionFactory.get()) {
                     if (state.applyAnimatedTransform(t, generation, scaleX, scaleY, centerX, centerY,
-                            alpha, cornerProgress)) {
+                            alpha, displayedCornerRadius, cropProgress)) {
                         t.apply();
                     }
                 }
                 }, () -> mService.mH.post(() -> onTaskTransformAnimationFinished(task.mTaskId,
                         state, generation, endScaleX, endCenterX, endCenterY, endAction)));
+    }
+
+    private float getDisplayCornerRadiusLocked(Task task) {
+        final DisplayContent displayContent = task != null ? task.getDisplayContent() : null;
+        if (displayContent == null) {
+            return 0f;
+        }
+        return ScreenDecorationsUtils.getWindowCornerRadius(
+                displayContent.getDisplayPolicy().getSystemUiContext());
     }
 
     private void onTaskTransformAnimationFinished(int taskId, MomentTaskSurfaceState state,
