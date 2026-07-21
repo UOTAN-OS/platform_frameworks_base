@@ -22,6 +22,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Drawable.ConstantState;
+import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.NotificationListenerService.RankingMap;
 import android.service.notification.StatusBarNotification;
@@ -54,6 +55,7 @@ public abstract class LyricViewController implements
     private static final String EXTRA_TICKER_ICON = "ticker_icon";
     private static final String EXTRA_TICKER_ICON_SWITCH = "ticker_icon_switch";
     private static final String EXTRA_TICKER_TRANSLATION = "ticker_translation";
+    private static final String LYRIC_FETCH_PACKAGE = "cn.binbin323.statuslyricext";
 
     private static final int HIDE_LYRIC_DELAY = 1200;
 
@@ -184,7 +186,8 @@ public abstract class LyricViewController implements
 
         Notification notification = sbn.getNotification();
         boolean isLyric = ((notification.flags & Notification.FLAG_ALWAYS_SHOW_TICKER) != 0)
-                && ((notification.flags & Notification.FLAG_ONLY_UPDATE_TICKER) != 0);
+                && ((notification.flags & Notification.FLAG_ONLY_UPDATE_TICKER) != 0)
+                && isPackageAllowed(getLyricSourcePackage(sbn, notification));
 
         boolean isCurrentNotification = mCurrentNotificationId == sbn.getId() &&
                 TextUtils.equals(sbn.getPackageName(), mCurrentNotificationPackage);
@@ -214,6 +217,28 @@ public abstract class LyricViewController implements
                     notification.tickerText,
                     notification.extras.getString(EXTRA_TICKER_TRANSLATION));
         }
+    }
+
+    private String getLyricSourcePackage(StatusBarNotification sbn, Notification notification) {
+        String notificationPackage = sbn.getPackageName();
+        if (!LYRIC_FETCH_PACKAGE.equals(notificationPackage)) {
+            return notificationPackage;
+        }
+        return notification.extras.getString(EXTRA_TICKER_ICON_PACKAGE, notificationPackage);
+    }
+
+    private boolean isPackageAllowed(String packageName) {
+        String value = Settings.Secure.getString(
+                mContext.getContentResolver(), Settings.Secure.STATUS_BAR_LYRIC_ALLOWED_PACKAGES);
+        if (TextUtils.isEmpty(value)) {
+            return false;
+        }
+        for (String allowedPackage : value.split(";")) {
+            if (TextUtils.equals(packageName, allowedPackage.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public void onNotificationRemoved(StatusBarNotification sbn, RankingMap rankingMap) {

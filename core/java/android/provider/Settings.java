@@ -14666,6 +14666,16 @@ public final class Settings {
                 "status_bar_lyric_hide_icon_clock_right";
 
         /**
+         * Semicolon-separated package names allowed to provide status bar lyrics.
+         * An empty value denies all packages.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String STATUS_BAR_LYRIC_ALLOWED_PACKAGES =
+                "status_bar_lyric_allowed_packages";
+
+        /**
          * Integer property which determines whether advanced protection is on or not.
          * @hide
          */
