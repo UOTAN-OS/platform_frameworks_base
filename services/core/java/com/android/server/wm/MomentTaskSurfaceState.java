@@ -75,9 +75,10 @@ final class MomentTaskSurfaceState {
         mScale = scale;
     }
 
-    void updateLandscapeLayout(boolean landscape, float maxScale) {
+    void updateLandscapeLayout(boolean landscape, float defaultScale, float maxScale) {
         if (landscape && !mLandscapeLayout) {
             mScaleBeforeLandscape = mMomentCompact ? mCompactRestoreScale : mScale;
+            mScale = Math.min(mScale, defaultScale);
             mLandscapeLayout = true;
         } else if (!landscape && mLandscapeLayout) {
             if (!mMomentCompact) {

@@ -57,6 +57,7 @@ final class MomentController {
 
     private static final String SYSTEM_PACKAGE_NAME = "android";
     private static final float DEFAULT_SCALE = 0.55f;
+    private static final float LANDSCAPE_DEFAULT_SCALE = 0.40f;
     private static final float MIN_SCALE = 0.25f;
     private static final float MAX_SCALE = 1.0f;
     private static final float COMPACT_EPSILON = 0.001f;
@@ -735,7 +736,7 @@ final class MomentController {
             task.setBounds(desiredBounds);
         }
         final float maxScale = calculateMomentMaxScaleLocked(task);
-        state.updateLandscapeLayout(landscape, maxScale);
+        state.updateLandscapeLayout(landscape, LANDSCAPE_DEFAULT_SCALE, maxScale);
         if (!landscape && state.getScale() > maxScale) {
             state.setScale(maxScale);
         }
@@ -744,7 +745,15 @@ final class MomentController {
     private float calculateMomentMaxScaleLocked(Task task) {
         final Rect safeBounds = new Rect();
         getMomentSafeBoundsLocked(task, safeBounds);
-        final int taskHeight = Math.max(1, task.getBounds().height());
+        final Rect taskBounds = task.getBounds();
+        final DisplayContent displayContent = task.getDisplayContent();
+        if (displayContent != null && displayContent.getBounds().width()
+                > displayContent.getBounds().height()) {
+            final int taskWidth = Math.max(1, taskBounds.width());
+            return Math.max(MIN_SCALE,
+                    Math.min(MAX_SCALE, (float) safeBounds.width() / taskWidth));
+        }
+        final int taskHeight = Math.max(1, taskBounds.height());
         final float density = getDensityLocked(task);
         final float availableHeight = safeBounds.height()
                 - (HANDLE_MENU_TOP_INSET_DP + HANDLE_AREA_HEIGHT_DP) * density;
