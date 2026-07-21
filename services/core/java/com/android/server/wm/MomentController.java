@@ -759,19 +759,19 @@ final class MomentController {
         final float handleHeight = MomentGeometry.getBottomHandleHeight(
                 surfaceBounds.width(), density);
         final float handleCenterOffset = HANDLE_AREA_HEIGHT_DP * density / 2f;
+        final float minCenterY = safeBounds.top - handleCenterOffset
+                + handleHeight / 2f - halfHeight;
         final boolean landscape = displayContent.getBounds().width()
                 > displayContent.getBounds().height();
 
         final float minCenterX;
         final float maxCenterX;
-        final float minCenterY;
         final float maxCenterY;
         if (landscape) {
             final float requiredHalfWidth = Math.max(halfWidth,
                     HANDLE_MENU_WIDTH_DP * density / 2f);
             minCenterX = safeBounds.left + requiredHalfWidth;
             maxCenterX = safeBounds.right - requiredHalfWidth;
-            minCenterY = safeBounds.top + HANDLE_MENU_TOP_INSET_DP * density + halfHeight;
             maxCenterY = safeBounds.bottom - handleCenterOffset - handleHeight / 2f - halfHeight;
         } else {
             final float topHandleHalfWidth = Math.max(HANDLE_MENU_WIDTH_DP * density / 2f,
@@ -779,7 +779,6 @@ final class MomentController {
             minCenterX = safeBounds.left + topHandleHalfWidth;
             maxCenterX = safeBounds.right - topHandleHalfWidth;
             final float maxTaskBottom = safeBounds.bottom - handleCenterOffset - handleHeight / 2f;
-            minCenterY = safeBounds.top + HANDLE_MENU_TOP_INSET_DP * density + halfHeight;
             maxCenterY = maxTaskBottom - halfHeight;
         }
         final int currentCenterX = state.getCenterX();
