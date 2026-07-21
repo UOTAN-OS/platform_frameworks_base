@@ -666,6 +666,20 @@ final class MomentController {
         return target != null ? mStates.get(target.mTaskId) : null;
     }
 
+    DisplayFrames getMomentDisplayFrames(Task task) {
+        if (task == null || task.getWindowingMode() != WINDOWING_MODE_MOMENT) {
+            return null;
+        }
+        final Task rootTask = task.getRootTask();
+        final Task target = rootTask != null ? rootTask : task;
+        MomentTaskSurfaceState state = mStates.get(target.mTaskId);
+        if (state == null) {
+            state = new MomentTaskSurfaceState(target, mDefaultScale);
+            mStates.put(target.mTaskId, state);
+        }
+        return state.getPortraitDisplayFrames();
+    }
+
     private void ensureMomentTaskLayoutLocked(Task task, MomentTaskSurfaceState state) {
         final DisplayContent displayContent = task != null ? task.getDisplayContent() : null;
         if (displayContent == null) {

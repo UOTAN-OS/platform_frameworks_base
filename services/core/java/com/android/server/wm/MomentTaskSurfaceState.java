@@ -37,6 +37,8 @@ final class MomentTaskSurfaceState {
     private final Point mCenter = new Point();
     private final MomentHandleSurfaces mHandleSurfaces;
     private final MomentMorphLayer mMorphLayer;
+    private final DisplayFrames mPortraitDisplayFrames = new DisplayFrames();
+    private final InsetsState mLastRawInsetsState = new InsetsState();
 
     private float mScale;
     private boolean mHasUserCenter;
@@ -231,6 +233,29 @@ final class MomentTaskSurfaceState {
 
     MomentHandleSurfaces getHandleSurfaces() {
         return mHandleSurfaces;
+    }
+
+    DisplayFrames getPortraitDisplayFrames() {
+        final DisplayContent displayContent = mTask.getDisplayContent();
+        final Rect taskBounds = mTask.getBounds();
+        if (displayContent == null || taskBounds.isEmpty()
+                || displayContent.getBounds().width() <= displayContent.getBounds().height()
+                || taskBounds.width() >= taskBounds.height()) {
+            return null;
+        }
+        final int rotation = displayContent.getDisplayRotation().getPortraitRotation();
+        final InsetsState rawInsetsState = displayContent.getInsetsStateController()
+                .getRawInsetsState();
+        if (mPortraitDisplayFrames.mRotation != rotation
+                || mPortraitDisplayFrames.mWidth != taskBounds.width()
+                || mPortraitDisplayFrames.mHeight != taskBounds.height()
+                || !mLastRawInsetsState.equals(rawInsetsState)) {
+            displayContent.updateDisplayFrames(mPortraitDisplayFrames, rotation,
+                    taskBounds.width(), taskBounds.height());
+            displayContent.getDisplayPolicy().simulateLayoutDisplay(mPortraitDisplayFrames);
+            mLastRawInsetsState.set(rawInsetsState, true /* copySources */);
+        }
+        return mPortraitDisplayFrames;
     }
 
     synchronized void apply(SurfaceControl.Transaction t, boolean showHandle) {
@@ -506,8 +531,10 @@ final class MomentTaskSurfaceState {
         mContentCrop.set(0, 0, mBaseBounds.width(), mBaseBounds.height());
         mFullscreenBounds.set(displayBounds);
         if (displayContent != null) {
-            final InsetsState insetsState = displayContent.getInsetsStateController()
-                    .getRawInsetsState();
+            final DisplayFrames portraitDisplayFrames = getPortraitDisplayFrames();
+            final InsetsState insetsState = portraitDisplayFrames != null
+                    ? portraitDisplayFrames.mInsetsState
+                    : displayContent.getInsetsStateController().getRawInsetsState();
             final Rect displayFrame = insetsState.getDisplayFrame();
             final Insets systemBarInsets = insetsState.calculateInsets(displayFrame, displayFrame,
                     systemBars(), true /* ignoreVisibility */);

@@ -401,6 +401,17 @@ class InsetsPolicy {
             @NonNull InsetsState state) {
         final InsetsState originalState = state;
         final WindowManager.LayoutParams attrs = target.mAttrs;
+        final @WindowConfiguration.WindowingMode int windowingMode = target.getWindowingMode();
+        if (windowingMode == WINDOWING_MODE_MOMENT
+                && target.mToken.getFixedRotationTransformInsetsState() == null) {
+            final DisplayFrames momentDisplayFrames = mDisplayContent.mWmService.mMomentController
+                    .getMomentDisplayFrames(target.getTask());
+            if (momentDisplayFrames != null) {
+                state = new InsetsState(state, true /* copySources */);
+                state.set(momentDisplayFrames.mInsetsState,
+                        Type.systemBars() | Type.displayCutout());
+            }
+        }
 
         // The caller should not receive the visible insets provided by itself.
         if (attrs.type == TYPE_INPUT_METHOD) {
@@ -432,13 +443,12 @@ class InsetsPolicy {
             }
         }
 
-        final @WindowConfiguration.WindowingMode int windowingMode = target.getWindowingMode();
         if (WindowConfiguration.isFloating(windowingMode)
                 || (windowingMode == WINDOWING_MODE_MULTI_WINDOW && target.isAlwaysOnTop())) {
             // Keep frames, caption, and IME.
             int types = WindowInsets.Type.captionBar();
             if (windowingMode == WINDOWING_MODE_MOMENT) {
-                types |= WindowInsets.Type.systemBars();
+                types |= WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout();
             }
             if (windowingMode != WINDOWING_MODE_PINNED
                     && mDisplayContent.getImeInputTarget() instanceof WindowState imeTarget
