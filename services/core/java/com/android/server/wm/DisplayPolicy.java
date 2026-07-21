@@ -1501,6 +1501,13 @@ public class DisplayPolicy {
         // This window might be in the simulated environment.
         // We invoke this to get the proper DisplayFrames.
         displayFrames = win.getDisplayFrames(displayFrames);
+        if (win.mToken.getFixedRotationTransformDisplayFrames() == null) {
+            final DisplayFrames momentDisplayFrames = mService.mMomentController
+                    .getMomentDisplayFrames(win.getTask());
+            if (momentDisplayFrames != null) {
+                displayFrames = momentDisplayFrames;
+            }
+        }
 
         final WindowManager.LayoutParams attrs = win.mAttrs.forRotation(displayFrames.mRotation);
         sTmpClientFrames.attachedFrame = attached != null ? attached.getFrame() : null;
