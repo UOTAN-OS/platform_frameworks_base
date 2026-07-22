@@ -81,6 +81,7 @@ final class AppBackgroundModeController {
     // All fields below are accessed on mHandler, except where explicitly synchronized.
     private final SparseArray<Runnable> mPendingFreezes = new SparseArray<>();
     private final SparseArray<Runnable> mBinderProtectionTimeouts = new SparseArray<>();
+    private final SparseArray<Runnable> mBinderRecoveryRetries = new SparseArray<>();
     private final Object mStateLock = new Object();
     private final SparseIntArray mRuntimeToApplicationUid = new SparseIntArray();
     private final SparseArray<ArraySet<Integer>> mKnownProcesses = new SparseArray<>();
@@ -90,6 +91,7 @@ final class AppBackgroundModeController {
     private final SparseIntArray mLocationListenerCounts = new SparseIntArray();
     private final ArraySet<Integer> mVpnUids = new ArraySet<>();
     private final ArraySet<Integer> mBinderProtectedUids = new ArraySet<>();
+    private final ArraySet<Integer> mBinderRecoveryPendingUids = new ArraySet<>();
 
     private boolean mSystemReady;
     private boolean mPackageManagerRetryScheduled;
@@ -183,6 +185,20 @@ final class AppBackgroundModeController {
         mHandler.post(() -> beginBinderProtection(applicationUid, reason));
     }
 
+    void onBinderRecoveryFailed(int applicationUid, @NonNull String reason) {
+        synchronized (mStateLock) {
+            mBinderProtectedUids.add(applicationUid);
+            mBinderRecoveryPendingUids.add(applicationUid);
+        }
+        mHandler.post(() -> scheduleBinderRecoveryRetry(applicationUid, reason));
+    }
+
+    boolean isBinderRecoveryPending(int applicationUid) {
+        synchronized (mStateLock) {
+            return mBinderRecoveryPendingUids.contains(applicationUid);
+        }
+    }
+
     boolean shouldIgnoreTaskRemoval(@NonNull ProcessRecordInternal app) {
         return shouldKeepTaskAlive(app.getApplicationUid());
     }
@@ -195,12 +211,6 @@ final class AppBackgroundModeController {
                     mEffectiveUidModes.get(
                             applicationUid, AppBackgroundModeConfig.MODE_DEFAULT));
         }
-    }
-
-    boolean shouldPreserveTombstoneFreeze(@NonNull ProcessRecordInternal app) {
-        return getUidMode(app.getApplicationUid()) == AppBackgroundModeConfig.MODE_TOMBSTONE
-                && (app.isFrozen() || app.isPendingFreeze())
-                && !isProtected(app.getApplicationUid());
     }
 
     private int getUidMode(int uid) {
@@ -391,7 +401,18 @@ final class AppBackgroundModeController {
                                 "mode changed");
                     } else {
                         cancelFreeze(uid);
+                        cancelBinderProtectionTimeout(uid);
+                        if (previous.get(uid, AppBackgroundModeConfig.MODE_DEFAULT)
+                                == AppBackgroundModeConfig.MODE_TOMBSTONE) {
+                            mService.getCachedAppOptimizer()
+                                    .markTombstoneThawRecoveryForUidLSP(uid);
+                        }
                         unfreezeUidLSP(uid, "mode changed");
+                        if (!isBinderRecoveryPending(uid)) {
+                            synchronized (mStateLock) {
+                                mBinderProtectedUids.remove(uid);
+                            }
+                        }
                     }
                 }
             }
@@ -567,25 +588,72 @@ final class AppBackgroundModeController {
         if (getUidMode(uid) != AppBackgroundModeConfig.MODE_TOMBSTONE) {
             return;
         }
-        final Runnable previous = mBinderProtectionTimeouts.get(uid);
-        if (previous != null) {
-            mHandler.removeCallbacks(previous);
+        if (isBinderRecoveryPending(uid)) {
+            return;
         }
+        cancelBinderProtectionTimeout(uid);
         synchronized (mStateLock) {
             mBinderProtectedUids.add(uid);
         }
         cancelFreeze(uid);
         unfreezeUid(uid, "binder activity: " + reason);
 
-        final Runnable timeout = () -> {
-            mBinderProtectionTimeouts.remove(uid);
-            synchronized (mStateLock) {
-                mBinderProtectedUids.remove(uid);
+        final Runnable timeout = new Runnable() {
+            @Override
+            public void run() {
+                if (mBinderProtectionTimeouts.get(uid) != this) {
+                    return;
+                }
+                mBinderProtectionTimeouts.remove(uid);
+                if (isBinderRecoveryPending(uid)) {
+                    return;
+                }
+                synchronized (mStateLock) {
+                    mBinderProtectedUids.remove(uid);
+                }
+                scheduleFreeze(uid, 0, "binder idle");
             }
-            scheduleFreeze(uid, 0, "binder idle");
         };
         mBinderProtectionTimeouts.put(uid, timeout);
         mHandler.postDelayed(timeout, AppBackgroundModeConfig.FREEZE_DELAY_MS);
+    }
+
+    private void scheduleBinderRecoveryRetry(int uid, String reason) {
+        if (mBinderRecoveryRetries.get(uid) != null) {
+            return;
+        }
+        synchronized (mStateLock) {
+            mBinderProtectedUids.add(uid);
+        }
+        cancelBinderProtectionTimeout(uid);
+        cancelFreeze(uid);
+        final Runnable retry = () -> {
+            mBinderRecoveryRetries.remove(uid);
+            synchronized (mStateLock) {
+                mBinderRecoveryPendingUids.remove(uid);
+            }
+            if (getUidMode(uid) == AppBackgroundModeConfig.MODE_TOMBSTONE) {
+                beginBinderProtection(uid, "recovery retry: " + reason);
+            } else {
+                unfreezeUid(uid, "binder recovery retry: " + reason);
+                if (!isBinderRecoveryPending(uid)) {
+                    synchronized (mStateLock) {
+                        mBinderProtectedUids.remove(uid);
+                    }
+                }
+            }
+        };
+        mBinderRecoveryRetries.put(uid, retry);
+        mHandler.postDelayed(retry, AppBackgroundModeConfig.BINDER_RECOVERY_RETRY_DELAY_MS);
+        Slog.w(TAG, "Scheduled binder recovery uid=" + uid + " reason=" + reason);
+    }
+
+    private void cancelBinderProtectionTimeout(int uid) {
+        final Runnable timeout = mBinderProtectionTimeouts.get(uid);
+        if (timeout != null) {
+            mHandler.removeCallbacks(timeout);
+            mBinderProtectionTimeouts.remove(uid);
+        }
     }
 
     private void scheduleFreeze(int uid, long delay, String reason) {
@@ -638,10 +706,15 @@ final class AppBackgroundModeController {
                 for (ProcessRecord process : processes) {
                     final String skipReason = getFreezeSkipReasonLSP(process);
                     if (skipReason != null) {
-                        Slog.i(TAG, "Skipped freeze uid=" + uid + " pid=" + process.getPid()
+                        Slog.i(TAG, "Deferred freeze uid=" + uid + " pid=" + process.getPid()
                                 + " reason=" + skipReason);
-                        continue;
+                        unfreezeUidLSP(uid, "freeze deferred: " + skipReason);
+                        scheduleFreeze(uid, AppBackgroundModeConfig.FREEZE_DELAY_MS,
+                                "retry after " + skipReason);
+                        return;
                     }
+                }
+                for (ProcessRecord process : processes) {
                     if (process.isFrozen() || process.isPendingFreeze()) {
                         continue;
                     }
@@ -678,6 +751,14 @@ final class AppBackgroundModeController {
         if (process.shouldNotFreeze()) {
             return "AOSP freezer exemption " + process.shouldNotFreezeReason();
         }
+        if (process.getCurAdj() < ProcessList.CACHED_APP_MIN_ADJ
+                || process.getSetAdj() < ProcessList.CACHED_APP_MIN_ADJ) {
+            return "not cached curAdj=" + process.getCurAdj()
+                    + " setAdj=" + process.getSetAdj();
+        }
+        if (!process.isFreezable()) {
+            return "AOSP freeze policy";
+        }
         return null;
     }
 
@@ -701,7 +782,9 @@ final class AppBackgroundModeController {
 
     private void unfreezeUidLSP(int uid, String reason) {
         for (ProcessRecord process : collectProcessesForUidLSP(uid)) {
-            if (process.isFrozen() || process.isPendingFreeze()) {
+            if (process.isFrozen() || process.isPendingFreeze()
+                    || mService.getCachedAppOptimizer()
+                            .hasPendingTombstoneRecoveryLSP(process)) {
                 mService.getCachedAppOptimizer().unfreezeAppLSP(process,
                         CachedAppOptimizer.UNFREEZE_REASON_UI_VISIBILITY, true);
                 Slog.i(TAG, "Unfroze uid=" + uid + " pid=" + process.getPid()
