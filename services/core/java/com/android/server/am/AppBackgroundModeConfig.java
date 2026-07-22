@@ -40,6 +40,7 @@ final class AppBackgroundModeConfig {
 
     static final long FREEZE_DELAY_MS = 3_000L;
     static final long AUDIO_STOP_FREEZE_DELAY_MS = 6_000L;
+    static final long BINDER_RECOVERY_RETRY_DELAY_MS = 1_000L;
 
     static final class ParseResult {
         final ArrayMap<String, Integer> modes;
