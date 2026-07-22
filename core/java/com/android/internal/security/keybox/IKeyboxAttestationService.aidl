@@ -21,6 +21,8 @@ import com.android.internal.security.keybox.AttestationCertificates;
 import com.android.internal.security.keybox.KeyboxKeyParameters;
 
 interface IKeyboxAttestationService {
+    boolean shouldUseKeybox(int targetUid);
+
     AttestationCertificates generateCertificateChain(int targetUid, String alias, int domain,
             long nspace, in KeyboxKeyParameters params, in byte[] leafCertificate);
 
