@@ -13708,6 +13708,13 @@ public final class Settings {
         public static final String KEYBOX_DATA = "keybox_data";
 
         /**
+         * Packages that should use the device attestation implementation instead of the
+         * configured keybox.
+         * @hide
+         */
+        public static final String KEYBOX_EXCLUDED_PACKAGES = "keybox_excluded_packages";
+
+        /**
          * Network traffic indicator mode
          * 0 = Don't show network traffic indicator
          * 1 = Display up-stream traffic only
