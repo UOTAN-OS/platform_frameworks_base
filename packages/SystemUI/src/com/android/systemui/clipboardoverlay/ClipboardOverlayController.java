@@ -441,6 +441,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
                         .loadDrawable(mContext),
                 null,
                 mContext.getString(R.string.uwu_sms_code_copy),
+                true,
                 () -> {
                     ClipboardManager clipboardManager =
                             mContext.getSystemService(ClipboardManager.class);
@@ -480,6 +481,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
                 Icon.createWithResource(mContext, R.drawable.vd_flashlight_off).loadDrawable(mContext),
                 null,
                 mContext.getString(R.string.uwu_torch_suggestion_chip_content_description),
+                true,
                 () -> {
                     mFlashlightController.setFlashlight(false);
                     finish(CLIPBOARD_OVERLAY_ACTION_TAPPED);
