@@ -9911,6 +9911,10 @@ public class WindowManagerService extends IWindowManager.Stub
     private boolean shouldDelayTouchOutside(InputTarget t) {
         final ActivityRecord activity = t.getActivityRecord();
         final Task task = activity != null ? activity.getTask() : null;
+        final ActivityRecord focusedActivity = mFocusedInputTarget != null
+                ? mFocusedInputTarget.getActivityRecord() : null;
+        final Task focusedTask = focusedActivity != null ? focusedActivity.getTask() : null;
+        final Task focusedRootTask = focusedTask != null ? focusedTask.getRootTask() : null;
 
         final boolean isInputTargetNotFocused =
                 mFocusedInputTarget != t && mFocusedInputTarget != null;
@@ -9932,8 +9936,13 @@ public class WindowManagerService extends IWindowManager.Stub
         final boolean shouldDelayTouchForFreeform =
                 task != null && task.getWindowingMode() == WINDOWING_MODE_FREEFORM;
 
+        // Keep Moment focused until a possible edge-back gesture has been resolved.
+        final boolean shouldDelayTouchForMoment = focusedRootTask != null
+                && focusedRootTask.getWindowingMode() == WINDOWING_MODE_MOMENT;
+
         // If non of the above cases are true, handle the touch-outside event directly.
-        return shouldDelayTouchForEmbeddedActivity || shouldDelayTouchForFreeform;
+        return shouldDelayTouchForEmbeddedActivity || shouldDelayTouchForFreeform
+                || shouldDelayTouchForMoment;
     }
 
     private void handlePointerDownOutsideFocus(InputTarget t, InputTarget focusedInputTarget) {
