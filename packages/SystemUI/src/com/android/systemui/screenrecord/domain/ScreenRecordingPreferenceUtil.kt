@@ -24,14 +24,19 @@ import androidx.core.content.edit
 
 class ScreenRecordingPreferenceUtil(private val context: Context) {
     fun updateShowTaps(whileRecording: Boolean) {
+        // Always snapshot the pre-recording value, even when the requested recording value
+        // matches the current system setting. The previous code only persisted the original
+        // value when `whileRecording != originalSetting`, which meant a recording session that
+        // did not change SHOW_TOUCHES left a stale (or missing) stored value behind. A later
+        // stop that still flipped SHOW_TOUCHES for other reasons (e.g. an interrupted session)
+        // would then restore that stale value instead of the value that was actually in effect
+        // before this recording started. See uwuAOSP issue #63.
         val originalSetting = getShowTaps()
-        setShowTaps(whileRecording)
-        if (whileRecording != originalSetting) {
-            sharedPreference().edit {
-                putBoolean(STORED_SHOW_TAPS_VALUE, originalSetting)
-                putBoolean(UPDATE_SHOW_TAPS, true)
-            }
+        sharedPreference().edit {
+            putBoolean(STORED_SHOW_TAPS_VALUE, originalSetting)
+            putBoolean(UPDATE_SHOW_TAPS, true)
         }
+        setShowTaps(whileRecording)
     }
 
     fun maybeRestoreShowTapsSetting() {
@@ -41,8 +46,15 @@ class ScreenRecordingPreferenceUtil(private val context: Context) {
     }
 
     fun restoreShowTapsSetting() {
-        setShowTaps(sharedPreference().getBoolean(STORED_SHOW_TAPS_VALUE, false))
-        sharedPreference().edit { putBoolean(UPDATE_SHOW_TAPS, false) }
+        // Only restore (and clear the flag) when we actually recorded a snapshot. This prevents
+        // stop paths that run without a prior updateShowTaps() (e.g. a service restarted by the
+        // platform with a null intent, or a second stop intent) from writing a default false
+        // into SHOW_TOUCHES and clobbering the user's real preference.
+        val prefs = sharedPreference()
+        if (prefs.getBoolean(UPDATE_SHOW_TAPS, false)) {
+            setShowTaps(prefs.getBoolean(STORED_SHOW_TAPS_VALUE, false))
+            prefs.edit { putBoolean(UPDATE_SHOW_TAPS, false) }
+        }
     }
 
     private fun setShowTaps(isOn: Boolean) {
