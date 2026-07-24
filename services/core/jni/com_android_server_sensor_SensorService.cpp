@@ -62,6 +62,7 @@ public:
                                     jfloatArray values);
     jboolean sendRuntimeSensorAdditionalInfo(JNIEnv* env, jint handle, jint type, jint serial,
                                              jlong timestamp, jfloatArray values);
+    void setApplicationSensorAccess(JNIEnv* env, jint userId, jstring packageName, jboolean allowed);
 
 private:
     sp<SensorService> mService;
@@ -280,6 +281,18 @@ jboolean NativeSensorService::sendRuntimeSensorAdditionalInfo(JNIEnv* env, jint 
     return err == OK;
 }
 
+void NativeSensorService::setApplicationSensorAccess(JNIEnv* env, jint userId, jstring packageName,
+                                                     jboolean allowed) {
+    if (mService == nullptr || packageName == nullptr) {
+        return;
+    }
+    ScopedUtfChars packageNameChars(env, packageName);
+    if (packageNameChars.c_str() == nullptr) {
+        return;
+    }
+    mService->setApplicationSensorAccess(userId, String16(packageNameChars.c_str()), allowed);
+}
+
 NativeSensorService::ProximityActiveListenerDelegate::ProximityActiveListenerDelegate(
         JNIEnv* env, jobject listener)
       : mListener(env->NewGlobalRef(listener)) {}
@@ -379,6 +392,12 @@ static jboolean sendRuntimeSensorAdditionalInfoNative(JNIEnv* env, jclass, jlong
     return service->sendRuntimeSensorAdditionalInfo(env, handle, type, serial, timestamp, values);
 }
 
+static void setApplicationSensorAccessNative(JNIEnv* env, jclass, jlong ptr, jint userId,
+                                             jstring packageName, jboolean allowed) {
+    auto* service = reinterpret_cast<NativeSensorService*>(ptr);
+    service->setApplicationSensorAccess(env, userId, packageName, allowed);
+}
+
 static const JNINativeMethod methods[] = {
         {"startSensorServiceNative", "(L" PROXIMITY_ACTIVE_CLASS ";)J",
          reinterpret_cast<void*>(startSensorServiceNative)},
@@ -395,6 +414,8 @@ static const JNINativeMethod methods[] = {
          reinterpret_cast<void*>(sendRuntimeSensorEventNative)},
         {"sendRuntimeSensorAdditionalInfoNative", "(JIIIJ[F)Z",
          reinterpret_cast<void*>(sendRuntimeSensorAdditionalInfoNative)},
+        {"setApplicationSensorAccessNative", "(JILjava/lang/String;Z)V",
+         reinterpret_cast<void*>(setApplicationSensorAccessNative)},
 };
 
 int register_android_server_sensor_SensorService(JavaVM* vm, JNIEnv* env) {

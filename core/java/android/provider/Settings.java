@@ -13466,6 +13466,26 @@ public final class Settings {
                 "moment_notification_click_landscape_enabled";
 
         /**
+         * Per-user JSON map from package name to uwuAOSP sensor access policy.
+         * Values are 1 to deny access for six seconds after an activity is resumed and 2 to
+         * always deny access. Allow-policy entries are omitted.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String UWU_APP_SENSOR_POLICIES =
+                "uwu_app_sensor_policies";
+
+        /** @hide */
+        public static final int UWU_APP_SENSOR_POLICY_ALLOW = 0;
+
+        /** @hide */
+        public static final int UWU_APP_SENSOR_POLICY_DENY_ON_LAUNCH = 1;
+
+        /** @hide */
+        public static final int UWU_APP_SENSOR_POLICY_DENY_ALWAYS = 2;
+
+        /**
          * Navigation bar mode.
          *  0 = 3 button
          *  1 = 2 button

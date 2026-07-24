@@ -20,10 +20,22 @@ import static com.android.server.sensors.SensorManagerInternal.ProximityActiveLi
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.usage.UsageEvents;
+import android.app.usage.UsageStatsManagerInternal;
+import android.content.ContentResolver;
 import android.content.Context;
+import android.database.ContentObserver;
+import android.os.Handler;
+import android.os.SystemClock;
+import android.os.UserHandle;
+import android.os.UserManager;
+import android.provider.Settings;
 import android.util.ArrayMap;
+import android.util.Slog;
+import android.util.SparseArray;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.ConcurrentUtils;
 import com.android.server.LocalServices;
 import com.android.server.SystemServerInitThreadPool;
@@ -31,13 +43,19 @@ import com.android.server.SystemService;
 import com.android.server.utils.TimingsTraceAndSlog;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 public class SensorService extends SystemService {
+    private static final String TAG = "SensorService";
     private static final String START_NATIVE_SENSOR_SERVICE = "StartNativeSensorService";
+    private static final long LAUNCH_DENIAL_DURATION_MILLIS = 6_000L;
     private final Object mLock = new Object();
     @GuardedBy("mLock")
     private final ArrayMap<ProximityActiveListener, ProximityListenerProxy> mProximityListeners =
@@ -48,6 +66,11 @@ public class SensorService extends SystemService {
     private Future<?> mSensorServiceStart;
     @GuardedBy("mLock")
     private long mPtr;
+    private final Handler mHandler = BackgroundThread.getHandler();
+    @GuardedBy("mLock")
+    private final SparseArray<ArrayMap<String, Integer>> mPoliciesByUser = new SparseArray<>();
+    @GuardedBy("mLock")
+    private final SparseArray<ArrayMap<String, Long>> mLastResumedByUser = new SparseArray<>();
 
 
     /** Start the sensor service. This is a blocking call and can take time. */
@@ -65,6 +88,8 @@ public class SensorService extends SystemService {
             long timestampNanos, float[] values);
     private static native boolean sendRuntimeSensorAdditionalInfoNative(long ptr, int handle,
             int type, int serial, long timestampNanos, float[] values);
+    private static native void setApplicationSensorAccessNative(long ptr, int userId,
+            String packageName, boolean allowed);
 
 
     public SensorService(Context ctx) {
@@ -95,7 +120,167 @@ public class SensorService extends SystemService {
             synchronized (mLock) {
                 mSensorServiceStart = null;
             }
+        } else if (phase == SystemService.PHASE_THIRD_PARTY_APPS_CAN_START) {
+            initializeApplicationSensorPolicies();
         }
+    }
+
+    @Override
+    public void onUserStarting(@NonNull TargetUser user) {
+        mHandler.post(() -> reloadPolicies(user.getUserIdentifier()));
+    }
+
+    @Override
+    public void onUserStopping(@NonNull TargetUser user) {
+        final int userId = user.getUserIdentifier();
+        mHandler.post(() -> clearUserPolicies(userId));
+    }
+
+    private void initializeApplicationSensorPolicies() {
+        final ContentResolver resolver = getContext().getContentResolver();
+        resolver.registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.UWU_APP_SENSOR_POLICIES), false,
+                new ContentObserver(mHandler) {
+                    @Override
+                    public void onChange(boolean selfChange, android.net.Uri uri, int userId) {
+                        reloadPolicies(userId);
+                    }
+                }, UserHandle.USER_ALL);
+
+        final UsageStatsManagerInternal usageStats =
+                LocalServices.getService(UsageStatsManagerInternal.class);
+        if (usageStats != null) {
+            usageStats.registerListener(this::onUsageEvent);
+        } else {
+            Slog.w(TAG, "UsageStatsManagerInternal unavailable; launch sensor policy disabled");
+        }
+
+        final UserManager userManager = getContext().getSystemService(UserManager.class);
+        if (userManager == null) {
+            reloadPolicies(UserHandle.USER_SYSTEM);
+            return;
+        }
+        for (UserHandle user : userManager.getUserHandles(true)) {
+            reloadPolicies(user.getIdentifier());
+        }
+    }
+
+    private void onUsageEvent(int userId, @NonNull UsageEvents.Event event) {
+        if (event.mEventType != UsageEvents.Event.ACTIVITY_RESUMED || event.mPackage == null) {
+            return;
+        }
+        final String packageName = event.mPackage;
+        final long resumedAt = SystemClock.elapsedRealtime();
+        synchronized (mLock) {
+            ArrayMap<String, Long> resumed = mLastResumedByUser.get(userId);
+            if (resumed == null) {
+                resumed = new ArrayMap<>();
+                mLastResumedByUser.put(userId, resumed);
+            }
+            resumed.put(packageName, resumedAt);
+            if (getPolicyLocked(userId, packageName)
+                    != Settings.Secure.UWU_APP_SENSOR_POLICY_DENY_ON_LAUNCH) {
+                return;
+            }
+            setApplicationSensorAccessNative(mPtr, userId, packageName, false);
+        }
+        mHandler.postDelayed(() -> finishLaunchDenial(userId, packageName, resumedAt),
+                LAUNCH_DENIAL_DURATION_MILLIS);
+    }
+
+    private void finishLaunchDenial(int userId, String packageName, long resumedAt) {
+        synchronized (mLock) {
+            final ArrayMap<String, Long> resumed = mLastResumedByUser.get(userId);
+            if (resumed == null || resumed.getOrDefault(packageName, -1L) != resumedAt
+                    || getPolicyLocked(userId, packageName)
+                    != Settings.Secure.UWU_APP_SENSOR_POLICY_DENY_ON_LAUNCH) {
+                return;
+            }
+            setApplicationSensorAccessNative(mPtr, userId, packageName, true);
+        }
+    }
+
+    private void reloadPolicies(int userId) {
+        if (userId < UserHandle.USER_SYSTEM) {
+            return;
+        }
+        final ArrayMap<String, Integer> policies = parsePolicies(
+                Settings.Secure.getStringForUser(getContext().getContentResolver(),
+                        Settings.Secure.UWU_APP_SENSOR_POLICIES, userId));
+        synchronized (mLock) {
+            final ArrayMap<String, Integer> oldPolicies = mPoliciesByUser.get(userId);
+            final ArrayMap<String, Boolean> affected = new ArrayMap<>();
+            if (oldPolicies != null) {
+                for (int i = 0; i < oldPolicies.size(); i++) {
+                    affected.put(oldPolicies.keyAt(i), true);
+                }
+            }
+            for (int i = 0; i < policies.size(); i++) {
+                affected.put(policies.keyAt(i), true);
+            }
+            mPoliciesByUser.put(userId, policies);
+            for (int i = 0; i < affected.size(); i++) {
+                final String packageName = affected.keyAt(i);
+                setApplicationSensorAccessNative(mPtr, userId, packageName,
+                        !isDeniedLocked(userId, packageName, SystemClock.elapsedRealtime()));
+            }
+        }
+    }
+
+    private void clearUserPolicies(int userId) {
+        synchronized (mLock) {
+            final ArrayMap<String, Integer> policies = mPoliciesByUser.get(userId);
+            if (policies != null) {
+                for (int i = 0; i < policies.size(); i++) {
+                    setApplicationSensorAccessNative(mPtr, userId, policies.keyAt(i), true);
+                }
+            }
+            mPoliciesByUser.remove(userId);
+            mLastResumedByUser.remove(userId);
+        }
+    }
+
+    private boolean isDeniedLocked(int userId, String packageName, long now) {
+        final int policy = getPolicyLocked(userId, packageName);
+        if (policy == Settings.Secure.UWU_APP_SENSOR_POLICY_DENY_ALWAYS) {
+            return true;
+        }
+        if (policy != Settings.Secure.UWU_APP_SENSOR_POLICY_DENY_ON_LAUNCH) {
+            return false;
+        }
+        final ArrayMap<String, Long> resumed = mLastResumedByUser.get(userId);
+        final long resumedAt = resumed == null ? -1L : resumed.getOrDefault(packageName, -1L);
+        return resumedAt >= 0 && now - resumedAt < LAUNCH_DENIAL_DURATION_MILLIS;
+    }
+
+    private int getPolicyLocked(int userId, String packageName) {
+        final ArrayMap<String, Integer> policies = mPoliciesByUser.get(userId);
+        return policies == null ? Settings.Secure.UWU_APP_SENSOR_POLICY_ALLOW
+                : policies.getOrDefault(packageName,
+                        Settings.Secure.UWU_APP_SENSOR_POLICY_ALLOW);
+    }
+
+    private static ArrayMap<String, Integer> parsePolicies(@Nullable String value) {
+        final ArrayMap<String, Integer> policies = new ArrayMap<>();
+        if (value == null || value.isBlank()) {
+            return policies;
+        }
+        try {
+            final JSONObject object = new JSONObject(value);
+            final Iterator<String> keys = object.keys();
+            while (keys.hasNext()) {
+                final String packageName = keys.next();
+                final int policy = object.optInt(packageName,
+                        Settings.Secure.UWU_APP_SENSOR_POLICY_ALLOW);
+                if (policy == Settings.Secure.UWU_APP_SENSOR_POLICY_DENY_ON_LAUNCH
+                        || policy == Settings.Secure.UWU_APP_SENSOR_POLICY_DENY_ALWAYS) {
+                    policies.put(packageName, policy);
+                }
+            }
+        } catch (JSONException e) {
+            Slog.w(TAG, "Ignoring malformed app sensor policy", e);
+        }
+        return policies;
     }
 
     class LocalService extends SensorManagerInternal {
