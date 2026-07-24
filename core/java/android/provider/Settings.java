@@ -13162,6 +13162,26 @@ public final class Settings {
         public static final int UWU_APP_BACKGROUND_MODE_FULL = 2;
 
         /**
+         * Per-user JSON map from package name to uwuAOSP sensor access policy.
+         * Values are 1 to deny access for six seconds after an activity is resumed and 2 to
+         * always deny access. Allow-policy entries are omitted.
+         *
+         * @hide
+         */
+        @Readable
+        public static final String UWU_APP_SENSOR_POLICIES =
+                "uwu_app_sensor_policies";
+
+        /** @hide */
+        public static final int UWU_APP_SENSOR_POLICY_ALLOW = 0;
+
+        /** @hide */
+        public static final int UWU_APP_SENSOR_POLICY_DENY_ON_LAUNCH = 1;
+
+        /** @hide */
+        public static final int UWU_APP_SENSOR_POLICY_DENY_ALWAYS = 2;
+
+        /**
          * Indicates whether themed icons should also be used in the all apps drawer.
          * <p>Type: int (0 for false, 1 for true)
          *
