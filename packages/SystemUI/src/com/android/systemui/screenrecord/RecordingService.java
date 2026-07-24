@@ -196,6 +196,22 @@ public class RecordingService extends Service implements ScreenMediaRecorderList
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent == null) {
+            // The platform restarted this STICKY service after the SystemUI process was killed
+            // (e.g. low memory, user switch). There is no longer an active recording to resume,
+            // so the SHOW_TOUCHES override that the previous instance applied at START time must
+            // not be left dangling. The only mechanism that survives across instances is the
+            // SharedPreferences snapshot written when Flags.restoreShowTapsSetting() is enabled,
+            // so we attempt a maybeRestoreShowTapsSetting() on that path. The legacy path keeps
+            // the original behavior (no SHOW_TOUCHES write on null intent): a fresh instance has
+            // no reliable way to know whether the user actually had show touches enabled before
+            // the previous instance ran, and forcing it to false would silently turn off a
+            // preference the user explicitly enabled.
+            // See uwuAOSP issue #63: a dangling show_touches = 1 after a recorded session that
+            // was killed mid-flight left SystemUI stuck.
+            if (Flags.restoreShowTapsSetting()) {
+                mPreferenceUtil.maybeRestoreShowTapsSetting();
+            }
+            stopSelf();
             return Service.START_NOT_STICKY;
         }
         String action = intent.getAction();
