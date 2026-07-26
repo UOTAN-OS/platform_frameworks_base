@@ -41,20 +41,46 @@
             android:scaleType="centerInside" />
     </ImageSwitcher>
 
-    <TextSwitcher
-        android:id="@+id/lyric_inline_text"
+    <com.android.systemui.util.StatusBarLyricLayout
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1">
-        <com.android.systemui.util.LyricTextView
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+
+        <TextSwitcher
+            android:id="@+id/lyric_inline_text"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:maxLines="1"
-            android:textAppearance="@style/TextApperance.StatusBar.Lyric" />
-        <com.android.systemui.util.LyricTextView
+            android:layout_height="0dp"
+            android:layout_weight="14">
+            <com.android.systemui.util.LyricTextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:maxLines="1"
+                android:textAppearance="@style/TextApperance.StatusBar.Lyric" />
+            <com.android.systemui.util.LyricTextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:maxLines="1"
+                android:textAppearance="@style/TextApperance.StatusBar.Lyric" />
+        </TextSwitcher>
+
+        <TextSwitcher
+            android:id="@+id/lyric_inline_translation"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:maxLines="1"
-            android:textAppearance="@style/TextApperance.StatusBar.Lyric" />
-    </TextSwitcher>
+            android:layout_height="0dp"
+            android:layout_weight="10"
+            android:visibility="gone">
+            <com.android.systemui.util.LyricTextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:maxLines="1"
+                android:textAppearance="@style/TextApperance.StatusBar.Lyric.Translation" />
+            <com.android.systemui.util.LyricTextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:maxLines="1"
+                android:textAppearance="@style/TextApperance.StatusBar.Lyric.Translation" />
+        </TextSwitcher>
+    </com.android.systemui.util.StatusBarLyricLayout>
 </LinearLayout>
