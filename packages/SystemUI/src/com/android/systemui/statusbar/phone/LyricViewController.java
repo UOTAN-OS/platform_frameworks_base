@@ -95,7 +95,7 @@ public abstract class LyricViewController implements
                 R.id.lyric_inline_container,
                 R.id.lyric_inline_icon,
                 R.id.lyric_inline_text,
-                View.NO_ID,
+                R.id.lyric_inline_translation,
                 false);
 
         mNotificationColorUtil = ContrastColorUtil.getInstance(mContext);
@@ -171,7 +171,11 @@ public abstract class LyricViewController implements
             return;
         }
         mShowTranslation = showTranslation;
-        setSubtitle(mOverlayLyricViewHolder, getVisibleTranslatedText());
+        CharSequence translatedText = getVisibleTranslatedText();
+        setSubtitle(mOverlayLyricViewHolder, translatedText);
+        if (mInlineLyricViewHolder != null) {
+            setSubtitle(mInlineLyricViewHolder, translatedText);
+        }
     }
 
     protected void onLyricPositionChanged() {
@@ -402,7 +406,7 @@ public abstract class LyricViewController implements
         setSubtitle(mOverlayLyricViewHolder, getVisibleTranslatedText());
         if (mInlineLyricViewHolder != null) {
             mInlineLyricViewHolder.mTextSwitcher.setText(text);
-            setSubtitle(mInlineLyricViewHolder, null);
+            setSubtitle(mInlineLyricViewHolder, getVisibleTranslatedText());
         }
         postApplyTextTint();
     }
