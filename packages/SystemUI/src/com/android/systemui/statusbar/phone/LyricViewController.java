@@ -22,6 +22,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Drawable.ConstantState;
+import android.graphics.drawable.Icon;
 import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.NotificationListenerService.RankingMap;
@@ -54,6 +55,7 @@ public abstract class LyricViewController implements
 
     private static final String EXTRA_TICKER_ICON = "ticker_icon";
     private static final String EXTRA_TICKER_ICON_PACKAGE = "ticker_icon_package";
+    private static final String EXTRA_TICKER_SMALL_ICON = "ticker_small_icon";
     private static final String EXTRA_TICKER_ICON_SWITCH = "ticker_icon_switch";
     private static final String EXTRA_TICKER_TRANSLATION = "ticker_translation";
     private static final String LYRIC_FETCH_PACKAGE = "cn.binbin323.statuslyricext";
@@ -412,6 +414,15 @@ public abstract class LyricViewController implements
     }
 
     private Drawable resolveLyricIcon(StatusBarNotification sbn, Notification notification) {
+        Icon mediaSmallIcon = notification.extras.getParcelable(
+                EXTRA_TICKER_SMALL_ICON, Icon.class);
+        if (mediaSmallIcon != null) {
+            Drawable drawable = mediaSmallIcon.loadDrawable(mContext);
+            if (drawable != null) {
+                return drawable;
+            }
+        }
+
         String iconPackage = notification.extras.getString(EXTRA_TICKER_ICON_PACKAGE);
         if (!TextUtils.isEmpty(iconPackage)) {
             try {
