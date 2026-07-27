@@ -27,6 +27,7 @@ import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
+import com.android.systemui.statusbar.notification.row.NotificationContentView;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import javax.inject.Inject;
@@ -121,8 +122,18 @@ public final class NotificationClicker implements View.OnClickListener {
                 ? row.getEntryAdapter().isBubble()
                 : row.getEntryLegacy().isBubble();
         Notification notification = sbn.getNotification();
+        boolean openInMoment = NotificationContentView.shouldOpenNotificationInMoment(
+                row.getContext(), sbn);
+        if (NotificationBundleUi.isEnabled()) {
+            row.setFullScreenClickListener(
+                    v -> row.getEntryAdapter().onNotificationFullScreenIconClicked(row));
+        } else {
+            row.setFullScreenClickListener(v ->
+                    mNotificationActivityStarter.onNotificationFullScreenIconClicked(
+                            row.getEntryLegacy(), row));
+        }
         if (notification.contentIntent != null || notification.fullScreenIntent != null
-                || isBubble) {
+                || isBubble || openInMoment) {
             if (NotificationBundleUi.isEnabled()) {
                 row.setBubbleClickListener(
                         v -> row.getEntryAdapter().onNotificationBubbleIconClicked());

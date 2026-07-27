@@ -487,6 +487,7 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
     private OnClickListener mOnClickListener;
     @Nullable
     private OnClickListener mBubbleClickListener;
+    private OnClickListener mFullScreenClickListener;
     private OnDragSuccessListener mOnDragSuccessListener;
     private boolean mHeadsupDisappearRunning;
     private View mChildAfterViewWhenDismissed;
@@ -1522,6 +1523,21 @@ public class ExpandableNotificationRow extends ActivatableNotificationView
     public void setBubbleClickListener(@Nullable OnClickListener l) {
         mBubbleClickListener = l;
         // ensure listener is passed to the content views
+        mPrivateLayout.updateBubbleButton(NotificationBundleUi.isEnabled()
+                ? null
+                : getEntryLegacy());
+        mPublicLayout.updateBubbleButton(NotificationBundleUi.isEnabled()
+                ? null
+                : getEntryLegacy());
+    }
+
+    @Nullable
+    public View.OnClickListener getFullScreenClickListener() {
+        return mFullScreenClickListener;
+    }
+
+    public void setFullScreenClickListener(@Nullable OnClickListener l) {
+        mFullScreenClickListener = l;
         mPrivateLayout.updateBubbleButton(NotificationBundleUi.isEnabled()
                 ? null
                 : getEntryLegacy());

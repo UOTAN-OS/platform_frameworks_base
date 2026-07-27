@@ -13132,6 +13132,36 @@ public final class Settings {
                 "moment_nav_handle_double_tap_enabled";
 
         /**
+         * Whether tapping an eligible notification opens its app in Moment.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_NOTIFICATION_CLICK_ENABLED =
+                "moment_notification_click_enabled";
+
+        /**
+         * Whether tapping an eligible notification opens its app in Moment in portrait.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_NOTIFICATION_CLICK_PORTRAIT_ENABLED =
+                "moment_notification_click_portrait_enabled";
+
+        /**
+         * Whether tapping an eligible notification opens its app in Moment in landscape.
+         * <p>Type: int (0 for false, 1 for true)
+         *
+         * @hide
+         */
+        @Readable
+        public static final String MOMENT_NOTIFICATION_CLICK_LANDSCAPE_ENABLED =
+                "moment_notification_click_landscape_enabled";
+
+        /**
          * Per-user JSON map from package name to uwuAOSP background mode.
          * Values are 1 for tombstone mode and 2 for Full mode. Default-mode entries are omitted.
          *

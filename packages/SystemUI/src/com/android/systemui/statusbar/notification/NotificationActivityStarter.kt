@@ -34,6 +34,12 @@ interface NotificationActivityStarter {
     /** Called when the user clicks on the notification bubble icon. */
     fun onNotificationBubbleIconClicked(entry: NotificationEntry)
 
+    /** Called when the user requests to open a notification in fullscreen. */
+    fun onNotificationFullScreenIconClicked(
+        entry: NotificationEntry,
+        row: ExpandableNotificationRow,
+    )
+
     /** Called when the user clicks on the surface of a notification. */
     fun onNotificationClicked(entry: NotificationEntry, row: ExpandableNotificationRow)
 

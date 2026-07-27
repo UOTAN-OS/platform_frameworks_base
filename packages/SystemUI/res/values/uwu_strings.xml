@@ -17,4 +17,6 @@
     <string name="uwu_sms_code_fill_in">Fill in</string>
     <string name="uwu_music_suggestion_chip_content_description">Open selected music app</string>
     <string name="uwu_torch_suggestion_chip_content_description">Turn off flashlight</string>
+    <!-- Open the notification's app in fullscreen. [CHAR LIMIT=100] -->
+    <string name="notification_open_fullscreen">Open fullscreen</string>
 </resources>
