@@ -22,6 +22,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Drawable.ConstantState;
+import android.graphics.drawable.Icon;
 import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.NotificationListenerService.RankingMap;
@@ -53,6 +54,8 @@ public abstract class LyricViewController implements
     public static final int LYRIC_POSITION_CLOCK_RIGHT = 1;
 
     private static final String EXTRA_TICKER_ICON = "ticker_icon";
+    private static final String EXTRA_TICKER_ICON_PACKAGE = "ticker_icon_package";
+    private static final String EXTRA_TICKER_SMALL_ICON = "ticker_small_icon";
     private static final String EXTRA_TICKER_ICON_SWITCH = "ticker_icon_switch";
     private static final String EXTRA_TICKER_TRANSLATION = "ticker_translation";
     private static final String LYRIC_FETCH_PACKAGE = "cn.binbin323.statuslyricext";
@@ -209,12 +212,7 @@ public abstract class LyricViewController implements
             }
             if (!isCurrentNotification || !mStarted ||
                     notification.extras.getBoolean(EXTRA_TICKER_ICON_SWITCH, false)) {
-                int iconId = notification.extras.getInt(EXTRA_TICKER_ICON, -1);
-                Drawable icon = iconId == -1 ? notification.getSmallIcon().loadDrawable(mContext) :
-                        StatusBarIconView.getIcon(mContext, sbn.getPackageContext(mContext),
-                                new StatusBarIcon(sbn.getPackageName(), sbn.getUser(),
-                                    iconId, notification.iconLevel, 0, null, StatusBarIcon.Type.NotifSmallIcon));
-                setIconForAllHolders(icon);
+                setIconForAllHolders(resolveLyricIcon(sbn, notification));
             }
             startLyric();
             setTextForAllHolders(
@@ -412,6 +410,31 @@ public abstract class LyricViewController implements
             setSubtitle(mInlineLyricViewHolder, getVisibleTranslatedText());
         }
         postApplyTextTint();
+    }
+
+    private Drawable resolveLyricIcon(StatusBarNotification sbn, Notification notification) {
+        Icon mediaSmallIcon = notification.extras.getParcelable(
+                EXTRA_TICKER_SMALL_ICON, Icon.class);
+        if (mediaSmallIcon != null) {
+            Drawable drawable = mediaSmallIcon.loadDrawable(mContext);
+            if (drawable != null) {
+                return drawable;
+            }
+        }
+
+        String iconPackage = notification.extras.getString(EXTRA_TICKER_ICON_PACKAGE);
+        if (!TextUtils.isEmpty(iconPackage)) {
+            try {
+                return mContext.getPackageManager().getApplicationIcon(iconPackage);
+            } catch (Exception ignored) {
+            }
+        }
+        int iconId = notification.extras.getInt(EXTRA_TICKER_ICON, -1);
+        return iconId == -1 ? notification.getSmallIcon().loadDrawable(mContext) :
+                StatusBarIconView.getIcon(mContext, sbn.getPackageContext(mContext),
+                        new StatusBarIcon(sbn.getPackageName(), sbn.getUser(),
+                            iconId, notification.iconLevel, 0, null,
+                            StatusBarIcon.Type.NotifSmallIcon));
     }
 
     private CharSequence getVisibleTranslatedText() {
