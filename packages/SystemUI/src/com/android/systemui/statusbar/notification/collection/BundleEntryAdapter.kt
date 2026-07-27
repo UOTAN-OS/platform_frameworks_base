@@ -189,6 +189,10 @@ class BundleEntryAdapter(
         Log.wtf(TAG, "onNotificationBubbleIconClicked() called")
     }
 
+    override fun onNotificationFullScreenIconClicked(row: ExpandableNotificationRow) {
+        Log.wtf(TAG, "onNotificationFullScreenIconClicked() called")
+    }
+
     override fun onNotificationActionClicked() {
         // do nothing. these have no actions
         Log.wtf(TAG, "onNotificationActionClicked() called")

@@ -200,6 +200,9 @@ public interface EntryAdapter {
      */
     void onNotificationBubbleIconClicked();
 
+    /** Process a click on a notification fullscreen icon. */
+    void onNotificationFullScreenIconClicked(ExpandableNotificationRow row);
+
     /**
      * Processes a click on a notification action
      */
@@ -259,4 +262,3 @@ public interface EntryAdapter {
      */
     int getBundleType();
 }
-

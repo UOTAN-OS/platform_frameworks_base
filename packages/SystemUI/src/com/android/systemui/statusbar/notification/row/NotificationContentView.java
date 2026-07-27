@@ -22,11 +22,16 @@ import android.app.Flags;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.database.ContentObserver;
 import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.RemoteException;
+import android.os.UserHandle;
+import android.provider.Settings;
 import android.service.notification.StatusBarNotification;
 import android.util.ArrayMap;
 import android.util.AttributeSet;
@@ -148,6 +153,15 @@ public class NotificationContentView extends FrameLayout implements Notification
     private RemoteInputViewSubcomponent.Factory mRemoteInputSubcomponentFactory;
     private IStatusBarService mStatusBarService;
     private boolean mBubblesEnabledForUser;
+    private final ContentObserver mMomentSettingsObserver = new ContentObserver(null) {
+        @Override
+        public void onChange(boolean selfChange) {
+            post(() -> {
+                applyBubbleAction(mExpandedChild);
+                applyBubbleAction(mHeadsUpChild);
+            });
+        }
+    };
 
     /**
      * List of listeners for when content views become inactive (i.e. not the showing view).
@@ -404,6 +418,25 @@ public class NotificationContentView extends FrameLayout implements Notification
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         updateVisibility();
+        mContext.getContentResolver().registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.MOMENT_ENABLED), false,
+                mMomentSettingsObserver, UserHandle.USER_ALL);
+        mContext.getContentResolver().registerContentObserver(
+                Settings.Secure.getUriFor(Settings.Secure.MOMENT_NOTIFICATION_CLICK_ENABLED), false,
+                mMomentSettingsObserver, UserHandle.USER_ALL);
+        mContext.getContentResolver().registerContentObserver(Settings.Secure.getUriFor(
+                        Settings.Secure.MOMENT_NOTIFICATION_CLICK_PORTRAIT_ENABLED), false,
+                mMomentSettingsObserver, UserHandle.USER_ALL);
+        mContext.getContentResolver().registerContentObserver(Settings.Secure.getUriFor(
+                        Settings.Secure.MOMENT_NOTIFICATION_CLICK_LANDSCAPE_ENABLED), false,
+                mMomentSettingsObserver, UserHandle.USER_ALL);
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        applyBubbleAction(mExpandedChild);
+        applyBubbleAction(mHeadsUpChild);
     }
 
     public View getContractedChild() {
@@ -645,6 +678,7 @@ public class NotificationContentView extends FrameLayout implements Notification
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnPreDrawListener(mEnableAnimationPredrawListener);
+        mContext.getContentResolver().unregisterContentObserver(mMomentSettingsObserver);
     }
 
     private void setVisible(final boolean isVisible) {
@@ -1591,20 +1625,28 @@ public class NotificationContentView extends FrameLayout implements Notification
             return;
         }
 
-        if (shouldShowBubbleButton()) {
+        final boolean showFullScreenAction = shouldOpenNotificationInMoment(mContext, mSbn);
+        final boolean showBubbleAction = !showFullScreenAction && shouldShowBubbleButton();
+        if (showBubbleAction || showFullScreenAction) {
             boolean isBubble = mContainingNotification.getEntryAdapter().isBubble();
             // explicitly resolve drawable resource using SystemUI's theme
-            Drawable d = mContext.getDrawable(isBubble
-                    ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
-                    : com.android.wm.shell.R.drawable.bubble_ic_create_bubble);
+            Drawable d = mContext.getDrawable(showFullScreenAction
+                    ? R.drawable.ic_open_in_new
+                    : isBubble
+                            ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
+                            : com.android.wm.shell.R.drawable.bubble_ic_create_bubble);
 
-            String contentDescription = mContext.getResources().getString(isBubble
-                    ? R.string.notification_conversation_unbubble
-                    : R.string.notification_conversation_bubble);
+            String contentDescription = mContext.getResources().getString(showFullScreenAction
+                    ? R.string.notification_open_fullscreen
+                    : isBubble
+                            ? R.string.notification_conversation_unbubble
+                            : R.string.notification_conversation_bubble);
 
             bubbleButton.setContentDescription(contentDescription);
             bubbleButton.setImageDrawable(d);
-            bubbleButton.setOnClickListener(mContainingNotification.getBubbleClickListener());
+            bubbleButton.setOnClickListener(showFullScreenAction
+                    ? mContainingNotification.getFullScreenClickListener()
+                    : mContainingNotification.getBubbleClickListener());
             bubbleButton.setVisibility(VISIBLE);
             actionsContainerForVisibilityChange.setVisibility(VISIBLE);
         } else  {
@@ -1630,6 +1672,42 @@ public class NotificationContentView extends FrameLayout implements Notification
         return mBubblesEnabledForUser
                 && isPersonWithShortcut
                 && bubbleMetadata != null;
+    }
+
+    public static boolean shouldOpenNotificationInMoment(
+            Context context, @Nullable StatusBarNotification sbn) {
+        if (sbn == null) {
+            return false;
+        }
+        final Notification notification = sbn.getNotification();
+        if (notification.isGroupSummary() || notification.containsCustomViews()) {
+            return false;
+        }
+        if (Settings.Secure.getIntForUser(context.getContentResolver(),
+                    Settings.Secure.MOMENT_ENABLED, 0, UserHandle.USER_CURRENT) == 0
+                || Settings.Secure.getIntForUser(context.getContentResolver(),
+                    Settings.Secure.MOMENT_NOTIFICATION_CLICK_ENABLED, 1,
+                    UserHandle.USER_CURRENT) == 0) {
+            return false;
+        }
+        final boolean landscape = context.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
+        final String orientationSetting = landscape
+                ? Settings.Secure.MOMENT_NOTIFICATION_CLICK_LANDSCAPE_ENABLED
+                : Settings.Secure.MOMENT_NOTIFICATION_CLICK_PORTRAIT_ENABLED;
+        if (Settings.Secure.getIntForUser(context.getContentResolver(), orientationSetting, 1,
+                UserHandle.USER_CURRENT) == 0) {
+            return false;
+        }
+        if (notification.contentIntent != null && notification.contentIntent.isActivity()) {
+            return true;
+        }
+        final int targetUserId = UserHandle.ALL.equals(sbn.getUser())
+                ? UserHandle.USER_CURRENT : sbn.getNormalizedUserId();
+        final Context userContext = context.createContextAsUser(UserHandle.of(targetUserId), 0);
+        final Intent launchIntent = userContext.getPackageManager()
+                .getLaunchIntentForPackage(sbn.getPackageName());
+        return launchIntent != null;
     }
 
     private void applySnoozeAction(View layout) {

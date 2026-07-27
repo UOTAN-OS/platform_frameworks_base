@@ -18,6 +18,8 @@
  */
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <!-- Open the notification's app in fullscreen. [CHAR LIMIT=100] -->
+    <string name="notification_open_fullscreen">Open fullscreen</string>
     <!-- Status bar - icons -->
     <string name="status_bar_icons_title">Status bar icons</string>
 

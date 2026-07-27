@@ -28,6 +28,7 @@ import static android.provider.Settings.Secure.LOCK_SCREEN_SHOW_NOTIFICATIONS;
 import static android.provider.Settings.Secure.REDACT_OTP_NOTIFICATION_WHILE_CONNECTED_TO_WIFI;
 
 import static com.android.systemui.DejankUtils.whitelistIpcs;
+import static com.android.systemui.statusbar.NotificationLockscreenUserManager.EXTRA_WORK_CHALLENGE_ACTIVITY_OPTIONS;
 
 import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
@@ -43,6 +44,7 @@ import android.content.pm.UserInfo;
 import android.database.ContentObserver;
 import android.database.ExecutorContentObserver;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Looper;
 import android.os.Process;
 import android.os.SystemClock;
@@ -241,13 +243,21 @@ public class NotificationLockscreenUserManagerImpl implements
                 final IntentSender intentSender = intent.getParcelableExtra(
                         Intent.EXTRA_INTENT);
                 final String notificationKey = intent.getStringExtra(Intent.EXTRA_INDEX);
+                final Bundle providedOptions = intent.getBundleExtra(
+                        EXTRA_WORK_CHALLENGE_ACTIVITY_OPTIONS);
                 if (intentSender != null) {
                     try {
-                        ActivityOptions options = ActivityOptions.makeBasic();
-                        options.setPendingIntentBackgroundActivityStartMode(
-                                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+                        final Bundle options;
+                        if (providedOptions != null) {
+                            options = providedOptions;
+                        } else {
+                            ActivityOptions activityOptions = ActivityOptions.makeBasic();
+                            activityOptions.setPendingIntentBackgroundActivityStartMode(
+                                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+                            options = activityOptions.toBundle();
+                        }
                         mContext.startIntentSender(intentSender, null, 0, 0, 0,
-                                options.toBundle());
+                                options);
                     } catch (IntentSender.SendIntentException e) {
                         /* ignore */
                     }

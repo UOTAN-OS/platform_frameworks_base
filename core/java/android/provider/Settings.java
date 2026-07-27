@@ -13450,6 +13450,21 @@ public final class Settings {
         public static final String MOMENT_NAV_HANDLE_DOUBLE_TAP_ENABLED =
                 "moment_nav_handle_double_tap_enabled";
 
+        /** Whether eligible notification clicks launch into Moment. @hide */
+        @Readable
+        public static final String MOMENT_NOTIFICATION_CLICK_ENABLED =
+                "moment_notification_click_enabled";
+
+        /** Whether eligible notification clicks launch into Moment in portrait. @hide */
+        @Readable
+        public static final String MOMENT_NOTIFICATION_CLICK_PORTRAIT_ENABLED =
+                "moment_notification_click_portrait_enabled";
+
+        /** Whether eligible notification clicks launch into Moment in landscape. @hide */
+        @Readable
+        public static final String MOMENT_NOTIFICATION_CLICK_LANDSCAPE_ENABLED =
+                "moment_notification_click_landscape_enabled";
+
         /**
          * Navigation bar mode.
          *  0 = 3 button

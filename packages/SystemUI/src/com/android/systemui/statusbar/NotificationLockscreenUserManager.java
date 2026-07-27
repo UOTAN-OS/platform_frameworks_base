@@ -27,6 +27,8 @@ public interface NotificationLockscreenUserManager {
     String PERMISSION_SELF = "com.android.systemui.permission.SELF";
     String NOTIFICATION_UNLOCKED_BY_WORK_CHALLENGE_ACTION
             = "com.android.systemui.statusbar.work_challenge_unlocked_notification_action";
+    String EXTRA_WORK_CHALLENGE_ACTIVITY_OPTIONS =
+            "com.android.systemui.extra.WORK_CHALLENGE_ACTIVITY_OPTIONS";
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true,

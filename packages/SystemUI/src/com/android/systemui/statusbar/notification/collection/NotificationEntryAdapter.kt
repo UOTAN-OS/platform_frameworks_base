@@ -215,6 +215,10 @@ class NotificationEntryAdapter(
         notificationActivityStarter.onNotificationBubbleIconClicked(entry)
     }
 
+    override fun onNotificationFullScreenIconClicked(row: ExpandableNotificationRow) {
+        notificationActivityStarter.onNotificationFullScreenIconClicked(entry, row)
+    }
+
     override fun onNotificationActionClicked() {
         notificationActionClickManager.onNotificationActionClicked(entry)
     }

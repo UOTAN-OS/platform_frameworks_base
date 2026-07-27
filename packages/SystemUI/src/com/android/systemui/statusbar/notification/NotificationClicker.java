@@ -27,6 +27,7 @@ import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
+import com.android.systemui.statusbar.notification.row.NotificationContentView;
 
 import javax.inject.Inject;
 
@@ -102,8 +103,12 @@ public final class NotificationClicker implements View.OnClickListener {
     public void register(ExpandableNotificationRow row, StatusBarNotification sbn) {
         boolean isBubble = row.getEntryAdapter().isBubble();
         Notification notification = sbn.getNotification();
+        boolean openInMoment = NotificationContentView.shouldOpenNotificationInMoment(
+                row.getContext(), sbn);
+        row.setFullScreenClickListener(
+                v -> row.getEntryAdapter().onNotificationFullScreenIconClicked(row));
         if (notification.contentIntent != null || notification.fullScreenIntent != null
-                || isBubble) {
+                || isBubble || openInMoment) {
             row.setBubbleClickListener(
                     v -> row.getEntryAdapter().onNotificationBubbleIconClicked());
             row.setOnClickListener(this);
@@ -112,6 +117,7 @@ public final class NotificationClicker implements View.OnClickListener {
             row.setOnClickListener(null);
             row.setOnDragSuccessListener(null);
             row.setBubbleClickListener(null);
+            row.setFullScreenClickListener(null);
         }
     }
 
