@@ -18,9 +18,8 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/lyric_inline_container"
-    android:layout_width="0dp"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_weight="1"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingEnd="@dimen/lyric_padding_end"
