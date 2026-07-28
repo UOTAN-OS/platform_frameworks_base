@@ -711,6 +711,8 @@
     <dimen name="cross_task_back_vertical_margin">8dp</dimen>
     <!-- The offset from the left edge of the entering page for the cross-activity animation -->
     <dimen name="cross_activity_back_entering_start_offset">96dp</dimen>
+    <!-- The unscaled corner radius of a Moment task. -->
+    <dimen name="moment_task_corner_radius">28dp</dimen>
 
     <!-- The open by default settings dialog menu width. -->
     <dimen name="open_by_default_settings_dialog_width">348dp</dimen>
