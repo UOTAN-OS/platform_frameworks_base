@@ -90,6 +90,8 @@ abstract class CrossActivityBackAnimation(
     private val tempRectF = RectF()
 
     protected var cornerRadius = ScreenDecorationsUtils.getWindowCornerRadius(context)
+    private var momentCornerRadius =
+        context.resources.getDimension(R.dimen.moment_task_corner_radius)
     private var statusbarHeight = SystemBarUtils.getStatusBarHeight(context)
 
     private val backAnimationRunner =
@@ -165,6 +167,7 @@ abstract class CrossActivityBackAnimation(
 
     override fun onConfigurationChanged(newConfiguration: Configuration) {
         cornerRadius = ScreenDecorationsUtils.getWindowCornerRadius(context)
+        momentCornerRadius = context.resources.getDimension(R.dimen.moment_task_corner_radius)
         statusbarHeight = SystemBarUtils.getStatusBarHeight(context)
     }
 
@@ -219,11 +222,13 @@ abstract class CrossActivityBackAnimation(
         }
 
         screenSpaceBounds.set(closingTarget!!.screenSpaceBounds)
+        val isMoment = closingTarget!!.windowConfiguration.isMomentWindowingMode
 
         if (fixCrossActivityBackAnimationInBubbles()) {
             // Use a custom corner radius when we're inside a Bubble or a freeform task.
             cornerRadius =
                 when {
+                    isMoment -> momentCornerRadius
                     bubbleController.isPresent &&
                         bubbleController.get().hasStableBubbleForTask(closingTarget!!.taskId) ->
                         bubbleController.get().getBubbleCornerRadius(closingTarget!!.taskId)
@@ -256,17 +261,19 @@ abstract class CrossActivityBackAnimation(
             } else {
                 floatArrayOf(cornerRadius, cornerRadius, cornerRadius, cornerRadius)
             }
-        background.ensureBackground(
-            closingTarget!!.windowConfiguration.bounds,
-            getBackgroundColor(),
-            transaction,
-            statusbarHeight,
-            backgroundCrop,
-            cornerRadii,
-            closingTarget!!.taskInfo.getDisplayId(),
-            if (fixCrossActivityBackAnimationInBubbles()) enteringTarget!!.leash else null,
-        )
-        ensureScrimLayer()
+        if (!isMoment) {
+            background.ensureBackground(
+                closingTarget!!.windowConfiguration.bounds,
+                getBackgroundColor(),
+                transaction,
+                statusbarHeight,
+                backgroundCrop,
+                cornerRadii,
+                closingTarget!!.taskInfo.getDisplayId(),
+                if (fixCrossActivityBackAnimationInBubbles()) enteringTarget!!.leash else null,
+            )
+            ensureScrimLayer()
+        }
         if (isLetterboxed && enteringHasSameLetterbox) {
             // crop left and right letterboxes
             cropRect.set(
@@ -447,7 +454,14 @@ abstract class CrossActivityBackAnimation(
             .setAlpha(leash, alpha)
             .setMatrix(leash, matrix, tmpFloat9)
             .setCrop(leash, cropRect)
-            .setCornerRadius(leash, cornerRadius)
+            .setCornerRadius(
+                leash,
+                if (closingTarget!!.windowConfiguration.isMomentWindowingMode) {
+                    momentCornerRadius
+                } else {
+                    cornerRadius
+                },
+            )
     }
 
     protected fun applyTransaction() {
@@ -652,6 +666,15 @@ abstract class CrossActivityBackAnimation(
                     RemoteAnimationTarget.MODE_CLOSING -> closingTarget = a
                     RemoteAnimationTarget.MODE_OPENING -> enteringTarget = a
                 }
+            }
+            if (closingTarget?.windowConfiguration?.isMomentWindowingMode == true) {
+                closingTarget?.leash?.takeIf { it.isValid }?.let {
+                    transaction.setCornerRadius(it, momentCornerRadius)
+                }
+                enteringTarget?.leash?.takeIf { it.isValid }?.let {
+                    transaction.setCornerRadius(it, momentCornerRadius)
+                }
+                applyTransaction()
             }
             finishCallback = finishedCallback
         }
