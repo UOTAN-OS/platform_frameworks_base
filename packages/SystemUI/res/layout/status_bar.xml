@@ -113,14 +113,21 @@
                         android:id="@+id/ongoing_activity_chip_secondary"
                         android:visibility="gone"/>
 
-                    <include layout="@layout/status_bar_lyric_inline" />
-
-                    <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
-                        android:id="@+id/notification_icon_area"
-                        android:layout_width="wrap_content"
+                    <FrameLayout
+                        android:layout_width="0dp"
                         android:layout_height="match_parent"
-                        android:orientation="horizontal"
-                        android:clipChildren="false"/>
+                        android:layout_weight="1"
+                        android:clipChildren="false">
+
+                        <include layout="@layout/status_bar_lyric_inline" />
+
+                        <com.android.systemui.statusbar.AlphaOptimizedFrameLayout
+                            android:id="@+id/notification_icon_area"
+                            android:layout_width="wrap_content"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="start"
+                            android:clipChildren="false"/>
+                    </FrameLayout>
 
                 </LinearLayout>
             </FrameLayout>

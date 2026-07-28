@@ -763,11 +763,12 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
             hideNotificationIconArea(animate && !hasOngoingActivity);
             if (mLyricController != null) {
                 mLyricController.hideLyricView(animate);
-	    }
+            }
         } else {
-            showNotificationIconArea(animate);
-            if (mLyricController != null) {
+            if (mLyricController != null && mLyricController.shouldShowLyricInCurrentState()) {
                 mLyricController.showLyricView(animate);
+            } else {
+                showNotificationIconArea(animate);
             }
         }
 
@@ -1126,12 +1127,13 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
         }
 
         public void hideLyricView(boolean animate) {
-            hideLyricContainer(getLyricView(), animate);
             if (isClockRightMode()) {
-                if (shouldShowLyricInCurrentState()) {
+                hideLyricContainer(getLyricView(), animate);
+                if (shouldShowNotificationIcons()) {
                     animateShow(mNotificationIconArea, animate);
                 }
             } else {
+                hideLyricContainer(getLyricView(), animate);
                 animateShow(mLeftSide, animate);
             }
         }
@@ -1145,14 +1147,21 @@ public class CollapsedStatusBarFragment extends Fragment implements CommandQueue
             }
             animateShow(mLeftSide, false);
             if (shouldShowLyricInCurrentState()) {
-                animateShow(mNotificationIconArea, false);
                 showLyricView(false);
             } else {
-                hideNotificationIconArea(false);
+                if (shouldShowNotificationIcons()) {
+                    showNotificationIconArea(false);
+                } else {
+                    hideNotificationIconArea(false);
+                }
             }
         }
 
         private boolean shouldShowLyricInCurrentState() {
+            return shouldShowLyricNow() && shouldShowNotificationIcons();
+        }
+
+        private boolean shouldShowNotificationIcons() {
             StatusBarVisibilityModel visibilityModel = mLastModifiedVisibility;
             boolean disableNotifications = !visibilityModel.getShowNotificationIcons();
             boolean hasOngoingActivity =

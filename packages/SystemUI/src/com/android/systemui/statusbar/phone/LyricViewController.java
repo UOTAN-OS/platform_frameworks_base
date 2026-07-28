@@ -74,8 +74,15 @@ public abstract class LyricViewController implements
     private boolean mShowOnClockRight;
     private boolean mShowTranslation;
     private boolean mHideIconOnClockRight;
+    private boolean mTemporarilyHidden;
+
+    private final Runnable mRestoreLyricRunnable = () -> {
+        mTemporarilyHidden = false;
+        showLyricView(true);
+    };
 
     private String mCurrentNotificationPackage = null;
+    private CharSequence mCurrentLyricText;
     private CharSequence mCurrentTranslatedText;
     private int mCurrentNotificationId;
 
@@ -114,8 +121,11 @@ public abstract class LyricViewController implements
 
         View.OnTouchListener touchListener = (v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                mOverlayLyricViewHolder.mLyricContainer.removeCallbacks(mRestoreLyricRunnable);
+                mTemporarilyHidden = true;
                 hideLyricView(true);
-                v.postDelayed(() -> showLyricView(true), HIDE_LYRIC_DELAY);
+                mOverlayLyricViewHolder.mLyricContainer.postDelayed(
+                        mRestoreLyricRunnable, HIDE_LYRIC_DELAY);
             }
             return false;
         };
@@ -185,6 +195,10 @@ public abstract class LyricViewController implements
 
     protected final boolean isClockRightMode() {
         return mShowOnClockRight && mInlineLyricViewHolder != null;
+    }
+
+    protected final boolean shouldShowLyricNow() {
+        return mStarted && !mTemporarilyHidden;
     }
 
     @Override
@@ -276,6 +290,8 @@ public abstract class LyricViewController implements
     public void stopLyric() {
         if (mStarted) {
             mStarted = false;
+            mTemporarilyHidden = false;
+            mOverlayLyricViewHolder.mLyricContainer.removeCallbacks(mRestoreLyricRunnable);
             hideLyricView(true);
             mCurrentNotificationPackage = null;
             mCurrentNotificationId = 0;
@@ -403,12 +419,23 @@ public abstract class LyricViewController implements
     }
 
     private void setTextForAllHolders(CharSequence text, CharSequence translatedText) {
+        boolean lyricChanged = !TextUtils.equals(mCurrentLyricText, text);
+        boolean translationChanged = !TextUtils.equals(mCurrentTranslatedText, translatedText);
+        mCurrentLyricText = text;
         mCurrentTranslatedText = translatedText;
-        mOverlayLyricViewHolder.mTextSwitcher.setText(text);
-        setSubtitle(mOverlayLyricViewHolder, getVisibleTranslatedText());
+        if (lyricChanged) {
+            mOverlayLyricViewHolder.mTextSwitcher.setText(text);
+        }
+        if (translationChanged) {
+            setSubtitle(mOverlayLyricViewHolder, getVisibleTranslatedText());
+        }
         if (mInlineLyricViewHolder != null) {
-            mInlineLyricViewHolder.mTextSwitcher.setText(text);
-            setSubtitle(mInlineLyricViewHolder, getVisibleTranslatedText());
+            if (lyricChanged) {
+                mInlineLyricViewHolder.mTextSwitcher.setText(text);
+            }
+            if (translationChanged) {
+                setSubtitle(mInlineLyricViewHolder, getVisibleTranslatedText());
+            }
         }
         postApplyTextTint();
     }
