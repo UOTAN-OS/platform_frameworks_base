@@ -357,7 +357,7 @@ aidl_interface {
     ],
     defaults: ["android.hardware.security.keymint-latest-defaults"],
     imports: [
-        "android.hardware.security.keymint-V4",
+        "android.hardware.security.keymint-V5",
     ],
     unstable: true,
     backend: {
