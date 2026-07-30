@@ -62,6 +62,7 @@ import com.android.systemui.navigationbar.NavigationBarControllerModule;
 import com.android.systemui.navigationbar.gestural.GestureModule;
 import com.android.systemui.plugins.qs.QSFactory;
 import com.android.systemui.power.dagger.PowerModule;
+import com.android.systemui.prism.PrismGestureModule;
 import com.android.systemui.qs.QSFragmentStartableModule;
 import com.android.systemui.qs.dagger.QSModule;
 import com.android.systemui.qs.tileimpl.QSFactoryImpl;
@@ -161,6 +162,7 @@ import javax.inject.Provider;
         NearbyMediaDevicesManager.StartableModule.class,
         NoOpActivityRecognitionModule.class,
         PowerModule.class,
+        PrismGestureModule.class,
         QSFragmentStartableModule.class,
         QSModule.class,
         RearDisplayModule.class,
