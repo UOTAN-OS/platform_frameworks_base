@@ -75,7 +75,7 @@ public class QSIconViewImpl extends QSIconView {
         super(context);
 
         final Resources res = context.getResources();
-        mIconSizePx = res.getDimensionPixelSize(R.dimen.qs_icon_size);
+        mIconSizePx = getIconSizePx(res);
 
         if (qsNewTiles()) { // pre-load icon tint colors
             mColorUnavailable = Utils.getColorAttrDefaultColor(context, R.attr.outline);
@@ -91,11 +91,19 @@ public class QSIconViewImpl extends QSIconView {
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
-        mIconSizePx = getContext().getResources().getDimensionPixelSize(R.dimen.qs_icon_size);
+        mIconSizePx = getIconSizePx(getContext().getResources());
     }
 
     public void disableAnimation() {
         mAnimationEnabled = false;
+    }
+
+    private int getIconSizePx(Resources resources) {
+        if (!com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                && resources.getConfiguration().smallestScreenWidthDp >= 720) {
+            return resources.getDimensionPixelSize(R.dimen.a11_qs_icon_size);
+        }
+        return resources.getDimensionPixelSize(R.dimen.qs_icon_size);
     }
 
     public View getIconView() {
@@ -240,6 +248,12 @@ public class QSIconViewImpl extends QSIconView {
     public void setTint(ImageView iv, int color) {
         iv.setImageTintList(ColorStateList.valueOf(color));
         mTint = color;
+    }
+
+    /** Applies a tint without allowing a pending state animation to overwrite it afterwards. */
+    public void setTintImmediately(ImageView iv, int color) {
+        mColorAnimator.cancel();
+        setTint(iv, color);
     }
 
     protected int getIconMeasureMode() {

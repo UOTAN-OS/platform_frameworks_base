@@ -15,10 +15,25 @@
      limitations under the License.
 -->
 
-<FrameLayout
+<com.android.systemui.qs.customize.A11ResizeFrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_height="wrap_content"
     android:layout_width="match_parent"
     android:layout_marginTop="@dimen/qs_tile_margin_top_bottom"
     android:layout_marginBottom="@dimen/qs_tile_margin_top_bottom"
-    android:gravity="center" />
+    android:gravity="center">
+
+    <ImageView
+        android:id="@id/a11_qs_resize_handle"
+        android:layout_width="@dimen/a11_qs_resize_handle_touch_size"
+        android:layout_height="@dimen/a11_qs_resize_handle_touch_size"
+        android:layout_gravity="end|bottom"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="24dp"
+        android:padding="15dp"
+        android:background="@drawable/a11_qs_resize_handle_background"
+        android:src="@drawable/ic_a11_qs_resize_handle"
+        android:contentDescription="@string/accessibility_qs_edit_resize_handle"
+        android:visibility="gone" />
+</com.android.systemui.qs.customize.A11ResizeFrameLayout>

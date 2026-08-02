@@ -26,6 +26,7 @@ import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
 import com.android.systemui.tuner.TunerService
+import com.android.systemui.volume.VolumeDialogController
 import com.google.common.truth.Truth.assertThat
 import javax.inject.Provider
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,7 @@ class QSPanelControllerTest : SysuiTestCase() {
     @Mock private lateinit var brightnessController: BrightnessController
     @Mock private lateinit var brightnessSlider: BrightnessSliderController
     @Mock private lateinit var brightnessSliderFactory: BrightnessSliderController.Factory
+    @Mock private lateinit var volumeDialogController: VolumeDialogController
     @Mock private lateinit var falsingManager: FalsingManager
     @Mock private lateinit var mediaHost: MediaHost
     @Mock private lateinit var tile: QSTile
@@ -107,6 +109,7 @@ class QSPanelControllerTest : SysuiTestCase() {
                 qsLogger,
                 brightnessControllerFactory,
                 brightnessSliderFactory,
+                volumeDialogController,
                 falsingManager,
                 statusBarKeyguardViewManager,
                 ResourcesSplitShadeStateController(),

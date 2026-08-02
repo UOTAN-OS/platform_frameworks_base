@@ -24,6 +24,7 @@ import com.android.systemui.plugins.annotations.ProvidesInterface;
  */
 @ProvidesInterface(action = VolumeDialog.ACTION, version = VolumeDialog.VERSION)
 @DependsOn(target = Callback.class)
+@DependsOn(target = VolumeDialogSafetyController.class)
 public interface VolumeDialog extends Plugin {
     String ACTION = "com.android.systemui.action.PLUGIN_VOLUME";
     String ACTION_VOLUME_UNDO = "com.android.systemui.volume.ACTION_VOLUME_UNDO";

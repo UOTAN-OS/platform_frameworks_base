@@ -1091,7 +1091,7 @@
     <string name="left_icon" msgid="5036278531966897006">"向左图标"</string>
     <string name="right_icon" msgid="1103955040645237425">"向右图标"</string>
     <string name="drag_to_add_tiles" msgid="8933270127508303672">"按住并拖动即可添加功能块"</string>
-    <string name="drag_to_rearrange_tiles" msgid="2143204300089638620">"按住并拖动即可重新排列功能块"</string>
+    <string name="drag_to_rearrange_tiles" msgid="2143204300089638620">"轻触调整大小，按住并拖动可重新排列"</string>
     <string name="select_to_rearrange_tiles" msgid="6166153534235179148">"选择要重新排列和调整大小的功能块"</string>
     <string name="tap_to_remove_tiles" msgid="76564688376603718">"点按即可移除功能块"</string>
     <string name="resize_and_reorder_tiles" msgid="5530933353774871231">"调整布局尺寸和顺序"</string>
@@ -1724,4 +1724,7 @@
     <string name="pager_dots_next_content_description" msgid="613943992626163120">"下一页"</string>
     <string name="ambient_cue_autofill_action" msgid="9213025887835308128">"自动填充"</string>
     <string name="ambient_cue_expand_action" msgid="6803711089932959312">"展开"</string>
+    <string name="a11_qs_auto_brightness_label">自动亮度</string>
+    <string name="a11_qs_auto_brightness_on">自动</string>
+    <string name="a11_qs_auto_brightness_off">手动</string>
 </resources>

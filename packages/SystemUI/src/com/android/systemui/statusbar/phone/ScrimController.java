@@ -75,6 +75,7 @@ import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerToGoneTransiti
 import com.android.systemui.keyguard.ui.viewmodel.LockscreenToDreamingTransitionViewModel;
 import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToDreamingTransitionViewModel;
 import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToGoneTransitionViewModel;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.scene.shared.model.Scenes;
@@ -1692,10 +1693,18 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     }
 
     private int getNotificationsScrimColor() {
+        // Keep all AOSP scrim bounds, roundness and alpha animations. The A11 style only replaces
+        // the surface color so notifications remain subtly lighter than the QS background.
+        if (!QSComposeFragment.isEnabled()) {
+            return mContext.getColor(R.color.a11_notification_background);
+        }
         return ShadeColors.notificationScrim(mContext, isBlurCurrentlySupported());
     }
 
     private int getShadePanelColor() {
+        if (!QSComposeFragment.isEnabled()) {
+            return mContext.getColor(R.color.a11_qs_background);
+        }
         return ShadeColors.shadePanel(mContext, isBlurCurrentlySupported(), true);
     }
 

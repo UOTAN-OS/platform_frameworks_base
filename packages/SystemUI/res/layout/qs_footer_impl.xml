@@ -76,7 +76,7 @@
                     android:focusable="true"
                     android:padding="@dimen/qs_footer_icon_padding"
                     android:src="@*android:drawable/ic_mode_edit"
-                    android:tint="?attr/onSurfaceVariant" />
+                    android:tint="@color/qs_footer_edit_icon_color" />
             </FrameLayout>
 
         </LinearLayout>

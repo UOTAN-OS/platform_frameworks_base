@@ -18,9 +18,11 @@
   -->
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+    <color name="a11_qs_background">#FF151318</color>
+    <color name="a11_notification_background">#FF1D1B20</color>
+    <color name="a11_notification_card_background">#FF2B2930</color>
     <!-- The dark background color behind the shade -->
     <color name="shade_scrim_background_dark">@androidprv:color/system_under_surface_dark</color>
-
     <!-- The main FG tint for shade header items -->
     <!-- Only applicable when com.android.systemui.shade_header_blur_font_color is enabled -->
     <color name="shade_header_text_color" android:featureFlag="com.android.systemui.shade_header_blur_font_color">#FFFFFFFF</color>
@@ -140,4 +142,7 @@
 
     <!-- Keyboard shortcut helper dialog -->
     <color name="ksh_key_item_color">@*android:color/system_on_surface_variant_dark</color>
+
+    <!-- Preserve the existing Material theme color in dark mode. -->
+    <color name="qs_footer_edit_icon_color">@android:color/white</color>
 </resources>

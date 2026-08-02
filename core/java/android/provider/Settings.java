@@ -12668,6 +12668,24 @@ public final class Settings {
         @Readable(maxTargetSdk = VERSION_CODES.TIRAMISU)
         public static final String QS_TILES = "sysui_qs_tiles";
 
+        /** Requested Quick Settings UI style: 0 for A11, 1 for A16. @hide */
+        public static final String QS_UI_STYLE = "qs_ui_style";
+
+        /** Last successfully applied Quick Settings UI style. @hide */
+        public static final String QS_UI_STYLE_APPLIED = "qs_ui_style_applied";
+
+        /** A11-specific Quick Settings tile order. @hide */
+        public static final String QS_TILES_A11 = "qs_tiles_a11";
+
+        /** A16-specific Quick Settings tile order. @hide */
+        public static final String QS_TILES_A16 = "qs_tiles_a16";
+
+        /** Versioned JSON containing A11 tile spans. @hide */
+        public static final String QS_TILE_LAYOUT_A11 = "qs_tile_layout_a11";
+
+        /** Recoverable Quick Settings style switch state. @hide */
+        public static final String QS_UI_STYLE_SWITCH_STATE = "qs_ui_style_switch_state";
+
         /**
          * Whether this user has enabled Quick controls.
          *

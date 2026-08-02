@@ -53,4 +53,9 @@ interface QSFragmentStartableModule {
     @IntoMap
     @ClassKey(QSFragmentStartable::class)
     fun bindsQSFragmentStartable(startable: QSFragmentStartable): CoreStartable
+
+    @Binds
+    @IntoMap
+    @ClassKey(QSStyleController::class)
+    fun bindsQSStyleController(controller: QSStyleController): CoreStartable
 }

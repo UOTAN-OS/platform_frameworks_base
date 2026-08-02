@@ -17,14 +17,21 @@
 package com.android.systemui.settings.brightness;
 
 import android.content.Context;
+import android.content.res.Configuration;
+import android.database.ContentObserver;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.DrawableWrapper;
+import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
 import android.util.AttributeSet;
+import android.os.Handler;
+import android.os.UserHandle;
+import android.provider.Settings;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageButton;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 
 import androidx.annotation.Keep;
@@ -33,6 +40,7 @@ import androidx.annotation.Nullable;
 
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.res.R;
+import com.android.settingslib.Utils;
 
 import java.util.Collections;
 
@@ -50,6 +58,14 @@ public class BrightnessSliderView extends FrameLayout {
     protected Drawable mProgressDrawable;
     protected float mScale = 1f;
     private final Rect mSystemGestureExclusionRect = new Rect();
+    private final Rect mSliderBounds = new Rect();
+    private ImageButton mAutoBrightness;
+    private final ContentObserver mBrightnessObserver = new ContentObserver(new Handler()) {
+        @Override
+        public void onChange(boolean selfChange) {
+            updateAutoBrightnessButton();
+        }
+    };
 
     public BrightnessSliderView(Context context) {
         this(context, null);
@@ -70,7 +86,12 @@ public class BrightnessSliderView extends FrameLayout {
 
     protected void initBrightnessViewComponents() {
         mSlider = requireViewById(R.id.slider);
+        mAutoBrightness = requireViewById(R.id.auto_brightness);
         mSlider.setAccessibilityLabel(getContentDescription().toString());
+        // The expanded QS panel can detach/re-attach this view while finishing its expansion
+        // animation. Do not post the toggle to the view: a queued callback can be dropped when
+        // that happens, leaving the button looking as if it ignored the tap.
+        mAutoBrightness.setOnClickListener(v -> toggleAutoBrightness());
         setBoundaryOffset();
 
         // Finds the progress drawable. Assumes brightness_progress_drawable.xml
@@ -83,6 +104,77 @@ public class BrightnessSliderView extends FrameLayout {
         } catch (Exception e) {
             // Nothing to do, mProgressDrawable will be null.
         }
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        getContext().getContentResolver().registerContentObserver(
+                Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS_MODE),
+                false, mBrightnessObserver, UserHandle.USER_ALL);
+        updateAutoBrightnessButton();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        getContext().getContentResolver().unregisterContentObserver(mBrightnessObserver);
+        super.onDetachedFromWindow();
+    }
+
+    @Override
+    protected void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        updateAutoBrightnessButton();
+    }
+
+    private void toggleAutoBrightness() {
+        boolean enabled = isAutoBrightnessEnabled();
+        Settings.System.putIntForUser(getContext().getContentResolver(),
+                Settings.System.SCREEN_BRIGHTNESS_MODE,
+                enabled ? Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
+                        : Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC,
+                UserHandle.USER_CURRENT);
+        updateAutoBrightnessButton();
+    }
+
+    private boolean isAutoBrightnessEnabled() {
+        return Settings.System.getIntForUser(getContext().getContentResolver(),
+                Settings.System.SCREEN_BRIGHTNESS_MODE,
+                Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+                UserHandle.USER_CURRENT) == Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC;
+    }
+
+    private void updateAutoBrightnessButton() {
+        if (mAutoBrightness == null) return;
+        boolean available = getResources().getBoolean(
+                com.android.internal.R.bool.config_automatic_brightness_available);
+        boolean enabled = isAutoBrightnessEnabled();
+        mAutoBrightness.setEnabled(true);
+        mAutoBrightness.setClickable(true);
+        mAutoBrightness.setVisibility(available ? VISIBLE : GONE);
+        mAutoBrightness.setImageResource(enabled
+                ? R.drawable.ic_qs_brightness_auto_on
+                : R.drawable.ic_brightness_medium);
+        int backgroundColor = enabled
+                ? Utils.getColorAttrDefaultColor(getContext(), R.attr.shadeActive)
+                : isNightMode()
+                        ? Utils.getColorAttrDefaultColor(getContext(), R.attr.shadeInactive)
+                        : getContext().getColor(R.color.a11_qs_inactive_background);
+        int iconColor = enabled
+                ? Utils.getColorAttrDefaultColor(getContext(), R.attr.onShadeActive)
+                : getResources().getColor(
+                        com.android.internal.R.color.materialColorOnSurface, getContext().getTheme());
+        GradientDrawable background = new GradientDrawable();
+        background.setShape(GradientDrawable.OVAL);
+        background.setColor(backgroundColor);
+        mAutoBrightness.setBackground(background);
+        mAutoBrightness.setColorFilter(iconColor);
+        mAutoBrightness.setActivated(enabled);
+    }
+
+    private boolean isNightMode() {
+        return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                == Configuration.UI_MODE_NIGHT_YES;
     }
 
     protected void setBoundaryOffset() {
@@ -107,7 +199,11 @@ public class BrightnessSliderView extends FrameLayout {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (mListener != null) {
+        // Brightness mirroring is only intended for the seek bar. Forwarding touches from the
+        // adjacent auto-brightness button also clicks the mirror's copy of that button, toggling
+        // the setting twice while QS is fully expanded.
+        mSlider.getHitRect(mSliderBounds);
+        if (mListener != null && mSliderBounds.contains((int) ev.getX(), (int) ev.getY())) {
             mListener.onDispatchTouchEvent(ev);
         }
         return super.dispatchTouchEvent(ev);
@@ -237,4 +333,3 @@ public class BrightnessSliderView extends FrameLayout {
         boolean onDispatchTouchEvent(MotionEvent ev);
     }
 }
-

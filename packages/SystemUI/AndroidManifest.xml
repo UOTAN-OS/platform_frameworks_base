@@ -411,6 +411,9 @@
     <!-- To be able to decipher default applications for certain roles in shortcut helper -->
     <uses-permission android:name="android.permission.MANAGE_DEFAULT_APPLICATIONS" />
 
+    <!-- Persist the selected Lineage Quick Settings backend and its per-style layout. -->
+    <uses-permission android:name="lineageos.permission.WRITE_SECURE_SETTINGS" />
+
     <!-- To be able to set unrestricted system gesture exclusion rects -->
     <uses-permission android:name="android.permission.SET_UNRESTRICTED_GESTURE_EXCLUSION"/>
 

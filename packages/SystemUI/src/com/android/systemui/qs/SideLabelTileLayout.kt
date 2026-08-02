@@ -20,6 +20,7 @@ import android.content.Context
 import android.util.AttributeSet
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.RefactorFlag
+import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.res.R
 
 open class SideLabelTileLayout(
@@ -54,7 +55,7 @@ open class SideLabelTileLayout(
     }
 
     override fun useSidePadding(): Boolean {
-        return false
+        return !QSComposeFragment.isEnabled
     }
 
     /**

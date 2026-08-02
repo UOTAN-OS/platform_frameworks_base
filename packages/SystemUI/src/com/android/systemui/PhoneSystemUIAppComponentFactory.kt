@@ -19,5 +19,8 @@ package com.android.systemui
 import android.content.Context
 
 class PhoneSystemUIAppComponentFactory : SystemUIAppComponentFactoryBase() {
-    override fun createSystemUIInitializer(context: Context) = SystemUIInitializerImpl(context)
+    override fun createSystemUIInitializer(context: Context): SystemUIInitializer {
+        com.android.systemui.qs.flags.QSStyleRuntime.initialize(context)
+        return SystemUIInitializerImpl(context)
+    }
 }

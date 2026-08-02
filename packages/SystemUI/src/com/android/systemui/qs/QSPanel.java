@@ -124,7 +124,9 @@ public class QSPanel extends LinearLayout implements Tunable {
         mMediaTotalBottomMargin = getResources().getDimensionPixelSize(
                 R.dimen.quick_settings_bottom_margin_media);
         mMediaTopMargin = getResources().getDimensionPixelSize(
-                R.dimen.qs_tile_margin_vertical);
+                !com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                        ? R.dimen.a11_qqs_media_top_margin
+                        : R.dimen.qs_tile_margin_vertical);
         mContext = context;
 
         setOrientation(VERTICAL);
@@ -216,6 +218,23 @@ public class QSPanel extends LinearLayout implements Tunable {
         mMovableContentStartIndex++;
     }
 
+    public void updateBrightnessView(boolean visible, boolean atTop) {
+        if (mBrightnessView == null) return;
+        mBrightnessView.setVisibility(visible ? VISIBLE : GONE);
+        int targetIndex = atTop ? 0 : indexOfChild((View) mTileLayout) + 1;
+        if (targetIndex < 0) targetIndex = getChildCount();
+        if (indexOfChild(mBrightnessView) != targetIndex) {
+            removeView(mBrightnessView);
+            addView(mBrightnessView, Math.min(targetIndex, getChildCount()));
+        }
+        setBrightnessViewMargin();
+    }
+
+    /** Places the A11 tablet brightness control above the tile grid. */
+    public void updateA11PadControls(boolean visible) {
+        updateBrightnessView(visible, true);
+    }
+
     private void setBrightnessViewMargin() {
         if (mBrightnessView != null) {
             MarginLayoutParams lp = (MarginLayoutParams) mBrightnessView.getLayoutParams();
@@ -226,6 +245,11 @@ public class QSPanel extends LinearLayout implements Tunable {
                     .getDimensionPixelSize(R.dimen.qs_brightness_margin_top) - offset;
             lp.bottomMargin = mContext.getResources()
                     .getDimensionPixelSize(R.dimen.qs_brightness_margin_bottom) - offset;
+            if (!com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                    && getResources().getConfiguration().smallestScreenWidthDp >= 720) {
+                lp.bottomMargin += getResources()
+                        .getDimensionPixelSize(R.dimen.a11_qs_tile_gap_vertical) / 2;
+            }
             mBrightnessView.setLayoutParams(lp);
         }
     }
@@ -350,9 +374,6 @@ public class QSPanel extends LinearLayout implements Tunable {
 
     @Override
     public void onTuningChanged(String key, String newValue) {
-        if (QS_SHOW_BRIGHTNESS.equals(key) && mBrightnessView != null) {
-            updateViewVisibilityForTuningValue(mBrightnessView, newValue);
-        }
     }
 
     private void updateViewVisibilityForTuningValue(View view, @Nullable String newValue) {
@@ -626,7 +647,14 @@ public class QSPanel extends LinearLayout implements Tunable {
         if (mUsingMediaPlayer) {
             int marginStart = 0;
             int marginEnd = 0;
-            if (mUsingHorizontalLayout) {
+            if (!com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                    && getResources().getConfiguration().orientation
+                            == android.content.res.Configuration.ORIENTATION_PORTRAIT) {
+                // The A11 QS frame already owns the shared inset used by tiles, media and
+                // notifications. Do not apply it a second time to the media host.
+                marginStart = 0;
+                marginEnd = 0;
+            } else if (mUsingHorizontalLayout) {
                 marginEnd = mContentMarginEnd;
             }
             updateMargins(mediaHostView, marginStart, marginEnd);
@@ -682,7 +710,11 @@ public class QSPanel extends LinearLayout implements Tunable {
 
     void setColumnRowLayout(boolean withMedia) {
         mTileLayout.setMinRows(withMedia ? 2 : 1);
-        mTileLayout.setMaxColumns(withMedia ? 2 : 4);
+        final boolean a11Pad = !com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                && getResources().getConfiguration().smallestScreenWidthDp >= 720;
+        mTileLayout.setMaxColumns(a11Pad
+                ? getResources().getInteger(R.integer.a11_qs_num_columns)
+                : (withMedia ? 2 : 4));
         placeTileLayoutForScene(withMedia);
     }
 

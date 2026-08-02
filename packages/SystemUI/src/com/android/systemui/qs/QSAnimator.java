@@ -34,6 +34,7 @@ import com.android.systemui.plugins.qs.QSTileView;
 import com.android.systemui.qs.QSPanel.QSTileLayout;
 import com.android.systemui.qs.TouchAnimator.Builder;
 import com.android.systemui.qs.dagger.QSScope;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.qs.tileimpl.HeightOverrideable;
 import com.android.systemui.tuner.TunerService;
 import com.android.systemui.util.concurrency.DelayableExecutor;
@@ -315,6 +316,17 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
 
                 View view = mQsRootView;
 
+                // A11 vertical sliders are expanded-only controls. They intentionally do not
+                // expose the icon/label/secondary-icon subviews used by the regular tile
+                // morph. Keep them out of the QQS matching animation and reveal the complete
+                // capsule with the other expanded-only content instead.
+                if (A11TileLayoutSpec.isSlider(tile.getTileSpec())) {
+                    firstPageBuilder.addFloat(tileView, "alpha", 0, 1);
+                    mAllViews.add(tileView);
+                    count++;
+                    continue;
+                }
+
                 // This case: less tiles to animate in small displays.
                 if (count < mQuickQSPanelController.getTileLayout().getNumVisibleTiles()) {
                     // Quick tiles.
@@ -344,8 +356,8 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
 
                     // Icons
                     translateContent(
-                            quickTileView.getIcon(),
-                            tileView.getIcon(),
+                            quickTileView.getIconWithBackground(),
+                            tileView.getIconWithBackground(),
                             view,
                             xOffset,
                             yOffset,
@@ -386,14 +398,23 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
                     // * on TileLayout
                     // Therefore, we use a quadratic interpolator animator to animate the alpha
                     // for tiles in QQS to match.
-                    quadraticInterpolatorBuilder
-                            .addFloat(quickTileView.getSecondaryLabel(), "alpha", 0, 1);
-                    nonFirstPageAlphaBuilder
-                            .addFloat(quickTileView.getSecondaryLabel(), "alpha", 0, 0);
+                    if (QSComposeFragment.isEnabled()) {
+                        quadraticInterpolatorBuilder
+                                .addFloat(quickTileView.getLabelContainer(), "alpha", 0, 1);
+                        nonFirstPageAlphaBuilder
+                                .addFloat(quickTileView.getLabelContainer(), "alpha", 0, 0);
+                    } else {
+                        // A11 wide QQS tiles keep their short label visible. Labels for round
+                        // tiles are GONE, so this only affects the 2x1 capsules.
+                        quadraticInterpolatorBuilder
+                                .addFloat(quickTileView.getLabelContainer(), "alpha", 1, 1);
+                        nonFirstPageAlphaBuilder
+                                .addFloat(quickTileView.getLabelContainer(), "alpha", 1, 0);
+                    }
 
                     mAnimatedQsViews.add(tileView);
                     mAllViews.add(quickTileView);
-                    mAllViews.add(quickTileView.getSecondaryLabel());
+                    mAllViews.add(quickTileView.getLabelContainer());
                 } else if (!isIconInAnimatedRow(count)) {
                     // Pretend there's a corresponding QQS tile (for the position) that we are
                     // expanding from.
@@ -410,10 +431,10 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
                                         this, mLastQQSTileHeight, tileView.getMeasuredHeight());
                     }
                     mOtherFirstPageTilesHeightAnimator.addView(tileView);
-                    tileView.setClipChildren(true);
-                    tileView.setClipToPadding(true);
-                    firstPageBuilder.addFloat(tileView.getSecondaryLabel(), "alpha", 0, 1);
-                    mAllViews.add(tileView.getSecondaryLabel());
+                    tileView.setClipChildren(QSComposeFragment.isEnabled());
+                    tileView.setClipToPadding(QSComposeFragment.isEnabled());
+                    firstPageBuilder.addFloat(tileView.getLabelContainer(), "alpha", 0, 1);
+                    mAllViews.add(tileView.getLabelContainer());
                 }
 
                 mAllViews.add(tileView);
@@ -481,11 +502,8 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
         View view = mQsRootView;
         List<String> specs = mPagedLayout.getSpecsForPage(page);
         if (specs.isEmpty()) {
-            // specs should not be empty in a valid secondary page, as we scrolled to it.
-            // We may crash later on because there's a null animator.
-            specs = mHost.getSpecs();
             Log.e(TAG, "Trying to create animators for empty page " + page + ". Tiles: " + specs);
-            // return null;
+            return null;
         }
 
         int row = -1;
@@ -493,12 +511,34 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
 
         for (int i = 0; i < specs.size(); i++) {
             QSTileView tileView = mQsPanelController.getTileView(specs.get(i));
+            // A page change can race a tile redistribution during rotation. In that short window
+            // the page still reports an old spec while QSPanelController has already rebuilt its
+            // view map. Never hand a null target to TouchAnimator; the next layout/host callback
+            // recreates the page animator from the stable mapping.
+            if (tileView == null) {
+                Log.w(TAG, "Missing tile view for " + specs.get(i) + " on page " + page);
+                continue;
+            }
             getRelativePosition(mTmpLoc2, tileView, view);
             int diff = mTmpLoc2[1] - (mQQSTop + qqsLayout.getPhantomTopPosition(i));
             builder.addFloat(tileView, "translationY", -diff, 0);
+            if (A11TileLayoutSpec.isSlider(specs.get(i))) {
+                // Expanded-only vertical sliders do not have the regular tile label and
+                // secondary-icon views. Animate the complete capsule and never pass their null
+                // accessors to TouchAnimator when a slider is packed onto a secondary page.
+                builder.addFloat(tileView, "alpha", 0.6f, 1f);
+                if (animator == null) {
+                    animator = new HeightExpansionAnimator(
+                            this, mLastQQSTileHeight, tileView.getMeasuredHeight());
+                    animator.setInterpolator(mQSExpansionPathInterpolator.getYInterpolator());
+                }
+                animator.addView(tileView);
+                mAllViews.add(tileView);
+                continue;
+            }
             // The different elements in the tile should be centered, so maintain them centered
             int centerDiff = (tileView.getMeasuredHeight() - mLastQQSTileHeight) / 2;
-            builder.addFloat(tileView.getIcon(), "translationY", -centerDiff, 0);
+            builder.addFloat(tileView.getIconWithBackground(), "translationY", -centerDiff, 0);
             builder.addFloat(tileView.getSecondaryIcon(), "translationY", -centerDiff, 0);
             // The labels have different apparent size in QQS vs QS (no secondary label), so the
             // translation needs to account for that.
@@ -511,7 +551,7 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
             builder.addFloat(tileView.getSecondaryLabel(), "alpha", 0, 0.3f, 1);
 
             alphaDelayedBuilder.addFloat(tileView.getLabelContainer(), "alpha", 0, 1);
-            alphaDelayedBuilder.addFloat(tileView.getIcon(), "alpha", 0, 1);
+            alphaDelayedBuilder.addFloat(tileView.getIconWithBackground(), "alpha", 0, 1);
             alphaDelayedBuilder.addFloat(tileView.getSecondaryIcon(), "alpha", 0, 1);
 
             final int tileTop = tileView.getTop();
@@ -538,13 +578,19 @@ public class QSAnimator implements QSHost.Callback, PagedTileLayout.PageListener
             }
             animator.addView(tileView);
 
-            tileView.setClipChildren(true);
-            tileView.setClipToPadding(true);
+            // The A11 long-press effect grows its drawable outside iconContainer. Clipping the
+            // secondary-page tile to its resting bounds slices the round corners into diagonal
+            // edges, which looks like an octagon/rectangle.
+            tileView.setClipChildren(QSComposeFragment.isEnabled());
+            tileView.setClipToPadding(QSComposeFragment.isEnabled());
             mAllViews.add(tileView);
             mAllViews.add(tileView.getSecondaryLabel());
-            mAllViews.add(tileView.getIcon());
+            mAllViews.add(tileView.getIconWithBackground());
             mAllViews.add(tileView.getSecondaryIcon());
             mAllViews.add(tileView.getLabelContainer());
+        }
+        if (animator == null) {
+            return null;
         }
         builder.addFloat(alphaDelayedBuilder.build(), "position", 0, 1);
         return new Pair<>(animator, builder.build());

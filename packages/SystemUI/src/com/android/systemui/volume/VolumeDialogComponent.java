@@ -35,6 +35,7 @@ import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.PluginDependencyProvider;
 import com.android.systemui.plugins.VolumeDialog;
 import com.android.systemui.plugins.VolumeDialogController;
+import com.android.systemui.plugins.VolumeDialogSafetyController;
 import com.android.systemui.statusbar.policy.ExtensionController;
 import com.android.systemui.tuner.TunerService;
 
@@ -82,6 +83,7 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
             VolumeDialogControllerImpl volumeDialogController,
             DemoModeController demoModeController,
             PluginDependencyProvider pluginDependencyProvider,
+            VolumeDialogSafetyControllerImpl safetyController,
             ExtensionController extensionController,
             TunerService tunerService,
             VolumeDialog volumeDialog) {
@@ -92,6 +94,8 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
         mController.setUserActivityListener(this);
         // Allow plugins to reference the VolumeDialogController.
         pluginDependencyProvider.allowPluginDependency(VolumeDialogController.class);
+        pluginDependencyProvider.allowPluginDependency(
+                VolumeDialogSafetyController.class, safetyController);
         extensionController.newExtension(VolumeDialog.class)
                 .withPlugin(VolumeDialog.class)
                 .withDefault(() -> volumeDialog)

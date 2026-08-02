@@ -22,11 +22,15 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
+import android.provider.Settings;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.View.OnLayoutChangeListener;
 import android.view.ViewGroup;
+import android.view.ViewConfiguration;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
@@ -44,10 +48,12 @@ import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 
 import com.android.internal.logging.UiEventLogger;
 import com.android.systemui.FontSizeUtils;
+import com.android.app.animation.Interpolators;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.flags.Flags;
 import com.android.systemui.qs.QSEditEvent;
 import com.android.systemui.qs.QSHost;
+import com.android.systemui.qs.A11TileLayoutSpec;
 import com.android.systemui.qs.TileLayout;
 import com.android.systemui.qs.customize.TileAdapter.Holder;
 import com.android.systemui.qs.customize.TileQueryHelper.TileInfo;
@@ -59,17 +65,21 @@ import com.android.systemui.qs.tileimpl.QSTileViewImpl;
 import com.android.systemui.res.R;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import javax.inject.Inject;
+
+import org.json.JSONObject;
 
 /** */
 @QSScope
 public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileStateListener {
     private static final long DRAG_LENGTH = 100;
     private static final float DRAG_SCALE = 1.2f;
-    public static final long MOVE_DURATION = 150;
+    public static final long MOVE_DURATION = 220;
 
     private static final int TYPE_TILE = 0;
     private static final int TYPE_EDIT = 1;
@@ -84,14 +94,14 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
     private static final int ACTION_ADD = 1;
     private static final int ACTION_MOVE = 2;
 
-    private static final int NUM_COLUMNS_ID = R.integer.quick_settings_num_columns;
+    private static final int NUM_COLUMNS_ID = R.integer.a11_qs_num_columns;
 
     private final Context mContext;
 
     private final Handler mHandler = new Handler();
     private final List<TileInfo> mTiles = new ArrayList<>();
     private final ItemTouchHelper mItemTouchHelper;
-    private ItemDecoration mDecoration;
+    private final TileItemDecoration mDecoration;
     private final MarginTileDecoration mMarginDecoration;
     private final int mMinNumTiles;
     private final QSHost mHost;
@@ -116,6 +126,9 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
     @Nullable
     private RecyclerView mRecyclerView;
     private int mNumColumns;
+    @Nullable private String mSelectedResizeSpec;
+    private final Map<String, Integer> mPreviewColumnSpans = new HashMap<>();
+    private final Map<String, Integer> mPreviewRowSpans = new HashMap<>();
 
     private TextView mTempTextView;
     private int mMinTileViewHeight;
@@ -197,6 +210,12 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
         return mDecoration;
     }
 
+    /** Re-resolves editor colors after a light/dark configuration transition. */
+    public void updateTheme() {
+        mDecoration.reload(mContext);
+        notifyDataSetChanged();
+    }
+
     public ItemDecoration getMarginItemDecoration() {
         return mMarginDecoration;
     }
@@ -228,6 +247,10 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
 
     /** */
     public void resetTileSpecs(List<String> specs) {
+        Settings.Secure.putString(
+                mContext.getContentResolver(),
+                Settings.Secure.QS_TILE_LAYOUT_A11,
+                null);
         // Notify the host so the tiles get removed callbacks.
         mHost.changeTilesByUser(mCurrentSpecs, specs);
         setTileSpecs(specs);
@@ -252,6 +275,11 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
             return;
         }
         mOtherTiles = new ArrayList<TileInfo>(mAllTiles);
+        if (isA11Pad()) {
+            // Tablet QS owns brightness in its horizontal header. These pseudo-tiles are kept
+            // for the phone layout only; otherwise the editor treats them as two tall tiles.
+            mOtherTiles.removeIf(tile -> A11TileLayoutSpec.isSlider(tile.spec));
+        }
         mTiles.clear();
         mTiles.add(null);
         for (int i = 0; i < mCurrentSpecs.size(); i++) {
@@ -273,6 +301,11 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
         mTiles.addAll(mOtherTiles);
         updateDividerLocations();
         notifyDataSetChanged();
+    }
+
+    private boolean isA11Pad() {
+        return !com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                && mContext.getResources().getConfiguration().smallestScreenWidthDp >= 720;
     }
 
     @Nullable
@@ -323,7 +356,16 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
             frame.setClipChildren(false);
         }
         View view = new CustomizeTileView(context);
-        frame.addView(view);
+        frame.addView(view, 0);
+        // The handle is declared in the frame XML, but adding the tile dynamically can leave it
+        // below the tile's hardware layer while the editor is animating. Re-attach it last so it
+        // is always the top-most hit target as well as the top-most rendered child.
+        final View resizeHandle = frame.findViewById(R.id.a11_qs_resize_handle);
+        if (resizeHandle != null) {
+            frame.removeView(resizeHandle);
+            frame.addView(resizeHandle);
+        }
+        frame.setClipChildren(false);
         return new Holder(frame);
     }
 
@@ -427,6 +469,22 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
                 Objects.requireNonNull(
                         holder.getTileAsCustomizeView(), "The holder must have a tileView");
         tileView.changeState(info.state);
+        final int columnSpan = getColumnSpan(info.spec);
+        tileView.setA11ColumnSpan(columnSpan);
+        final int tileHeight = mContext.getResources()
+                .getDimensionPixelSize(R.dimen.a11_qs_tile_height);
+        final int gap = mContext.getResources().getDimensionPixelSize(R.dimen.a11_qs_tile_gap);
+        final int rowSpan = getRowSpan(info.spec);
+        tileView.setA11RowSpan(rowSpan);
+        final int previewHeight = tileHeight * rowSpan + gap * (rowSpan - 1);
+        holder.mTileView.setMinimumHeight(previewHeight);
+        final ViewGroup.LayoutParams tileParams = holder.mTileView.getLayoutParams();
+        tileParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        tileParams.height = previewHeight;
+        holder.mTileView.setLayoutParams(tileParams);
+        final ViewGroup.LayoutParams frameParams = holder.itemView.getLayoutParams();
+        frameParams.height = previewHeight;
+        holder.itemView.setLayoutParams(frameParams);
         tileView.setShowAppLabel(position > mEditIndex && !info.isSystem);
         // Don't show the side view for third party tiles, as we don't have the actual state.
         tileView.setShowSideView(position < mEditIndex || info.isSystem);
@@ -434,6 +492,12 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
         holder.mTileView.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
         holder.mTileView.setClickable(true);
         holder.mTileView.setOnClickListener(null);
+        holder.mTileView.setOnTouchListener(null);
+        if (position < mEditIndex && !A11TileLayoutSpec.isSlider(info.spec)) {
+            holder.mTileView.setOnClickListener(v -> selectResizeTile(info.spec));
+        }
+        holder.bindResizeHandle(info.spec,
+                position < mEditIndex && !A11TileLayoutSpec.isSlider(info.spec));
         holder.mTileView.setFocusable(true);
         holder.mTileView.setFocusableInTouchMode(true);
         holder.mTileView.setAccessibilityTraversalBefore(View.NO_ID);
@@ -614,6 +678,7 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
 
     public class Holder extends ViewHolder {
         @Nullable private QSTileViewImpl mTileView;
+        @Nullable private View mResizeHandle;
 
         public Holder(View itemView) {
             super(itemView);
@@ -622,7 +687,117 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
                 mTileView.getIcon().disableAnimation();
                 mTileView.setTag(this);
                 ViewCompat.setAccessibilityDelegate(mTileView, mAccessibilityDelegate);
+                mResizeHandle = itemView.findViewById(R.id.a11_qs_resize_handle);
             }
+        }
+
+        void bindResizeHandle(String spec, boolean resizable) {
+            if (mResizeHandle == null) return;
+            final A11ResizeFrameLayout resizeFrame = itemView instanceof A11ResizeFrameLayout
+                    ? (A11ResizeFrameLayout) itemView : null;
+            final boolean selected = resizable && Objects.equals(mSelectedResizeSpec, spec);
+            mResizeHandle.setVisibility(selected ? View.VISIBLE : View.GONE);
+            // Keep the full 48dp hit target visible; its padding limits the actual badge/glyph
+            // to the compact Android 16-style handle while avoiding foreground/hardware-layer
+            // ordering issues in RecyclerView.
+            mResizeHandle.setAlpha(1f);
+            mResizeHandle.setTranslationZ(mContext.getResources().getDisplayMetrics().density * 24f);
+            mResizeHandle.bringToFront();
+            itemView.invalidate();
+            itemView.setForeground(selected
+                    ? mContext.getDrawable(R.drawable.a11_qs_resize_outline)
+                    : null);
+            mResizeHandle.setOnTouchListener(null);
+            if (!selected) {
+                if (resizeFrame != null) resizeFrame.setResizeTouchListener(null);
+                return;
+            }
+
+            final float[] down = new float[2];
+            final int[] original = new int[2];
+            final int[] target = new int[2];
+            final View.OnTouchListener resizeTouchListener = (view, event) -> {
+                switch (event.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        down[0] = event.getRawX();
+                        down[1] = event.getRawY();
+                        original[0] = A11TileLayoutSpec.getColumnSpan(mContext, spec);
+                        original[1] = A11TileLayoutSpec.getRowSpan(mContext, spec);
+                        target[0] = original[0];
+                        target[1] = original[1];
+                        if (mRecyclerView != null) {
+                            mRecyclerView.getParent().requestDisallowInterceptTouchEvent(true);
+                        }
+                        return true;
+                    case MotionEvent.ACTION_MOVE:
+                        final float cellWidth = Math.max(1f,
+                                (mRecyclerView != null ? mRecyclerView.getWidth() : itemView.getWidth())
+                                        / (float) mNumColumns);
+                        final float cellHeight = Math.max(1f,
+                                mContext.getResources().getDimensionPixelSize(
+                                        R.dimen.a11_qs_tile_height)
+                                + mContext.getResources().getDimensionPixelSize(
+                                        R.dimen.a11_qs_tile_gap));
+                        final float nx = (event.getRawX() - down[0]) / cellWidth;
+                        final float ny = (event.getRawY() - down[1]) / cellHeight;
+                        int columns = original[0];
+                        int rows = original[1];
+                        if (Math.max(Math.abs(nx), Math.abs(ny)) >= 0.5f) {
+                            if (Math.abs(nx) >= Math.abs(ny)) {
+                                columns = nx > 0 ? 2 : 1;
+                                rows = 1;
+                            } else {
+                                columns = 1;
+                                rows = ny > 0 ? 2 : 1;
+                            }
+                        }
+                        if (columns != target[0] || rows != target[1]) {
+                            target[0] = columns;
+                            target[1] = rows;
+                            applyResizePreview(columns, rows);
+                            previewTileSize(spec, columns, rows);
+                            view.performHapticFeedback(
+                                    android.view.HapticFeedbackConstants.CLOCK_TICK);
+                        }
+                        return true;
+                    case MotionEvent.ACTION_UP:
+                        commitTileSize(spec, target[0], target[1]);
+                        if (mRecyclerView != null) {
+                            mRecyclerView.getParent().requestDisallowInterceptTouchEvent(false);
+                        }
+                        view.performClick();
+                        return true;
+                    case MotionEvent.ACTION_CANCEL:
+                        clearPreview(spec);
+                        if (mRecyclerView != null) {
+                            mRecyclerView.getParent().requestDisallowInterceptTouchEvent(false);
+                        }
+                        return true;
+                    default:
+                        return true;
+                }
+            };
+            mResizeHandle.setOnTouchListener(resizeTouchListener);
+            if (resizeFrame != null) {
+                resizeFrame.setResizeTouchListener(resizeTouchListener);
+            }
+        }
+
+        private void applyResizePreview(int columns, int rows) {
+            if (mTileView == null) return;
+            final int tileHeight = mContext.getResources()
+                    .getDimensionPixelSize(R.dimen.a11_qs_tile_height);
+            final int gap = mContext.getResources()
+                    .getDimensionPixelSize(R.dimen.a11_qs_tile_gap);
+            final int height = tileHeight * rows + gap * (rows - 1);
+            mTileView.setA11ColumnSpan(columns);
+            mTileView.setA11RowSpan(rows);
+            final ViewGroup.LayoutParams tileParams = mTileView.getLayoutParams();
+            tileParams.height = height;
+            mTileView.setLayoutParams(tileParams);
+            final ViewGroup.LayoutParams frameParams = itemView.getLayoutParams();
+            frameParams.height = height;
+            itemView.setLayoutParams(frameParams);
         }
 
         @Nullable
@@ -678,6 +853,33 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
             return TileAdapter.this.isCurrentTile(getLayoutPosition());
         }
 
+        boolean canResize() {
+            final int position = getLayoutPosition();
+            return isCurrentTile()
+                    && position > 0
+                    && position < mTiles.size()
+                    && mTiles.get(position) != null
+                    && !A11TileLayoutSpec.isSlider(mTiles.get(position).spec);
+        }
+
+        boolean toggleWidth() {
+            final int position = getLayoutPosition();
+            return position > 0 && position < mTiles.size()
+                    && toggleTileWidth(mTiles.get(position).spec);
+        }
+
+        boolean setSize(int columns, int rows) {
+            final int position = getLayoutPosition();
+            return position > 0 && position < mTiles.size()
+                    && commitTileSize(mTiles.get(position).spec, columns, rows);
+        }
+
+        boolean cycleSize() {
+            final int position = getLayoutPosition();
+            return position > 0 && position < mTiles.size()
+                    && cycleTileSize(mTiles.get(position).spec);
+        }
+
         void startAccessibleAdd() {
             TileAdapter.this.startAccessibleAdd(getLayoutPosition());
         }
@@ -698,15 +900,212 @@ public class TileAdapter extends RecyclerView.Adapter<Holder> implements TileSta
             if (type == TYPE_EDIT || type == TYPE_DIVIDER || type == TYPE_HEADER) {
                 return mNumColumns;
             } else {
-                return 1;
+                final TileInfo info = mTiles.get(position);
+                return info == null
+                        ? 1
+                        : Math.min(mNumColumns,
+                                getColumnSpan(info.spec));
             }
         }
     };
 
+    private int getColumnSpan(String spec) {
+        final Integer preview = mPreviewColumnSpans.get(spec);
+        return preview != null ? preview : A11TileLayoutSpec.getColumnSpan(mContext, spec);
+    }
+
+    private int getRowSpan(String spec) {
+        final Integer preview = mPreviewRowSpans.get(spec);
+        return preview != null ? preview : A11TileLayoutSpec.getRowSpan(mContext, spec);
+    }
+
+    private void selectResizeTile(String spec) {
+        mSelectedResizeSpec = Objects.equals(mSelectedResizeSpec, spec) ? null : spec;
+        notifyDataSetChanged();
+    }
+
+    private void previewTileSize(String spec, int columns, int rows) {
+        animateResizeReflow(() -> {
+            mPreviewColumnSpans.put(spec, columns);
+            mPreviewRowSpans.put(spec, rows);
+            mSizeLookup.invalidateSpanIndexCache();
+            mSizeLookup.invalidateSpanGroupIndexCache();
+        });
+    }
+
+    private void clearPreview(String spec) {
+        animateResizeReflow(() -> {
+            mPreviewColumnSpans.remove(spec);
+            mPreviewRowSpans.remove(spec);
+            mSizeLookup.invalidateSpanIndexCache();
+            mSizeLookup.invalidateSpanGroupIndexCache();
+            notifyDataSetChanged();
+        });
+    }
+
+    /**
+     * Applies a resize layout mutation using a FLIP transition. RecyclerView's normal item
+     * animator is paused for this frame so resize avoidance and drag-reorder never write competing
+     * translations to the same child.
+     */
+    private void animateResizeReflow(Runnable mutation) {
+        final RecyclerView recyclerView = mRecyclerView;
+        if (recyclerView == null) {
+            mutation.run();
+            return;
+        }
+        final Map<View, int[]> oldPositions = new HashMap<>();
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            final View child = recyclerView.getChildAt(i);
+            child.animate().cancel();
+            child.setTranslationX(0f);
+            child.setTranslationY(0f);
+            oldPositions.put(child, new int[] {child.getLeft(), child.getTop()});
+        }
+        final RecyclerView.ItemAnimator itemAnimator = recyclerView.getItemAnimator();
+        if (itemAnimator != null) {
+            itemAnimator.endAnimations();
+            recyclerView.setItemAnimator(null);
+        }
+        mutation.run();
+        recyclerView.requestLayout();
+
+        final ViewTreeObserver observer = recyclerView.getViewTreeObserver();
+        observer.addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
+            @Override
+            public boolean onPreDraw() {
+                if (recyclerView.getViewTreeObserver().isAlive()) {
+                    recyclerView.getViewTreeObserver().removeOnPreDrawListener(this);
+                }
+                for (int i = 0; i < recyclerView.getChildCount(); i++) {
+                    final View child = recyclerView.getChildAt(i);
+                    final int[] old = oldPositions.get(child);
+                    if (old == null) continue;
+                    final float deltaX = old[0] - child.getLeft();
+                    final float deltaY = old[1] - child.getTop();
+                    if (deltaX == 0f && deltaY == 0f) continue;
+                    child.setTranslationX(deltaX);
+                    child.setTranslationY(deltaY);
+                    child.animate()
+                            .translationX(0f)
+                            .translationY(0f)
+                            .setDuration(MOVE_DURATION)
+                            .setInterpolator(Interpolators.FAST_OUT_SLOW_IN)
+                            .start();
+                }
+                recyclerView.setItemAnimator(itemAnimator);
+                return true;
+            }
+        });
+    }
+
+    private boolean commitTileSize(String spec, int columns, int rows) {
+        mPreviewColumnSpans.remove(spec);
+        mPreviewRowSpans.remove(spec);
+        try {
+            final String raw = Settings.Secure.getString(
+                    mContext.getContentResolver(),
+                    Settings.Secure.QS_TILE_LAYOUT_A11);
+            final JSONObject root = raw == null ? new JSONObject() : new JSONObject(raw);
+            final JSONObject spans = root.optJSONObject("spans") != null
+                    ? root.getJSONObject("spans") : new JSONObject();
+            final JSONObject rowsObject = root.optJSONObject("rows") != null
+                    ? root.getJSONObject("rows") : new JSONObject();
+            spans.put(spec, columns);
+            rowsObject.put(spec, rows);
+            root.put("version", 2);
+            root.put("spans", spans);
+            root.put("rows", rowsObject);
+            final boolean saved = Settings.Secure.putString(
+                    mContext.getContentResolver(),
+                    Settings.Secure.QS_TILE_LAYOUT_A11,
+                    root.toString());
+            mSizeLookup.invalidateSpanIndexCache();
+            mSizeLookup.invalidateSpanGroupIndexCache();
+            notifyDataSetChanged();
+            if (mRecyclerView != null) {
+                mRecyclerView.post(mRecyclerView::requestLayout);
+            }
+            return saved;
+        } catch (Exception ignored) {
+            notifyDataSetChanged();
+            return false;
+        }
+    }
+
+    private boolean toggleTileWidth(String spec) {
+        try {
+            final String raw = Settings.Secure.getString(
+                    mContext.getContentResolver(),
+                    Settings.Secure.QS_TILE_LAYOUT_A11);
+            final JSONObject root = raw == null ? new JSONObject() : new JSONObject(raw);
+            final JSONObject spans = root.optJSONObject("spans") != null
+                    ? root.getJSONObject("spans") : new JSONObject();
+            final int current = A11TileLayoutSpec.getColumnSpan(mContext, spec);
+            spans.put(spec, current == 2 ? 1 : 2);
+            root.put("version", 1);
+            root.put("spans", spans);
+            if (!Settings.Secure.putString(
+                    mContext.getContentResolver(),
+                    Settings.Secure.QS_TILE_LAYOUT_A11,
+                    root.toString())) {
+                return false;
+            }
+            mSizeLookup.invalidateSpanIndexCache();
+            notifyDataSetChanged();
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private boolean cycleTileSize(String spec) {
+        try {
+            final String raw = Settings.Secure.getString(
+                    mContext.getContentResolver(),
+                    Settings.Secure.QS_TILE_LAYOUT_A11);
+            final JSONObject root = raw == null ? new JSONObject() : new JSONObject(raw);
+            final JSONObject spans = root.optJSONObject("spans") != null
+                    ? root.getJSONObject("spans") : new JSONObject();
+            final JSONObject rows = root.optJSONObject("rows") != null
+                    ? root.getJSONObject("rows") : new JSONObject();
+            final int columns = A11TileLayoutSpec.getColumnSpan(mContext, spec);
+            final int rowSpan = A11TileLayoutSpec.getRowSpan(mContext, spec);
+            if (columns == 1 && rowSpan == 1) {
+                spans.put(spec, 2);
+                rows.put(spec, 1);
+            } else if (columns == 2) {
+                spans.put(spec, 1);
+                rows.put(spec, 2);
+            } else {
+                spans.put(spec, 1);
+                rows.put(spec, 1);
+            }
+            root.put("version", 1);
+            root.put("spans", spans);
+            root.put("rows", rows);
+            if (!Settings.Secure.putString(
+                    mContext.getContentResolver(),
+                    Settings.Secure.QS_TILE_LAYOUT_A11,
+                    root.toString())) {
+                return false;
+            }
+            mSizeLookup.invalidateSpanIndexCache();
+            notifyDataSetChanged();
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
     private class TileItemDecoration extends ItemDecoration {
-        private final Drawable mDrawable;
+        private Drawable mDrawable;
 
         private TileItemDecoration(Context context) {
+            reload(context);
+        }
+
+        private void reload(Context context) {
             mDrawable = context.getDrawable(R.drawable.qs_customize_tile_decoration);
         }
 

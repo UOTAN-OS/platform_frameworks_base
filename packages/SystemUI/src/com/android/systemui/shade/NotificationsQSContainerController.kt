@@ -16,6 +16,7 @@
 
 package com.android.systemui.shade
 
+import android.content.res.Configuration
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
@@ -161,7 +162,15 @@ constructor(
         largeScreenShadeHeaderHeight = calculateLargeShadeHeaderHeight()
         shadeHeaderHeight = calculateShadeHeaderHeight()
         panelMarginHorizontal =
-            resources.getDimensionPixelSize(R.dimen.notification_panel_margin_horizontal)
+            if (
+                !com.android.systemui.qs.flags.QSComposeFragment.isEnabled &&
+                    resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT &&
+                    !splitShadeEnabled
+            ) {
+                resources.getDimensionPixelSize(R.dimen.a11_qs_side_padding)
+            } else {
+                resources.getDimensionPixelSize(R.dimen.notification_panel_margin_horizontal)
+            }
         topMargin =
             if (largeScreenShadeHeaderActive) {
                 largeScreenShadeHeaderHeight

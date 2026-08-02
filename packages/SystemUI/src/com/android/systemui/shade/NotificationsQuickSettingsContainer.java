@@ -21,10 +21,12 @@ import static androidx.constraintlayout.core.widgets.Optimizer.OPTIMIZATION_GRAP
 import android.app.Fragment;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 
 import androidx.annotation.Nullable;
@@ -73,6 +75,7 @@ public class NotificationsQuickSettingsContainer extends ConstraintLayout
     protected void onFinishInflate() {
         super.onFinishInflate();
         mQsFrame = findViewById(R.id.qs_frame);
+        updateA11ShadeAppearance();
     }
 
     void setStackScroller(View stackScroller) {
@@ -84,6 +87,7 @@ public class NotificationsQuickSettingsContainer extends ConstraintLayout
         mQs = (QS) fragment;
         mQSFragmentAttachedListener.accept(mQs);
         mQSContainer = mQs.getView().findViewById(R.id.quick_settings_container);
+        updateA11ShadeAppearance();
         // We need to restore the bottom padding as the fragment may have been recreated due to
         // some special Configuration change, so we apply the last known padding (this will be
         // correct even if it has changed while the fragment was destroyed and re-created).
@@ -98,9 +102,40 @@ public class NotificationsQuickSettingsContainer extends ConstraintLayout
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        updateA11ShadeAppearance();
         if (mConfigurationChangedListener != null) {
             mConfigurationChangedListener.accept(newConfig);
         }
+    }
+
+    private void updateA11ShadeAppearance() {
+        if (QSComposeFragment.isEnabled()) {
+            setBackground(null);
+            if (mQSContainer != null) {
+                mQSContainer.setBackground(null);
+            }
+            return;
+        }
+
+        final ViewGroup.LayoutParams rawLayoutParams = getLayoutParams();
+        if (rawLayoutParams instanceof MarginLayoutParams) {
+            final MarginLayoutParams layoutParams = (MarginLayoutParams) rawLayoutParams;
+            if (layoutParams.leftMargin != 0
+                    || layoutParams.topMargin != 0
+                    || layoutParams.rightMargin != 0
+                    || layoutParams.bottomMargin != 0) {
+                layoutParams.setMargins(0, 0, 0, 0);
+                setLayoutParams(layoutParams);
+            }
+        }
+
+        // Both containers sit above the shade scrims. Painting either one creates an inset
+        // rectangle around QS and can cover the native rounded notification scrim.
+        setBackgroundColor(Color.TRANSPARENT);
+        if (mQSContainer != null) {
+            mQSContainer.setBackgroundColor(Color.TRANSPARENT);
+        }
+        setClipToOutline(false);
     }
 
     public void setConfigurationChangedListener(Consumer<Configuration> listener) {

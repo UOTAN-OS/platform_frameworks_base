@@ -32,9 +32,12 @@ import com.android.systemui.media.controls.ui.view.MediaHost;
 import com.android.systemui.plugins.qs.QSTile;
 import com.android.systemui.qs.customize.QSCustomizerController;
 import com.android.systemui.qs.dagger.QSScope;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
+import com.android.systemui.settings.brightness.BrightnessController;
+import com.android.systemui.settings.brightness.BrightnessSliderController;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.SplitShadeStateController;
@@ -49,7 +52,6 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Provider;
 
-
 /** Controller for {@link QuickQSPanel}. */
 @QSScope
 public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> {
@@ -57,7 +59,9 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
     private final Provider<Boolean> mUsingCollapsedLandscapeMediaProvider;
 
     private final MediaCarouselInteractor mMediaCarouselInteractor;
-
+    private final BrightnessSliderController mBrightnessSliderController;
+    private final BrightnessController mBrightnessController;
+    private boolean mListening;
     @Inject
     QuickQSPanelController(QuickQSPanel view, QSHost qsHost,
             QSCustomizerController qsCustomizerController,
@@ -69,6 +73,8 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
             DumpManager dumpManager, SplitShadeStateController splitShadeStateController,
             Provider<QSLongPressEffect> longPressEffectProvider,
             MediaCarouselInteractor mediaCarouselInteractor,
+            BrightnessController.Factory brightnessControllerFactory,
+            BrightnessSliderController.Factory brightnessSliderFactory,
             @ShadeDisplayAware ConfigurationController configurationController
     ) {
         super(view, qsHost, qsCustomizerController, usingMediaPlayer, mediaHost, metricsLogger,
@@ -76,6 +82,9 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
                 longPressEffectProvider, configurationController);
         mUsingCollapsedLandscapeMediaProvider = usingCollapsedLandscapeMediaProvider;
         mMediaCarouselInteractor = mediaCarouselInteractor;
+        mBrightnessSliderController = brightnessSliderFactory.create(getContext(), mView);
+        mView.setBrightnessView(mBrightnessSliderController.getRootView());
+        mBrightnessController = brightnessControllerFactory.create(mBrightnessSliderController);
     }
 
     @Override
@@ -86,6 +95,7 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
             mMediaHost.setShowsOnlyActiveMedia(true);
         }
         mMediaHost.init(MediaHierarchyManager.LOCATION_QQS);
+        mBrightnessSliderController.init();
     }
 
     @Override
@@ -113,11 +123,29 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
     @Override
     protected void onViewAttached() {
         super.onViewAttached();
+        updateBrightnessSettings();
     }
 
     @Override
     protected void onViewDetached() {
+        mBrightnessController.unregisterCallbacks();
         super.onViewDetached();
+    }
+
+    @Override
+    void setListening(boolean listening) {
+        super.setListening(listening);
+        if (mListening == listening) return;
+        mListening = listening;
+        if (listening) {
+            mBrightnessController.registerCallbacks();
+        } else {
+            mBrightnessController.unregisterCallbacks();
+        }
+    }
+
+    private void updateBrightnessSettings() {
+        mView.updateBrightnessView(QSComposeFragment.isEnabled(), false);
     }
 
     private void setMaxTiles(int parseNumTiles) {
@@ -127,7 +155,7 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
 
     @Override
     protected void onConfigurationChanged() {
-        int newMaxTiles = getResources().getInteger(R.integer.quick_qs_panel_max_tiles);
+        int newMaxTiles = getResources().getInteger(R.integer.a11_qqs_max_cells);
         if (newMaxTiles != mView.getNumQuickTiles()) {
             setMaxTiles(newMaxTiles);
         }
@@ -139,7 +167,23 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
     @Override
     public void setTiles() {
         List<QSTile> tiles = new ArrayList<>();
+        List<A11TileLayoutModel.Span> spans = new ArrayList<>();
+        final int columns = getResources().getInteger(R.integer.a11_qs_num_columns);
+        final int rows = getResources().getInteger(R.integer.a11_qqs_max_rows);
         for (QSTile tile : mHost.getTiles()) {
+            final String spec = tile.getTileSpec();
+            if (A11TileLayoutSpec.isSlider(spec)) {
+                continue;
+            }
+            final ArrayList<A11TileLayoutModel.Span> candidate = new ArrayList<>(spans);
+            candidate.add(new A11TileLayoutModel.Span(
+                    A11TileLayoutSpec.getColumnSpan(getContext(), spec), 1));
+            final List<A11TileLayoutModel.Placement> placements =
+                    A11TileLayoutModel.pack(candidate, columns, rows);
+            if (placements.get(placements.size() - 1).page != 0) {
+                break;
+            }
+            spans = candidate;
             tiles.add(tile);
             if (tiles.size() == mView.getNumQuickTiles()) {
                 break;

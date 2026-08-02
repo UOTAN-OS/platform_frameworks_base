@@ -17,6 +17,16 @@
  */
 -->
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="a11_qs_brightness_slider_label">Brightness</string>
+    <string name="a11_qs_auto_brightness_label">Auto brightness</string>
+    <string name="a11_qs_auto_brightness_on">Automatic</string>
+    <string name="a11_qs_auto_brightness_off">Manual</string>
+    <string name="a11_qs_volume_slider_label">Media volume</string>
+    <string name="accessibility_qs_edit_toggle_width">Switch between round and wide tile</string>
+    <string name="accessibility_qs_edit_size_1x1">Set size to 1 by 1</string>
+    <string name="accessibility_qs_edit_size_2x1">Set size to 2 by 1</string>
+    <string name="accessibility_qs_edit_size_1x2">Set size to 1 by 2</string>
+    <string name="accessibility_qs_edit_resize_handle">Resize tile</string>
     <!-- Name of the status bar as seen in the applications info settings page. [CHAR LIMIT=12] -->
     <string name="app_label">System UI</string>
 
@@ -2709,6 +2719,7 @@
 
     <!-- Accessibility description of headset icon [CHAR LIMIT=NONE] -->
     <string name="accessibility_status_bar_headset">Headset connected</string>
+
     <!-- Label for quick settings tile for data saver [CHAR LIMIT=30] -->
     <string name="data_saver">Data Saver</string>
 
@@ -2801,7 +2812,7 @@
     <string name="drag_to_add_tiles">Hold and drag to add tiles</string>
 
     <!-- Label for header of customize QS [CHAR LIMIT=60] -->
-    <string name="drag_to_rearrange_tiles">Hold and drag to rearrange tiles</string>
+    <string name="drag_to_rearrange_tiles">Tap to resize; hold and drag to rearrange tiles</string>
 
     <!-- Label for header of customize QS to indicate that tiles can be selected to be edited [CHAR LIMIT=60] -->
     <string name="select_to_rearrange_tiles">Select tiles to rearrange and resize</string>

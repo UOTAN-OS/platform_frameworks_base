@@ -56,6 +56,7 @@ public class QSCustomizer extends LinearLayout {
 
     private final QSDetailClipper mClipper;
     private final View mTransparentView;
+    private final View mCustomizeContainer;
 
     private boolean isShown;
     private final RecyclerView mRecyclerView;
@@ -74,12 +75,13 @@ public class QSCustomizer extends LinearLayout {
         super(context, attrs);
 
         LayoutInflater.from(getContext()).inflate(R.layout.qs_customize_panel_content, this);
-        View customizeContainer = findViewById(R.id.customize_container);
-        if (notificationShadeBlur()) {
-            customizeContainer
-                    .setBackgroundResource(R.drawable.qs_customizer_background_transparent);
+        mCustomizeContainer = findViewById(R.id.customize_container);
+        if (isA11Pad()) {
+            applyCustomizerBackground();
+        } else if (notificationShadeBlur()) {
+            mCustomizeContainer.setBackgroundResource(R.drawable.qs_customizer_background_transparent);
         }
-        mClipper = new QSDetailClipper(customizeContainer);
+        mClipper = new QSDetailClipper(mCustomizeContainer);
         mToolbar = findViewById(com.android.internal.R.id.action_bar);
         if (notificationShadeBlur()) {
             mToolbar.setBackgroundColor(Color.TRANSPARENT);
@@ -128,7 +130,12 @@ public class QSCustomizer extends LinearLayout {
 
     void updateResources() {
         updateTransparentViewHeight();
-        mRecyclerView.getAdapter().notifyItemChanged(0);
+        RecyclerView.Adapter adapter = mRecyclerView.getAdapter();
+        if (isA11Pad() && adapter instanceof TileAdapter) {
+            ((TileAdapter) adapter).updateTheme();
+        } else if (adapter != null) {
+            adapter.notifyItemChanged(0);
+        }
     }
 
     void updateNavBackDrop(Configuration newConfig, LightBarController lightBarController) {
@@ -228,6 +235,11 @@ public class QSCustomizer extends LinearLayout {
     @Override
     protected void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
+        if (isA11Pad()) {
+            // Drawables created before a light/dark transition retain their resolved color values.
+            // Recreate the customizer surface so edit mode follows the current shade palette.
+            applyCustomizerBackground();
+        }
         mToolbar.setTitleTextAppearance(mContext,
                 android.R.style.TextAppearance_DeviceDefault_Widget_ActionBar_Title);
         updateToolbarMenuFontSize();
@@ -317,6 +329,17 @@ public class QSCustomizer extends LinearLayout {
         LayoutParams lp = (LayoutParams) mTransparentView.getLayoutParams();
         lp.height = mSceneContainerEnabled ? 0 : QSUtils.getQsHeaderSystemIconsAreaHeight(mContext);
         mTransparentView.setLayoutParams(lp);
+    }
+
+    private void applyCustomizerBackground() {
+        mCustomizeContainer.setBackgroundResource(notificationShadeBlur()
+                ? R.drawable.qs_customizer_background_transparent
+                : R.drawable.qs_customizer_background);
+    }
+
+    private boolean isA11Pad() {
+        return !com.android.systemui.qs.flags.QSComposeFragment.isEnabled()
+                && getResources().getConfiguration().smallestScreenWidthDp >= 720;
     }
 
     private void updateToolbarMenuFontSize() {

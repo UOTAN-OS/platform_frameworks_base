@@ -190,6 +190,11 @@
         <item name="android:fontFamily" android:featureFlag="com.android.systemui.shade_header_font_update">variable-display-small-emphasized</item>
     </style>
 
+    <style name="TextAppearance.QS.Status.A11" parent="@style/TextAppearance.QS.Status">
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+
     <style name="TextAppearance.QS.Status.Build">
         <item name="android:textColor">?attr/onShadeInactiveVariant</item>
     </style>

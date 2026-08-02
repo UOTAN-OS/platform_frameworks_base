@@ -164,6 +164,11 @@
 
     <item type="id" name="accessibility_action_qs_move_to_position" />
     <item type="id" name="accessibility_action_qs_add_to_position" />
+    <item type="id" name="accessibility_action_qs_toggle_width" />
+    <item type="id" name="accessibility_action_qs_size_1x1" />
+    <item type="id" name="accessibility_action_qs_size_2x1" />
+    <item type="id" name="accessibility_action_qs_size_1x2" />
+    <item type="id" name="a11_qs_resize_handle" />
 
     <!-- Accessibility actions for window magnification. -->
     <item type="id" name="accessibility_action_zoom_in"/>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2021 The Android Open Source Project -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp"
+    android:layout_height="0dp"
+    android:layout_gravity="center_vertical|end"
+    android:layout_marginStart="@dimen/qs_label_container_margin"
+    android:visibility="gone">
+
+    <ImageView
+        android:id="@+id/customDrawable"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/qs_side_view_size"
+        android:layout_marginEnd="@dimen/qs_drawable_end_margin"
+        android:adjustViewBounds="true"
+        android:scaleType="fitCenter"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/chevron"
+        android:layout_width="@dimen/qs_icon_size"
+        android:layout_height="@dimen/qs_icon_size"
+        android:autoMirrored="true"
+        android:importantForAccessibility="no"
+        android:src="@*android:drawable/ic_chevron_end"
+        android:visibility="gone" />
+</FrameLayout>

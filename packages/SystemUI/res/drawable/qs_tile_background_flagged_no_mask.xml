@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2024 The Android Open Source Project -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="@color/qs_tile_ripple_color">
+    <item android:id="@id/background">
+        <layer-list>
+            <item
+                android:id="@+id/qs_tile_background_base"
+                android:drawable="@drawable/qs_tile_background_shape_a11" />
+            <item android:id="@+id/qs_tile_background_overlay">
+                <selector>
+                    <item
+                        android:drawable="@drawable/qs_tile_background_shape_a11"
+                        android:state_hovered="true" />
+                </selector>
+            </item>
+        </layer-list>
+    </item>
+</ripple>

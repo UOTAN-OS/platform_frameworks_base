@@ -33,6 +33,7 @@
 
     <!-- Autobrightness tile -->
     <string name="quick_settings_autobrightness_label">Auto brightness</string>
+    <string name="accessibility_adaptive_brightness">Adaptive brightness</string>
 
     <!-- Caffeine QS tile -->
     <string name="quick_settings_caffeine_label">Caffeine</string>

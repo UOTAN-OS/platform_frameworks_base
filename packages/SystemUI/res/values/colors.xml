@@ -22,6 +22,15 @@
     <color name="system_bar_background_opaque">#ff000000</color>
     <color name="system_bar_background_transparent">#00000000</color>
     <color name="qs_tile_divider">#29ffffff</color><!-- 16% white -->
+    <!-- Exact light surfaces sampled from the A11 QS reference. -->
+    <color name="a11_qs_light_background">#FFF7F2F9</color>
+    <color name="a11_qs_background">#FFF7F2F9</color>
+    <color name="a11_notification_background">#FFFBF9FC</color>
+    <color name="a11_notification_card_background">#FFFFFFFF</color>
+    <color name="a11_qs_inactive_background">#FFFFFFFF</color>
+    <!-- Use Monet tones rather than wallpaper-specific constants. -->
+    <color name="a11_qs_active_background">@android:color/system_accent1_300</color>
+    <color name="a11_qs_active_foreground">@android:color/system_accent1_0</color>
     <color name="qs_detail_button_white">#B3FFFFFF</color><!-- 70% white -->
     <color name="status_bar_clock_color">#FFFFFFFF</color>
     <!-- The main FG tint for shade header items -->
@@ -288,4 +297,7 @@
     <color name="pin_bouncer_action_button_bg">@androidprv:color/surface_effect_0</color>
     <!-- Bouncer background when blur is not enabled.   -->
     <color name="bouncer_fallback_bg">@android:color/system_accent2_200</color>
+
+    <!-- Keep the QS tile editor affordance legible against the light shade. -->
+    <color name="qs_footer_edit_icon_color">@android:color/black</color>
 </resources>

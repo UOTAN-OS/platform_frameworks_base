@@ -24,16 +24,34 @@
         android:contentDescription="@string/accessibility_brightness"
         android:importantForAccessibility="no" >
 
-        <com.android.systemui.settings.brightness.ToggleSeekBar
-            android:id="@+id/slider"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="@dimen/brightness_mirror_height"
-            android:layout_gravity="center_vertical"
-            android:minHeight="48dp"
-            android:thumb="@null"
-            android:paddingStart="0dp"
-            android:paddingEnd="0dp"
-            android:progressDrawable="@drawable/brightness_progress_drawable"
-            android:splitTrack="false"
-        />
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.android.systemui.settings.brightness.ToggleSeekBar
+                android:id="@+id/slider"
+                android:layout_width="0dp"
+                android:layout_height="@dimen/brightness_mirror_height"
+                android:layout_weight="1"
+                android:minHeight="48dp"
+                android:thumb="@null"
+                android:paddingStart="0dp"
+                android:paddingEnd="0dp"
+                android:progressDrawable="@drawable/brightness_progress_drawable"
+                android:splitTrack="false" />
+
+            <ImageButton
+                android:id="@+id/auto_brightness"
+                android:layout_width="45dp"
+                android:layout_height="45dp"
+                android:layout_marginStart="10dp"
+                android:background="@null"
+                android:contentDescription="@string/accessibility_adaptive_brightness"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_qs_brightness_auto_off"
+                android:visibility="gone" />
+        </LinearLayout>
     </com.android.systemui.settings.brightness.BrightnessSliderView>

@@ -49,6 +49,9 @@ class TileAdapterDelegate extends AccessibilityDelegateCompat {
 
     private static final int MOVE_TO_POSITION_ID = R.id.accessibility_action_qs_move_to_position;
     private static final int ADD_TO_POSITION_ID = R.id.accessibility_action_qs_add_to_position;
+    private static final int SIZE_1X1_ID = R.id.accessibility_action_qs_size_1x1;
+    private static final int SIZE_2X1_ID = R.id.accessibility_action_qs_size_2x1;
+    private static final int SIZE_1X2_ID = R.id.accessibility_action_qs_size_1x2;
 
     private TileAdapter.Holder getHolder(View view) {
         return (TileAdapter.Holder) view.getTag();
@@ -69,6 +72,7 @@ class TileAdapterDelegate extends AccessibilityDelegateCompat {
         addClickAction(host, info, holder);
         maybeAddActionAddToPosition(host, info, holder);
         maybeAddActionMoveToPosition(host, info, holder);
+        maybeAddResizeActions(host, info, holder);
 
         if (holder.isCurrentTile()) {
             info.setStateDescription(host.getContext().getString(
@@ -94,6 +98,12 @@ class TileAdapterDelegate extends AccessibilityDelegateCompat {
         } else if (action == ADD_TO_POSITION_ID) {
             holder.startAccessibleAdd();
             return true;
+        } else if (action == SIZE_1X1_ID) {
+            return holder.setSize(1, 1);
+        } else if (action == SIZE_2X1_ID) {
+            return holder.setSize(2, 1);
+        } else if (action == SIZE_1X2_ID) {
+            return holder.setSize(1, 2);
         } else {
             return super.performAccessibilityAction(host, action, args);
         }
@@ -150,6 +160,21 @@ class TileAdapterDelegate extends AccessibilityDelegateCompat {
                             host.getContext().getString(
                                     R.string.accessibility_qs_edit_tile_start_add));
             info.addAction(action);
+        }
+    }
+
+    private void maybeAddResizeActions(
+            View host, AccessibilityNodeInfoCompat info, TileAdapter.Holder holder) {
+        if (holder.canResize()) {
+            info.addAction(new AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                    SIZE_1X1_ID,
+                    host.getContext().getString(R.string.accessibility_qs_edit_size_1x1)));
+            info.addAction(new AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                    SIZE_2X1_ID,
+                    host.getContext().getString(R.string.accessibility_qs_edit_size_2x1)));
+            info.addAction(new AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                    SIZE_1X2_ID,
+                    host.getContext().getString(R.string.accessibility_qs_edit_size_1x2)));
         }
     }
 }

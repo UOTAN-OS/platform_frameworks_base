@@ -437,11 +437,11 @@ public class PagedTileLayout extends ViewPager implements QSTileLayout {
     public List<String> getSpecsForPage(int page) {
         ArrayList<String> out = new ArrayList<>();
         if (page < 0) return out;
-        int perPage = mPages.get(0).maxTiles();
-        int startOfPage = page * perPage;
-        int endOfPage = (page + 1) * perPage;
-        for (int i = startOfPage; i < endOfPage && i < mTiles.size(); i++) {
-            out.add(mTiles.get(i).tile.getTileSpec());
+        final List<A11TileLayoutModel.Placement> placements = packTiles();
+        for (A11TileLayoutModel.Placement placement : placements) {
+            if (placement.page == page) {
+                out.add(mTiles.get(placement.index).tile.getTileSpec());
+            }
         }
         return out;
     }
@@ -450,14 +450,12 @@ public class PagedTileLayout extends ViewPager implements QSTileLayout {
         emptyAndInflateOrRemovePages();
 
         final int tilesPerPageCount = mPages.get(0).maxTiles();
-        int index = 0;
         final int totalTilesCount = mTiles.size();
         mLogger.logTileDistributionInProgress(tilesPerPageCount, totalTilesCount);
-        for (int i = 0; i < totalTilesCount; i++) {
-            TileRecord tile = mTiles.get(i);
-            if (mPages.get(index).mRecords.size() == tilesPerPageCount) index++;
-            mLogger.logTileDistributed(tile.tile.getClass().getSimpleName(), index);
-            mPages.get(index).addTile(tile);
+        for (A11TileLayoutModel.Placement placement : packTiles()) {
+            final TileRecord tile = mTiles.get(placement.index);
+            mLogger.logTileDistributed(tile.tile.getClass().getSimpleName(), placement.page);
+            mPages.get(placement.page).addTile(tile);
         }
     }
 
@@ -618,16 +616,20 @@ public class PagedTileLayout extends ViewPager implements QSTileLayout {
      * Gets the number of pages in this paged tile layout
      */
     public int getNumPages() {
-        final int nTiles = mTiles.size();
-        // We should always have at least one page, even if it's empty.
-        int numPages = Math.max(nTiles / mPages.get(0).maxTiles(), 1);
+        final List<A11TileLayoutModel.Placement> placements = packTiles();
+        return placements.isEmpty() ? 1 : placements.get(placements.size() - 1).page + 1;
+    }
 
-        // Add one more not full page if needed
-        if (nTiles > numPages * mPages.get(0).maxTiles()) {
-            numPages++;
+    private List<A11TileLayoutModel.Placement> packTiles() {
+        if (mPages.isEmpty()) {
+            return List.of();
         }
-
-        return numPages;
+        final ArrayList<A11TileLayoutModel.Span> spans = new ArrayList<>(mTiles.size());
+        for (TileRecord tile : mTiles) {
+            spans.add(new A11TileLayoutModel.Span(tile.columnSpan, tile.rowSpan));
+        }
+        final TileLayout page = mPages.get(0);
+        return A11TileLayoutModel.pack(spans, page.mColumns, page.mRows);
     }
 
     public int getNumVisibleTiles() {

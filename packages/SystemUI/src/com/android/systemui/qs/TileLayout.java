@@ -20,11 +20,13 @@ import com.android.systemui.flags.Flags;
 import com.android.systemui.flags.RefactorFlag;
 import com.android.systemui.qs.QSPanel.QSTileLayout;
 import com.android.systemui.qs.QSPanelControllerBase.TileRecord;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.qs.tileimpl.HeightOverrideable;
 import com.android.systemui.qs.tileimpl.QSTileViewImplKt;
 import com.android.systemui.res.R;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class TileLayout extends ViewGroup implements QSTileLayout {
 
@@ -148,17 +150,31 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
 
     public boolean updateResources() {
         Resources res = getResources();
-        int columns = useSmallLandscapeLockscreenResources()
-                ? res.getInteger(R.integer.small_land_lockscreen_quick_settings_num_columns)
-                : res.getInteger(R.integer.quick_settings_num_columns);
+        final boolean a11 = !QSComposeFragment.isEnabled();
+        int columns = a11
+                ? res.getInteger(R.integer.a11_qs_num_columns)
+                : (useSmallLandscapeLockscreenResources()
+                        ? res.getInteger(
+                                R.integer.small_land_lockscreen_quick_settings_num_columns)
+                        : res.getInteger(R.integer.quick_settings_num_columns));
         mResourceColumns = Math.max(1, columns);
-        mResourceCellHeight = res.getDimensionPixelSize(mResourceCellHeightResId);
-        mCellMarginHorizontal = res.getDimensionPixelSize(R.dimen.qs_tile_margin_horizontal);
-        mSidePadding = useSidePadding() ? mCellMarginHorizontal / 2 : 0;
-        mCellMarginVertical= res.getDimensionPixelSize(R.dimen.qs_tile_margin_vertical);
-        int rows = useSmallLandscapeLockscreenResources()
-                ? res.getInteger(R.integer.small_land_lockscreen_quick_settings_max_rows)
-                : res.getInteger(R.integer.quick_settings_max_rows);
+        mResourceCellHeight = res.getDimensionPixelSize(
+                a11 ? R.dimen.a11_qs_tile_height : mResourceCellHeightResId);
+        mCellMarginHorizontal = res.getDimensionPixelSize(
+                a11 ? R.dimen.a11_qs_tile_gap : R.dimen.qs_tile_margin_horizontal);
+        // The A11 panel already applies its shared content inset to the outer QS frame. Keeping
+        // another inset here made the tile grid narrower than media and notifications.
+        mSidePadding = useSidePadding()
+                ? (a11 ? 0 : mCellMarginHorizontal / 2)
+                : 0;
+        mCellMarginVertical = res.getDimensionPixelSize(
+                a11 ? R.dimen.a11_qs_tile_gap_vertical : R.dimen.qs_tile_margin_vertical);
+        int rows = a11
+                ? res.getInteger(R.integer.a11_qs_max_rows)
+                : (useSmallLandscapeLockscreenResources()
+                        ? res.getInteger(
+                                R.integer.small_land_lockscreen_quick_settings_max_rows)
+                        : res.getInteger(R.integer.quick_settings_max_rows));
         mMaxAllowedRows = Math.max(1, rows);
         if (mLessRows) {
             mMaxAllowedRows = Math.max(mMinRows, mMaxAllowedRows - 1);
@@ -203,7 +219,7 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
         final int width = MeasureSpec.getSize(widthMeasureSpec);
         final int availableWidth = width - getPaddingStart() - getPaddingEnd();
         final int heightMode = MeasureSpec.getMode(heightMeasureSpec);
-        if (heightMode == MeasureSpec.UNSPECIFIED) {
+        if (heightMode == MeasureSpec.UNSPECIFIED && QSComposeFragment.isEnabled()) {
             mRows = (numTiles + mColumns - 1) / mColumns;
         }
         final int gaps = mColumns - 1;
@@ -212,12 +228,15 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
 
         // Measure each QS tile.
         View previousView = this;
-        int verticalMeasure = exactly(getCellHeight());
+        mCellHeight = getCellHeight();
         for (TileRecord record : mRecords) {
             if (record.tileView.getVisibility() == GONE) continue;
-            record.tileView.measure(exactly(mCellWidth), verticalMeasure);
+            final int tileWidth = record.columnSpan * mCellWidth
+                    + (record.columnSpan - 1) * mCellMarginHorizontal;
+            final int tileHeight = record.rowSpan * mCellHeight
+                    + (record.rowSpan - 1) * mCellMarginVertical;
+            record.tileView.measure(exactly(tileWidth), exactly(tileHeight));
             previousView = record.tileView.updateAccessibilityOrder(previousView);
-            mCellHeight = record.tileView.getMeasuredHeight();
         }
 
         int height = (mCellHeight + mCellMarginVertical) * mRows;
@@ -245,7 +264,8 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
         } else if (mRows >= mMaxAllowedRows) {
             mRows = mMaxAllowedRows;
         }
-        if (mRows > (tilesCount + mColumns - 1) / mColumns) {
+        if (QSComposeFragment.isEnabled()
+                && mRows > (tilesCount + mColumns - 1) / mColumns) {
             mRows = (tilesCount + mColumns - 1) / mColumns;
         }
         return previousRows != mRows;
@@ -270,6 +290,11 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
     }
 
     protected int getCellHeight() {
+        if (!QSComposeFragment.isEnabled()
+                && mContext.getResources().getConfiguration().smallestScreenWidthDp >= 720
+                && mCellWidth > 0) {
+            return mCellWidth;
+        }
         // Compare estimated height with resource height and return the larger one.
         // If estimated height > resource height, it means the resource height is not enough
         // for the tile content under current font scaling. Therefore, we need to use the estimated
@@ -281,23 +306,24 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
 
     private void layoutTileRecords(int numRecords, boolean forLayout) {
         final boolean isRtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
-        int row = 0;
-        int column = 0;
         mLastTileBottom = 0;
-
-        // Layout each QS tile.
-        final int tilesToLayout = Math.min(numRecords, mRows * mColumns);
-        for (int i = 0; i < tilesToLayout; i++, column++) {
-            // If we reached the last column available to layout a tile, wrap back to the next row.
-            if (column == mColumns) {
-                column = 0;
-                row++;
-            }
-
+        final List<A11TileLayoutModel.Placement> placements =
+                A11TileLayoutModel.pack(getSpans(numRecords), mColumns, mRows);
+        final int tilesToLayout = Math.min(numRecords, placements.size());
+        for (int i = 0; i < tilesToLayout; i++) {
             final TileRecord record = mRecords.get(i);
-            final int top = getRowTop(row);
-            final int left = getColumnStart(isRtl ? mColumns - column - 1 : column);
-            final int right = left + mCellWidth;
+            final A11TileLayoutModel.Placement placement = placements.get(i);
+            if (placement.page != 0) {
+                record.tileView.setLeftTopRightBottom(0, 0, 0, 0);
+                continue;
+            }
+            final int column = isRtl
+                    ? mColumns - placement.column - placement.columnSpan
+                    : placement.column;
+            final int top = getRowTop(placement.row);
+            final int left = getColumnStart(column);
+            final int right = left + placement.columnSpan * mCellWidth
+                    + (placement.columnSpan - 1) * mCellMarginHorizontal;
             final int bottom = top + record.tileView.getMeasuredHeight();
             if (forLayout) {
                 record.tileView.layout(left, top, right, bottom);
@@ -311,6 +337,16 @@ public class TileLayout extends ViewGroup implements QSTileLayout {
             float scale = QSTileViewImplKt.constrainSquishiness(mSquishinessFraction);
             mLastTileBottom = top + (int) (record.tileView.getMeasuredHeight() * scale);
         }
+    }
+
+    private List<A11TileLayoutModel.Span> getSpans(int count) {
+        final int size = Math.min(count, mRecords.size());
+        final ArrayList<A11TileLayoutModel.Span> spans = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            final TileRecord record = mRecords.get(i);
+            spans.add(new A11TileLayoutModel.Span(record.columnSpan, record.rowSpan));
+        }
+        return spans;
     }
 
     @Override

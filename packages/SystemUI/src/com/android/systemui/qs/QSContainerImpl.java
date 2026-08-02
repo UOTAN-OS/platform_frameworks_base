@@ -32,6 +32,7 @@ import androidx.annotation.Nullable;
 
 import com.android.systemui.Dumpable;
 import com.android.systemui.qs.customize.QSCustomizer;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.shade.LargeScreenHeaderHelper;
@@ -190,9 +191,22 @@ public class QSContainerImpl extends FrameLayout implements Dumpable {
 
     void updateResources(QSPanelController qsPanelController,
             QuickStatusBarHeaderController quickStatusBarHeaderController) {
+        if (!QSComposeFragment.isEnabled()) {
+            mQSPanel.setPaddingRelative(
+                    mQSPanel.getPaddingStart(),
+                    getResources().getDimensionPixelSize(R.dimen.a11_qs_panel_padding_top),
+                    mQSPanel.getPaddingEnd(),
+                    mQSPanel.getPaddingBottom());
+        }
         int topPadding = QSUtils.getQsHeaderSystemIconsAreaHeight(mContext);
+        if (!QSComposeFragment.isEnabled()) {
+            topPadding = getResources().getDimensionPixelSize(
+                    R.dimen.a11_qs_expanded_top_padding);
+        }
         if (!LargeScreenUtils.shouldUseLargeScreenShadeHeader(mContext.getResources())) {
-            topPadding = LargeScreenHeaderHelper.getLargeScreenHeaderHeight(mContext);
+            if (QSComposeFragment.isEnabled()) {
+                topPadding = LargeScreenHeaderHelper.getLargeScreenHeaderHeight(mContext);
+            }
         }
         if (mQSPanelContainer != null) {
             mQSPanelContainer.setPaddingRelative(

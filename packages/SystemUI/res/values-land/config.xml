@@ -20,6 +20,8 @@
 <!-- These resources are around just to allow their values to be customized
      for different hardware and product builds. -->
 <resources>
+    <integer name="a11_qs_num_columns">6</integer>
+    <integer name="a11_qqs_max_cells">12</integer>
     <!-- The maximum number of rows in the QuickSettings -->
     <integer name="quick_settings_max_rows">2</integer>
 

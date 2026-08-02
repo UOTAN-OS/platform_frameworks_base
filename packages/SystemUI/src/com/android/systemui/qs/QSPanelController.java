@@ -35,9 +35,14 @@ import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager;
 import com.android.systemui.media.controls.ui.view.MediaHost;
 import com.android.systemui.media.controls.ui.view.MediaHostState;
 import com.android.systemui.plugins.FalsingManager;
+import com.android.systemui.plugins.VolumeDialogController;
+import com.android.systemui.plugins.qs.QSTile;
+import com.android.systemui.plugins.qs.QSTileView;
 import com.android.systemui.qs.customize.QSCustomizerController;
 import com.android.systemui.qs.dagger.QSScope;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.qs.logging.QSLogger;
+import com.android.systemui.qs.tileimpl.A11VerticalSliderTileView;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.settings.brightness.BrightnessController;
 import com.android.systemui.settings.brightness.BrightnessMirrorHandler;
@@ -51,10 +56,12 @@ import com.android.systemui.tuner.TunerService;
 
 import kotlinx.coroutines.flow.StateFlow;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Provider;
-
 
 /**
  * Controller for {@link QSPanel}.
@@ -73,10 +80,10 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
     private boolean mListening;
 
     private final boolean mSceneContainerEnabled;
-
     private int mLastDensity;
     private final BrightnessSliderController.Factory mBrightnessSliderControllerFactory;
     private final BrightnessController.Factory mBrightnessControllerFactory;
+    private final VolumeDialogController mVolumeDialogController;
 
     protected final MediaCarouselInteractor mMediaCarouselInteractor;
 
@@ -99,6 +106,7 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
             DumpManager dumpManager, MetricsLogger metricsLogger, UiEventLogger uiEventLogger,
             QSLogger qsLogger, BrightnessController.Factory brightnessControllerFactory,
             BrightnessSliderController.Factory brightnessSliderFactory,
+            VolumeDialogController volumeDialogController,
             FalsingManager falsingManager,
             StatusBarKeyguardViewManager statusBarKeyguardViewManager,
             SplitShadeStateController splitShadeStateController,
@@ -114,10 +122,10 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
         mFalsingManager = falsingManager;
         mBrightnessSliderControllerFactory = brightnessSliderFactory;
         mBrightnessControllerFactory = brightnessControllerFactory;
+        mVolumeDialogController = volumeDialogController;
 
         mBrightnessSliderController = brightnessSliderFactory.create(getContext(), mView);
         mView.setBrightnessView(mBrightnessSliderController.getRootView());
-
         mBrightnessController = brightnessControllerFactory.create(mBrightnessSliderController);
         mBrightnessMirrorHandler = new BrightnessMirrorHandler(mBrightnessController);
         mStatusBarKeyguardViewManager = statusBarKeyguardViewManager;
@@ -155,6 +163,7 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
         }
         switchTileLayout(true);
         mBrightnessMirrorHandler.onQsPanelAttached();
+        updateBrightnessSettings();
         PagedTileLayout pagedTileLayout= ((PagedTileLayout) mView.getOrCreateTileLayout());
         pagedTileLayout.setOnTouchListener(mTileLayoutTouchListener);
         maybeReinflateBrightnessSlider();
@@ -201,6 +210,56 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
         if (mListening) {
             mBrightnessController.registerCallbacks();
         }
+        updateBrightnessSettings();
+    }
+
+    private void updateBrightnessSettings() {
+        if (isA11Pad()) {
+            mView.updateA11PadControls(true);
+        } else {
+            mView.updateBrightnessView(false, false);
+        }
+    }
+
+    @Override
+    public void setTiles(Collection<QSTile> tiles, boolean collapsedView) {
+        if (!isA11Pad()) {
+            super.setTiles(tiles, collapsedView);
+            return;
+        }
+        final ArrayList<QSTile> gridTiles = new ArrayList<>(tiles.size());
+        for (QSTile tile : tiles) {
+            if (!A11TileLayoutSpec.isSlider(tile.getTileSpec())) {
+                gridTiles.add(tile);
+            }
+        }
+        super.setTiles(gridTiles, collapsedView);
+    }
+
+    private boolean isA11Pad() {
+        return !QSComposeFragment.isEnabled()
+                && getResources().getConfiguration().smallestScreenWidthDp >= 720;
+    }
+
+    @Override
+    protected QSTileView createTileView(
+            QSTile tile, boolean collapsedView, QSLongPressEffect longPressEffect) {
+        final String spec = tile.getTileSpec();
+        if (QSStyleController.BRIGHTNESS_SLIDER_SPEC.equals(spec)) {
+            return new A11VerticalSliderTileView(
+                    getContext(),
+                    A11VerticalSliderTileView.Type.BRIGHTNESS,
+                    mBrightnessControllerFactory,
+                    null);
+        }
+        if (QSStyleController.VOLUME_SLIDER_SPEC.equals(spec)) {
+            return new A11VerticalSliderTileView(
+                    getContext(),
+                    A11VerticalSliderTileView.Type.VOLUME,
+                    null,
+                    mVolumeDialogController);
+        }
+        return super.createTileView(tile, collapsedView, longPressEffect);
     }
 
 
@@ -233,7 +292,7 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
     }
 
     public void setBrightnessMirror(@Nullable MirrorController brightnessMirrorController) {
-        mBrightnessMirrorHandler.setController(brightnessMirrorController);
+        mBrightnessMirrorHandler.setController(isA11Pad() ? null : brightnessMirrorController);
     }
 
     /** Update appearance of QSPanel. */
@@ -308,4 +367,3 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
         return mView.getBottom();
     }
 }
-

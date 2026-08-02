@@ -22,7 +22,9 @@ import com.android.systemui.qs.shared.model.TileCategory
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.AmbientDisplayTile
 import com.android.systemui.qs.tiles.AODTile
-import com.android.systemui.qs.tiles.AutoBrightnessTile
+import com.android.systemui.qs.tiles.A11AutoBrightnessTile
+import com.android.systemui.qs.tiles.A11BrightnessSliderTile
+import com.android.systemui.qs.tiles.A11VolumeSliderTile
 import com.android.systemui.qs.tiles.CaffeineTile
 import com.android.systemui.qs.tiles.DataSwitchTile
 import com.android.systemui.qs.tiles.HeadsUpTile
@@ -55,11 +57,21 @@ interface CustomModule {
     @StringKey(AODTile.TILE_SPEC)
     fun bindAODTile(aodTile: AODTile): QSTileImpl<*>
 
-    /** Inject AutoBrightnessTile into tileMap in QSModule */
+    /** Inject A11 AutoBrightnessTile into tileMap in QSModule */
     @Binds
     @IntoMap
-    @StringKey(AutoBrightnessTile.TILE_SPEC)
-    fun bindAutoBrightnessTile(autobrightnessTile: AutoBrightnessTile): QSTileImpl<*>
+    @StringKey(A11AutoBrightnessTile.TILE_SPEC)
+    fun bindA11AutoBrightnessTile(tile: A11AutoBrightnessTile): QSTileImpl<*>
+
+    @Binds
+    @IntoMap
+    @StringKey(A11BrightnessSliderTile.TILE_SPEC)
+    fun bindA11BrightnessSliderTile(tile: A11BrightnessSliderTile): QSTileImpl<*>
+
+    @Binds
+    @IntoMap
+    @StringKey(A11VolumeSliderTile.TILE_SPEC)
+    fun bindA11VolumeSliderTile(tile: A11VolumeSliderTile): QSTileImpl<*>
 
     /** Inject CaffeineTile into tileMap in QSModule */
     @Binds

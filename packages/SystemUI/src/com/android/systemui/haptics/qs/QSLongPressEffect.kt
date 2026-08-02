@@ -26,6 +26,7 @@ import com.android.systemui.animation.DelegateTransitionAnimatorController
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.LaunchableView
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.dagger.QSLog
@@ -288,6 +289,7 @@ constructor(
     fun resetState() = setState(State.IDLE)
 
     fun createExpandableFromView(view: View) {
+        val animatedView = (view as? LaunchableView)?.getAnimatedView() as? View ?: view
         expandable =
             object : Expandable {
                 override fun activityTransitionController(
@@ -299,7 +301,7 @@ constructor(
                 ): ActivityTransitionAnimator.Controller? {
                     val delegatedController =
                         ActivityTransitionAnimator.Controller.fromView(
-                            view,
+                            animatedView,
                             launchCujType,
                             cookie,
                             component,
@@ -312,7 +314,7 @@ constructor(
                 override fun dialogTransitionController(
                     cuj: DialogCuj?
                 ): DialogTransitionAnimator.Controller? =
-                    DialogTransitionAnimator.Controller.fromView(view, cuj)
+                    DialogTransitionAnimator.Controller.fromView(animatedView, cuj)
             }
     }
 

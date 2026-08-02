@@ -32,8 +32,8 @@ object QSComposeFragment {
 
     /** Is the refactor enabled */
     @JvmStatic
-    inline val isEnabled
-        get() = Flags.qsUiRefactorComposeFragment()
+    val isEnabled
+        get() = QSStyleRuntime.isCompose
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
@@ -41,7 +41,7 @@ object QSComposeFragment {
      * build to ensure that the refactor author catches issues in testing.
      */
     @JvmStatic
-    inline fun isUnexpectedlyInLegacyMode() =
+    fun isUnexpectedlyInLegacyMode() =
         RefactorFlagUtils.isUnexpectedlyInLegacyMode(isEnabled, FLAG_NAME)
 
     /**
@@ -49,5 +49,5 @@ object QSComposeFragment {
      * the flag is enabled to ensure that the refactor author catches issues in testing.
      */
     @JvmStatic
-    inline fun assertInLegacyMode() = RefactorFlagUtils.assertInLegacyMode(isEnabled, FLAG_NAME)
+    fun assertInLegacyMode() = RefactorFlagUtils.assertInLegacyMode(isEnabled, FLAG_NAME)
 }

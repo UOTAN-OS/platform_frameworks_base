@@ -27,6 +27,7 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
 import com.android.systemui.res.R;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.shade.LargeScreenHeaderHelper;
 import com.android.systemui.util.LargeScreenUtils;
 
@@ -92,13 +93,17 @@ public class QuickStatusBarHeader extends FrameLayout {
         setLayoutParams(lp);
 
         MarginLayoutParams qqsLP = (MarginLayoutParams) mHeaderQsPanel.getLayoutParams();
+        int qqsSpacing = resources.getDimensionPixelSize(
+                QSComposeFragment.isEnabled()
+                        ? R.dimen.qqs_layout_margin_top
+                        : R.dimen.a11_qqs_margin_top);
         if (mSceneContainerEnabled) {
-            qqsLP.topMargin = 0;
+            qqsLP.topMargin = qqsSpacing;
         } else if (largeScreenHeaderActive) {
-            qqsLP.topMargin = mContext.getResources()
-                    .getDimensionPixelSize(R.dimen.qqs_layout_margin_top);
+            qqsLP.topMargin = qqsSpacing;
         } else {
-            qqsLP.topMargin = LargeScreenHeaderHelper.getLargeScreenHeaderHeight(mContext);
+            qqsLP.topMargin =
+                    LargeScreenHeaderHelper.getLargeScreenHeaderHeight(mContext) + qqsSpacing;
         }
         mHeaderQsPanel.setLayoutParams(qqsLP);
     }

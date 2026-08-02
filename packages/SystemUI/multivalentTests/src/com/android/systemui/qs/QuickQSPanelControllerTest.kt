@@ -40,6 +40,8 @@ import com.android.systemui.qs.customize.QSCustomizerController
 import com.android.systemui.qs.logging.QSLogger
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.settings.brightness.BrightnessController
+import com.android.systemui.settings.brightness.BrightnessSliderController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
@@ -80,6 +82,8 @@ class QuickQSPanelControllerTest(flags: FlagsParameterization) : SysuiTestCase()
     @Mock private lateinit var longPressEffectProvider: Provider<QSLongPressEffect>
     @Mock private lateinit var mediaCarouselInteractor: MediaCarouselInteractor
     @Mock private lateinit var configurationController: ConfigurationController
+    @Mock private lateinit var brightnessControllerFactory: BrightnessController.Factory
+    @Mock private lateinit var brightnessSliderFactory: BrightnessSliderController.Factory
     @Mock private lateinit var mockViewTreeObserver: ViewTreeObserver
 
     private val usingMediaPlayer: Boolean
@@ -139,6 +143,8 @@ class QuickQSPanelControllerTest(flags: FlagsParameterization) : SysuiTestCase()
                 dumpManager,
                 longPressEffectProvider,
                 mediaCarouselInteractor,
+                brightnessControllerFactory,
+                brightnessSliderFactory,
                 configurationController,
             )
 
@@ -246,6 +252,8 @@ class QuickQSPanelControllerTest(flags: FlagsParameterization) : SysuiTestCase()
         dumpManager: DumpManager,
         longPressEffectProvider: Provider<QSLongPressEffect>,
         mediaCarouselInteractor: MediaCarouselInteractor,
+        brightnessControllerFactory: BrightnessController.Factory,
+        brightnessSliderFactory: BrightnessSliderController.Factory,
         configurationController: ConfigurationController,
     ) :
         QuickQSPanelController(
@@ -262,6 +270,8 @@ class QuickQSPanelControllerTest(flags: FlagsParameterization) : SysuiTestCase()
             ResourcesSplitShadeStateController(),
             longPressEffectProvider,
             mediaCarouselInteractor,
+            brightnessControllerFactory,
+            brightnessSliderFactory,
             configurationController,
         ) {
 

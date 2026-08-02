@@ -29,6 +29,7 @@ import android.provider.Settings;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
@@ -36,6 +37,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.settingslib.development.DevelopmentSettingsEnabler;
 import com.android.systemui.FontSizeUtils;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.res.R;
 
 /**
@@ -94,7 +96,7 @@ public class QSFooterView extends FrameLayout {
             // Set as selected for marquee before its made visible, then it won't be announced when
             // it's made visible.
             mBuildText.setSelected(true);
-            mShouldShowBuildText = true;
+            mShouldShowBuildText = QSComposeFragment.isEnabled();
         } else {
             mBuildText.setText(null);
             mShouldShowBuildText = false;
@@ -122,13 +124,24 @@ public class QSFooterView extends FrameLayout {
     }
 
     private void updateEditButtonResources() {
-        int size = getResources().getDimensionPixelSize(R.dimen.qs_footer_action_button_size);
-        int padding = getResources().getDimensionPixelSize(R.dimen.qs_footer_icon_padding);
+        int size = getResources().getDimensionPixelSize(
+                QSComposeFragment.isEnabled()
+                        ? R.dimen.qs_footer_action_button_size
+                        : R.dimen.a11_qs_footer_edit_size);
+        int padding = getResources().getDimensionPixelSize(
+                QSComposeFragment.isEnabled()
+                        ? R.dimen.qs_footer_icon_padding
+                        : R.dimen.a11_qs_footer_edit_padding);
         MarginLayoutParams lp = (MarginLayoutParams) mEditButton.getLayoutParams();
         lp.height = size;
         lp.width = size;
         mEditButton.setLayoutParams(lp);
         mEditButton.setPadding(padding, padding, padding, padding);
+        if (mEditButton instanceof ImageView) {
+            ((ImageView) mEditButton).setImageTintList(
+                    getResources().getColorStateList(
+                            R.color.qs_footer_edit_icon_color, mContext.getTheme()));
+        }
     }
 
     private void updateBuildTextResources() {

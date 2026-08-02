@@ -38,6 +38,7 @@
             android:background="@android:color/transparent"
             android:focusable="false"
             android:importantForAccessibility="yes"
+            android:paddingTop="10dp"
             android:clipToPadding="false"
             android:clipChildren="false">
 

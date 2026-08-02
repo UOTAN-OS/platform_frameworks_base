@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="a11_qs_tile_gap">12dp</dimen>
+    <dimen name="a11_qs_tile_gap_vertical">20dp</dimen>
+    <dimen name="a11_qs_expanded_top_padding">76dp</dimen>
+    <dimen name="a11_qs_icon_size">28dp</dimen>
+    <dimen name="a11_qs_side_icon_size">22dp</dimen>
+</resources>

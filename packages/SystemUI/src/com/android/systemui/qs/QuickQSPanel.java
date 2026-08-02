@@ -42,7 +42,7 @@ public class QuickQSPanel extends QSPanel {
 
     public QuickQSPanel(Context context, AttributeSet attrs) {
         super(context, attrs);
-        mMaxTiles = getResources().getInteger(R.integer.quick_qs_panel_max_tiles);
+        mMaxTiles = getResources().getInteger(R.integer.a11_qqs_max_cells);
     }
 
     @Override
@@ -179,14 +179,22 @@ public class QuickQSPanel extends QSPanel {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT,
                     LayoutParams.WRAP_CONTENT);
             setLayoutParams(lp);
-            setMaxColumns(4);
+            setMaxColumns(getResources().getInteger(R.integer.a11_qs_num_columns));
+        }
+
+        @Override
+        public boolean setMaxColumns(int maxColumns) {
+            return super.setMaxColumns(
+                    getResources().getInteger(R.integer.a11_qs_num_columns));
         }
 
         @Override
         public boolean updateResources() {
             mResourceCellHeightResId = R.dimen.qs_quick_tile_size;
             boolean b = super.updateResources();
-            mMaxAllowedRows = getResources().getInteger(R.integer.quick_qs_panel_max_rows);
+            mResourceColumns = getResources().getInteger(R.integer.a11_qs_num_columns);
+            b |= setMaxColumns(mResourceColumns);
+            mMaxAllowedRows = getResources().getInteger(R.integer.a11_qqs_max_rows);
             return b;
         }
 

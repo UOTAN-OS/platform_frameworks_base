@@ -101,8 +101,8 @@ public class QSFooterViewController extends ViewController<QSFooterView> impleme
     @Override
     public void setVisibility(int visibility) {
         mView.setVisibility(visibility);
-        mEditButton
-                .setVisibility(mRetailModeInteractor.isInRetailMode() ? View.GONE : View.VISIBLE);
+        mEditButton.setVisibility(
+                mRetailModeInteractor.isInRetailMode() ? View.GONE : View.VISIBLE);
         mEditButton.setClickable(visibility == View.VISIBLE);
     }
 

@@ -78,6 +78,7 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -101,6 +102,7 @@ import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsForegroundServic
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsSecurityButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterTextButtonViewModel
+import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.qs.panels.ui.viewmodel.TextFeedbackViewModel
 import com.android.systemui.qs.shared.ui.QuickSettings
 import com.android.systemui.qs.ui.composable.QuickSettingsTheme
@@ -144,6 +146,7 @@ fun ContentScope.FooterActionsWithAnimatedVisibility(
 @Composable
 fun FooterActions(viewModel: FooterActionsViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val a11 = !QSComposeFragment.isEnabled
 
     // Collect alphas as soon as we are composed, even when not visible.
     val alpha by viewModel.alpha.collectAsStateWithLifecycle()
@@ -197,15 +200,18 @@ fun FooterActions(viewModel: FooterActionsViewModel, modifier: Modifier = Modifi
             )
         }
 
-    val horizontalPadding = dimensionResource(R.dimen.qs_content_horizontal_padding)
+    val horizontalPadding =
+        if (a11) 31.dp else dimensionResource(R.dimen.qs_content_horizontal_padding)
     Row(
         modifier
             .fillMaxWidth()
             .graphicsLayer { this.alpha = alpha }
-            .then(backgroundModifier)
+            .then(if (a11) Modifier else backgroundModifier)
             .padding(
-                top = dimensionResource(R.dimen.qs_footer_actions_top_padding),
-                bottom = dimensionResource(R.dimen.qs_footer_actions_bottom_padding),
+                top = if (a11) 0.dp else dimensionResource(R.dimen.qs_footer_actions_top_padding),
+                bottom =
+                    if (a11) 0.dp
+                    else dimensionResource(R.dimen.qs_footer_actions_bottom_padding),
                 start = horizontalPadding,
                 end = horizontalPadding,
             )
@@ -279,6 +285,7 @@ private fun AnimatedFooterTextButton(
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val buttonHeight = if (!QSComposeFragment.isEnabled) 32.dp else FooterButtonHeight
     val transition = updateTransition(textViewModel)
     val scaleY by transition.animateFloat { if (it == null) FOOTER_TEXT_MINIMUM_SCALE_Y else 1f }
     val alpha by transition.animateFloat { if (it == null) 0f else 1f }
@@ -290,7 +297,7 @@ private fun AnimatedFooterTextButton(
 
     Box(
         modifier
-            .height(FooterButtonHeight)
+            .height(buttonHeight)
             .animatedScaledHeight { scaleY }
             .animatedWidth()
             .graphicsLayer { this.alpha = alpha }
@@ -387,14 +394,15 @@ private fun IconButton(
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val a11 = !QSComposeFragment.isEnabled
     val colors = buttonColorsForModel(model)
     CircleExpandable(
         color = colors.background,
         onClick = model.onClick,
-        modifier = modifier,
+        modifier = if (a11) modifier.size(32.dp) else modifier,
         useModifierBasedImplementation = useModifierBasedExpandable,
     ) {
-        FooterIcon(model.icon, Modifier.size(20.dp), colors.icon)
+        FooterIcon(model.icon, Modifier.size(if (a11) 16.dp else 20.dp), colors.icon)
     }
 }
 
@@ -420,6 +428,7 @@ private fun NumberButton(
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val buttonHeight = if (!QSComposeFragment.isEnabled) 32.dp else FooterButtonHeight
     // By default Expandable will show a ripple above its content when clicked, and clip the content
     // with the shape of the expandable. In this case we also want to show a "new changes dot"
     // outside of the shape, so we can't clip. To work around that we can pass our own interaction
@@ -435,7 +444,7 @@ private fun NumberButton(
         modifier = modifier,
         useModifierBasedImplementation = useModifierBasedExpandable,
     ) {
-        Box(Modifier.size(FooterButtonHeight)) {
+        Box(Modifier.size(buttonHeight)) {
             Box(
                 Modifier.fillMaxSize()
                     .clip(CircleShape)
@@ -561,12 +570,20 @@ private fun TextButtonContent(
     showNewDot: Boolean = false,
     showChevron: Boolean = false,
 ) {
+    val a11 = !QSComposeFragment.isEnabled
     val contentColor = textButtonColors().content
     Row(
-        modifier.padding(horizontal = dimensionResource(R.dimen.qs_footer_padding)),
+        modifier.padding(
+            horizontal = if (a11) 4.dp else dimensionResource(R.dimen.qs_footer_padding)
+        ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, Modifier.padding(end = 12.dp).size(20.dp), contentColor)
+        Icon(
+            icon,
+            Modifier.padding(end = if (a11) 6.dp else 12.dp)
+                .size(if (a11) 16.dp else 20.dp),
+            contentColor,
+        )
 
         Text(
             text,
@@ -576,6 +593,7 @@ private fun TextButtonContent(
             color = contentColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            fontSize = if (a11) 11.sp else TextUnit.Unspecified,
         )
 
         if (showNewDot) {
@@ -586,7 +604,8 @@ private fun TextButtonContent(
             Icon(
                 painterResource(com.android.internal.R.drawable.ic_chevron_end),
                 contentDescription = null,
-                Modifier.padding(start = 8.dp).size(20.dp),
+                Modifier.padding(start = if (a11) 4.dp else 8.dp)
+                    .size(if (a11) 16.dp else 20.dp),
                 contentColor,
             )
         }
@@ -627,6 +646,13 @@ private fun Modifier.animatedScaledHeight(scale: () -> Float): Modifier {
 @Composable
 @ReadOnlyComposable
 private fun textButtonColors(): TextButtonColors {
+    if (!QSComposeFragment.isEnabled) {
+        return TextButtonColors(
+            content = MaterialTheme.colorScheme.onSurface,
+            background = Color.Transparent,
+            border = null,
+        )
+    }
     return if (notificationShadeBlur()) {
         FooterActionsDefaults.blurTextButtonColors()
     } else {
@@ -637,6 +663,13 @@ private fun textButtonColors(): TextButtonColors {
 @Composable
 @ReadOnlyComposable
 private fun numberButtonColors(): TextButtonColors {
+    if (!QSComposeFragment.isEnabled) {
+        return TextButtonColors(
+            content = MaterialTheme.colorScheme.onSurface,
+            background = Color.Transparent,
+            border = null,
+        )
+    }
     return if (notificationShadeBlur()) {
         FooterActionsDefaults.blurTextButtonColors()
     } else {
@@ -647,6 +680,12 @@ private fun numberButtonColors(): TextButtonColors {
 @Composable
 @ReadOnlyComposable
 private fun buttonColorsForModel(footerAction: FooterActionsButtonViewModel): ButtonColors {
+    if (!QSComposeFragment.isEnabled) {
+        return ButtonColors(
+            icon = MaterialTheme.colorScheme.onSurface,
+            background = Color.Transparent,
+        )
+    }
     return if (notificationShadeBlur()) {
         when (footerAction) {
             is FooterActionsButtonViewModel.PowerActionViewModel ->

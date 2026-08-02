@@ -46,6 +46,7 @@ import com.android.systemui.Flags;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.common.shared.colors.SurfaceEffectColors;
 import com.android.systemui.res.R;
+import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.shade.TouchLogger;
 import com.android.systemui.statusbar.NotificationShelf;
 import com.android.systemui.statusbar.notification.FakeShadowView;
@@ -151,7 +152,12 @@ public abstract class ActivatableNotificationView extends ExpandableOutlineView 
     }
 
     protected void updateColors() {
-        if (notificationRowTransparency()) {
+        if (!QSComposeFragment.isEnabled()) {
+            // Keep A11 notification cards one surface step above the notification scrim. The
+            // stack scrim still owns its native clipping and expansion animation.
+            mNormalColor = mContext.getColor(R.color.a11_notification_card_background);
+            mOpaqueColor = mNormalColor;
+        } else if (notificationRowTransparency()) {
             mNormalColor = SurfaceEffectColors.surfaceEffect1(getContext());
             mOpaqueColor = mContext.getColor(
                     com.android.internal.R.color.materialColorSurfaceContainer);

@@ -29,6 +29,7 @@ import android.os.Bundle
 import android.os.Trace
 import android.os.Trace.TRACE_TAG_APP
 import android.provider.AlarmClock
+import android.util.TypedValue
 import android.view.DisplayCutout
 import android.view.View
 import android.view.ViewGroup
@@ -39,7 +40,6 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.constraintlayout.motion.widget.MotionLayout
 import androidx.core.view.doOnLayout
@@ -61,6 +61,7 @@ import com.android.systemui.dump.DumpManager
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.ChipVisibilityListener
 import com.android.systemui.qs.HeaderPrivacyIconsController
+import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeHeaderController.Companion.HEADER_TRANSITION_ID
 import com.android.systemui.shade.ShadeHeaderController.Companion.LARGE_SCREEN_HEADER_CONSTRAINT
@@ -82,10 +83,8 @@ import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.phone.ui.TintedIconManager
 import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryWithChargeStatus
-import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryWithEstimate
 import com.android.systemui.statusbar.pipeline.battery.ui.composable.ShowPercentMode
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryNextToPercentViewModel
-import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.view.SystemStatusIconsLayoutHelper
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.statusbar.policy.ConfigurationController
@@ -122,7 +121,6 @@ constructor(
     private val shadeDisplaysRepositoryLazy: Lazy<ShadeDisplaysRepository>,
     private val variableDateViewControllerFactory: VariableDateViewController.Factory,
     @Named(SHADE_HEADER) private val batteryMeterViewController: BatteryMeterViewController,
-    private val unifiedBatteryViewModelFactory: BatteryViewModel.AlwaysShowPercent.Factory,
     private val tandemBatteryViewModelFactory: BatteryNextToPercentViewModel.Factory,
     private val dumpManager: DumpManager,
     private val shadeCarrierGroupControllerBuilder: ShadeCarrierGroupController.Builder,
@@ -331,10 +329,17 @@ constructor(
             }
 
             override fun onDensityOrFontScaleChanged() {
-                clock.setTextAppearance(R.style.TextAppearance_QS_Status)
-                date.setTextAppearance(R.style.TextAppearance_QS_Status)
+                val textAppearance =
+                    if (QSComposeFragment.isEnabled) {
+                        R.style.TextAppearance_QS_Status
+                    } else {
+                        R.style.TextAppearance_QS_Status_A11
+                    }
+                clock.setTextAppearance(textAppearance)
+                date.setTextAppearance(textAppearance)
+                applyA11HeaderTextSizes()
                 mShadeCarrierGroup.updateTextAppearanceAndTint(
-                    R.style.TextAppearance_QS_Status,
+                    textAppearance,
                     getFgColor(),
                     getBgColor(),
                 )
@@ -450,15 +455,13 @@ constructor(
                         id = R.id.battery_meter_composable_view
                         val showBatteryEstimate by showBatteryEstimate.collectAsStateWithLifecycle()
                         val dark = isSystemInDarkTheme()
-                        BatteryWithEstimate(
+                        BatteryWithChargeStatus(
                             modifier = Modifier.wrapContentSize(),
-                            viewModelFactory = unifiedBatteryViewModelFactory,
+                            viewModelFactory = tandemBatteryViewModelFactory,
                             isDarkProvider = { IsAreaDark { dark } },
-                            textColor =
-                                if (notificationShadeBlur())
-                                    Color(context.getColor(R.color.shade_header_text_color))
-                                else Color.White,
-                            showEstimate = showBatteryEstimate,
+                            showPercentMode =
+                                if (showBatteryEstimate) ShowPercentMode.PreferEstimate
+                                else ShowPercentMode.FollowSetting,
                         )
                     }
                 }
@@ -538,24 +541,53 @@ constructor(
         // Use resources.getXml instead of passing the resource id due to bug b/205018300
         header
             .getConstraintSet(QQS_HEADER_CONSTRAINT)
-            .load(context, resources.getXml(R.xml.qqs_header))
+            .load(
+                context,
+                resources.getXml(
+                    if (QSComposeFragment.isEnabled) R.xml.qqs_header
+                    else R.xml.a11_qqs_header
+                ),
+            )
         header
             .getConstraintSet(QS_HEADER_CONSTRAINT)
-            .load(context, resources.getXml(R.xml.qs_header))
+            .load(
+                context,
+                resources.getXml(
+                    if (QSComposeFragment.isEnabled) R.xml.qs_header
+                    else R.xml.a11_qs_header
+                ),
+            )
         header
             .getConstraintSet(LARGE_SCREEN_HEADER_CONSTRAINT)
             .load(context, resources.getXml(R.xml.large_screen_shade_header))
     }
 
     private fun updateColors() {
-        clock.setTextAppearance(R.style.TextAppearance_QS_Status)
-        date.setTextAppearance(R.style.TextAppearance_QS_Status)
+        val textAppearance =
+            if (QSComposeFragment.isEnabled) {
+                R.style.TextAppearance_QS_Status
+            } else {
+                R.style.TextAppearance_QS_Status_A11
+            }
+        clock.setTextAppearance(textAppearance)
+        date.setTextAppearance(textAppearance)
+        applyA11HeaderTextSizes()
         mShadeCarrierGroup.updateTextAppearanceAndTint(
-            R.style.TextAppearance_QS_Status,
+            textAppearance,
             getFgColor(),
             getBgColor(),
         )
         iconManager.setTint(getFgColor(), getBgColor())
+    }
+
+    private fun applyA11HeaderTextSizes() {
+        if (QSComposeFragment.isEnabled) return
+        clock.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+        date.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+        clock.includeFontPadding = false
+        date.includeFontPadding = false
+        clock.gravity = android.view.Gravity.CENTER_VERTICAL
+        date.gravity = android.view.Gravity.CENTER_VERTICAL
     }
 
     private fun updateCarrierGroupPadding() {
