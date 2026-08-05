@@ -57,6 +57,7 @@ import com.android.systemui.media.muteawait.MediaMuteAwaitConnectionCli;
 import com.android.systemui.media.nearby.NearbyMediaDevicesManager;
 import com.android.systemui.minmode.MinModeManager;
 import com.android.systemui.minmode.MinModeManagerImpl;
+import com.android.systemui.moment.arc.MomentArcModule;
 import com.android.systemui.navigationbar.NavigationBarControllerModule;
 import com.android.systemui.navigationbar.gestural.GestureModule;
 import com.android.systemui.plugins.qs.QSFactory;
@@ -153,6 +154,7 @@ import javax.inject.Provider;
         KeyguardSectionsModule.class,
         KeyboardTouchpadTutorialModule.class,
         MediaModule.class,
+        MomentArcModule.class,
         MediaMuteAwaitConnectionCli.StartableModule.class,
         MultiUserUtilsModule.class,
         NavigationBarControllerModule.class,

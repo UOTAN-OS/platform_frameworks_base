@@ -6206,6 +6206,9 @@ public class PhoneWindowManager implements WindowManagerPolicy {
 
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                if (mMomentArcGestureTriggered) {
+                    updateMomentArcTouch(x, y, false, true);
+                }
                 mTrackingMomentArcGesture = false;
                 mMomentArcGestureTriggered = false;
                 final boolean inBottomCorner =
@@ -6242,22 +6245,32 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                         }
                     }
                     if (mMomentArcGestureTriggered) {
-                        updateMomentArcTouch(x, y, false);
+                        updateMomentArcTouch(x, y, false, false);
                         return SYSTEM_GESTURE_MOVE_TRIGGERED;
                     }
                     return SYSTEM_GESTURE_MOVE;
                 }
                 break;
             case MotionEvent.ACTION_UP:
-            case MotionEvent.ACTION_CANCEL:
                 if (mMomentArcGestureTriggered) {
-                    updateMomentArcTouch(x, y, true);
+                    updateMomentArcTouch(x, y, true, false);
                     mMomentArcGestureTriggered = false;
                     return SYSTEM_GESTURE_RESET;
                 }
                 if (mTrackingMomentArcGesture) {
                     mTrackingMomentArcGesture = false;
                     return SYSTEM_GESTURE_RESET;
+                }
+                break;
+            case MotionEvent.ACTION_CANCEL:
+                if (mMomentArcGestureTriggered) {
+                    updateMomentArcTouch(x, y, false, true);
+                    mMomentArcGestureTriggered = false;
+                    return SYSTEM_GESTURE_CANCELED;
+                }
+                if (mTrackingMomentArcGesture) {
+                    mTrackingMomentArcGesture = false;
+                    return SYSTEM_GESTURE_CANCELED;
                 }
                 break;
         }
@@ -6275,12 +6288,14 @@ public class PhoneWindowManager implements WindowManagerPolicy {
         mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
     }
 
-    private void updateMomentArcTouch(float touchX, float touchY, boolean isUp) {
+    private void updateMomentArcTouch(float touchX, float touchY, boolean isUp,
+            boolean isCancelled) {
         final Intent intent = new Intent(ACTION_UPDATE_MOMENT_ARC_TOUCH)
                 .setPackage(SYSTEMUI_PACKAGE)
                 .putExtra("touch_x", touchX)
                 .putExtra("touch_y", touchY)
                 .putExtra("is_up", isUp)
+                .putExtra("is_cancelled", isCancelled)
                 .addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY
                         | Intent.FLAG_RECEIVER_FOREGROUND);
         mContext.sendBroadcastAsUser(intent, UserHandle.CURRENT);
@@ -6311,6 +6326,10 @@ public class PhoneWindowManager implements WindowManagerPolicy {
                 @Override
                 public void onDisplayChanged(int displayId) {
                     if (displayId == Display.DEFAULT_DISPLAY) {
+                        if (mMomentArcGestureTriggered) {
+                            updateMomentArcTouch(mMomentArcGestureStart.x,
+                                    mMomentArcGestureStart.y, false, true);
+                        }
                         updateMomentArcGestureParams();
                         mTrackingMomentArcGesture = false;
                         mMomentArcGestureTriggered = false;
