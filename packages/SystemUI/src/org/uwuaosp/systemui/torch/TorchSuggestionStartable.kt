@@ -16,13 +16,14 @@
 
 package org.uwuaosp.systemui.torch
 
-import android.app.KeyguardManager
 import android.content.Context
 import android.provider.Settings
 import com.android.systemui.CoreStartable
 import com.android.systemui.clipboardoverlay.ClipboardOverlayController
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.policy.FlashlightController
@@ -46,6 +47,8 @@ constructor(
     private val settingsRepository: UwuSuggestionChipSettingsRepository,
     private val overlayProvider: Provider<ClipboardOverlayController>,
     private val userTracker: UserTracker,
+    private val deviceEntryInteractor: DeviceEntryInteractor,
+    private val keyguardInteractor: KeyguardInteractor,
 ) : CoreStartable {
     private var overlay: ClipboardOverlayController? = null
 
@@ -57,10 +60,14 @@ constructor(
             combine(
                 settingsRepository.torchEnabled,
                 secureSettingsRepository.boolSetting(Settings.Secure.FLASHLIGHT_ENABLED, false),
-            ) { enabled, flashlightOn -> enabled && flashlightOn }
+                deviceEntryInteractor.isUnlocked,
+                keyguardInteractor.isKeyguardShowing,
+            ) { enabled, flashlightOn, isUnlocked, isKeyguardShowing ->
+                enabled && flashlightOn && isUnlocked && !isKeyguardShowing
+            }
                 .distinctUntilChanged()
                 .collect { shouldShow ->
-                    if (shouldShow && canShowSuggestion()) {
+                    if (shouldShow && isUserSetupComplete()) {
                         showSuggestion()
                     } else {
                         overlay?.dismissSuggestion()
@@ -79,12 +86,7 @@ constructor(
         overlay?.setTorchSuggestion()
     }
 
-    private fun canShowSuggestion(): Boolean {
-        val userContext = userTracker.userContext
-        val keyguardManager = userContext.getSystemService(KeyguardManager::class.java)
-        if (keyguardManager != null && keyguardManager.isDeviceLocked) {
-            return false
-        }
+    private fun isUserSetupComplete(): Boolean {
         return (
             Settings.Secure.getIntForUser(
                 context.contentResolver,

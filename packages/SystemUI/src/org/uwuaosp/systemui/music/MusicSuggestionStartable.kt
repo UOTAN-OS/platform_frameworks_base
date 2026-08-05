@@ -16,7 +16,6 @@
 
 package org.uwuaosp.systemui.music
 
-import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Drawable
@@ -25,6 +24,8 @@ import com.android.systemui.CoreStartable
 import com.android.systemui.clipboardoverlay.ClipboardOverlayController
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.util.kotlin.pairwise
 import javax.inject.Inject
@@ -51,6 +52,8 @@ constructor(
     private val deviceRepository: MusicSuggestionDeviceRepository,
     private val overlayProvider: Provider<ClipboardOverlayController>,
     private val userTracker: UserTracker,
+    private val deviceEntryInteractor: DeviceEntryInteractor,
+    private val keyguardInteractor: KeyguardInteractor,
 ) : CoreStartable {
     private companion object {
         const val AUTO_DISMISS_DELAY_MS = 30_000L
@@ -72,9 +75,19 @@ constructor(
 
     override fun start() {
         scope.launch {
-            combine(deviceRepository.isHeadsetConnected, config) { connected, currentConfig ->
+            combine(
+                deviceRepository.isHeadsetConnected,
+                config,
+                deviceEntryInteractor.isUnlocked,
+                keyguardInteractor.isKeyguardShowing,
+            ) { connected, currentConfig, isUnlocked, isKeyguardShowing ->
                 SuggestionState(
-                    showable = connected && currentConfig.enabled && currentConfig.packageName.isNotBlank(),
+                    showable =
+                        connected &&
+                            currentConfig.enabled &&
+                            currentConfig.packageName.isNotBlank() &&
+                            isUnlocked &&
+                            !isKeyguardShowing,
                     packageName = currentConfig.packageName,
                 )
             }.pairwise(initialValue = SuggestionState(showable = false, packageName = ""))
@@ -90,7 +103,7 @@ constructor(
     }
 
     private fun maybeShowSuggestion(packageName: String) {
-        if (packageName.isBlank() || !canShowSuggestion()) {
+        if (packageName.isBlank() || !isUserSetupComplete()) {
             return
         }
         val launchIntent = createLaunchIntent(packageName) ?: return
@@ -137,12 +150,7 @@ constructor(
         return runCatching { context.packageManager.getApplicationIcon(packageName) }.getOrNull()
     }
 
-    private fun canShowSuggestion(): Boolean {
-        val userContext = userTracker.userContext
-        val keyguardManager = userContext.getSystemService(KeyguardManager::class.java)
-        if (keyguardManager != null && keyguardManager.isDeviceLocked) {
-            return false
-        }
+    private fun isUserSetupComplete(): Boolean {
         return (
             Settings.Secure.getIntForUser(
                 context.contentResolver,

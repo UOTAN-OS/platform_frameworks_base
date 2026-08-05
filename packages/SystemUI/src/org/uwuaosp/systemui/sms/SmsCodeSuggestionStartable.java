@@ -16,11 +16,13 @@
 
 package org.uwuaosp.systemui.sms;
 
+import android.Manifest;
 import android.app.KeyguardManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.UserHandle;
 import android.provider.Settings;
 import android.text.TextUtils;
 
@@ -79,7 +81,13 @@ public final class SmsCodeSuggestionStartable implements CoreStartable {
 
     @Override
     public void start() {
-        mBroadcastDispatcher.registerReceiver(mReceiver, new IntentFilter(ACTION_SMS_CODE_RECEIVED));
+        mBroadcastDispatcher.registerReceiver(
+                mReceiver,
+                new IntentFilter(ACTION_SMS_CODE_RECEIVED),
+                null,
+                UserHandle.ALL,
+                Context.RECEIVER_EXPORTED,
+                Manifest.permission.STATUS_BAR);
     }
 
     private boolean canShowSuggestion() {

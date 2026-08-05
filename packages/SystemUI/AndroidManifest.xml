@@ -467,6 +467,9 @@
              Setting the theme on the application does not affect views inflated by services.
              The application theme is set again from onCreate to take effect for those views. -->
         <meta-data android:name="com.google.android.backup.api_key" android:value="AEdPqrEAAAAIWTZsUG100coeb3xbEoTWKd3ZL3R79JshRDZfYQ" />
+        <meta-data
+            android:name="org.uwuaosp.systemui.SUGGESTION_HOST_API_VERSION"
+            android:value="1" />
         <!-- Broadcast receiver that gets the broadcast at boot time and starts
              up everything else.
              TODO: Should have an android:permission attribute

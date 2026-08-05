@@ -92,6 +92,8 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     public static final String SCREENSHOT_ACTION = "com.android.systemui.SCREENSHOT";
     public static final String SELF_PERMISSION = "com.android.systemui.permission.SELF";
     public static final String COPY_OVERLAY_ACTION = "com.android.systemui.COPY";
+    private static final Object ACTIVE_OVERLAY_LOCK = new Object();
+    @Nullable private static ClipboardOverlayController sActiveOverlay;
 
     private static final int CLIPBOARD_DEFAULT_TIMEOUT_MILLIS = 6000;
 
@@ -117,6 +119,7 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     private final IntentCreator mIntentCreator;
 
     private Runnable mOnSessionCompleteListener;
+    private boolean mSessionComplete;
 
     private BroadcastReceiver mCloseDialogsReceiver;
     private BroadcastReceiver mScreenshotReceiver;
@@ -209,14 +212,20 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mCloseDialogsReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (ACTION_CLOSE_SYSTEM_DIALOGS.equals(intent.getAction())) {
+                if (ACTION_CLOSE_SYSTEM_DIALOGS.equals(intent.getAction())
+                        || Intent.ACTION_SCREEN_OFF.equals(intent.getAction())
+                        || Intent.ACTION_USER_SWITCHED.equals(intent.getAction())) {
                     finish(CLIPBOARD_OVERLAY_DISMISSED_OTHER);
                 }
             }
         };
 
-        mBroadcastDispatcher.registerReceiver(mCloseDialogsReceiver,
-                new IntentFilter(ACTION_CLOSE_SYSTEM_DIALOGS));
+        IntentFilter closeFilter = new IntentFilter(ACTION_CLOSE_SYSTEM_DIALOGS);
+        closeFilter.addAction(Intent.ACTION_SCREEN_OFF);
+        closeFilter.addAction(Intent.ACTION_USER_SWITCHED);
+        mBroadcastDispatcher.registerReceiver(mCloseDialogsReceiver, closeFilter, null, null,
+                Context.RECEIVER_NOT_EXPORTED);
+
         mScreenshotReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -229,12 +238,21 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
         mBroadcastDispatcher.registerReceiver(mScreenshotReceiver,
                 new IntentFilter(SCREENSHOT_ACTION), null, null, Context.RECEIVER_EXPORTED,
                 SELF_PERMISSION);
-        monitorOutsideTouches();
+
+        ClipboardOverlayController previousOverlay;
+        synchronized (ACTIVE_OVERLAY_LOCK) {
+            previousOverlay = sActiveOverlay;
+            sActiveOverlay = this;
+        }
+        if (previousOverlay != null) {
+            previousOverlay.hideImmediate();
+        }
 
         Intent copyIntent = new Intent(COPY_OVERLAY_ACTION);
-        // Set package name so the system knows it's safe
         copyIntent.setPackage(mContext.getPackageName());
         broadcastSender.sendBroadcast(copyIntent, SELF_PERMISSION);
+        monitorOutsideTouches();
+
     }
 
     @VisibleForTesting
@@ -589,6 +607,10 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
 
     @Override // ClipboardListener.ClipboardOverlay
     public void setOnSessionCompleteListener(Runnable runnable) {
+        if (mSessionComplete) {
+            runnable.run();
+            return;
+        }
         mOnSessionCompleteListener = runnable;
     }
 
@@ -712,6 +734,15 @@ public class ClipboardOverlayController implements ClipboardListener.ClipboardOv
     void hideImmediate() {
         // Note this may be called multiple times if multiple dismissal events happen at the same
         // time.
+        if (mSessionComplete) {
+            return;
+        }
+        mSessionComplete = true;
+        synchronized (ACTIVE_OVERLAY_LOCK) {
+            if (sActiveOverlay == this) {
+                sActiveOverlay = null;
+            }
+        }
         mTimeoutHandler.cancelTimeout();
         mWindow.remove();
         if (mCloseDialogsReceiver != null) {

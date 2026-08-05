@@ -2088,6 +2088,7 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
     void unbindCurrentClientLocked(@UnbindReason int reason, @UserIdInt int userId) {
         final var userData = getUserData(userId);
         if (userData.mCurClient != null) {
+            final int displayId = userData.mCurClient.mSelfReportedDisplayId;
             ProtoLog.v(IMMS_DEBUG, "unbindCurrentClientLocked: client=%s",
                     userData.mCurClient.mClient.asBinder());
             final var bindingController = userData.mBindingController;
@@ -2110,6 +2111,7 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
             userData.mCurClient.mSessionRequested = false;
             userData.mCurClient.mSessionRequestedForAccessibility = false;
             userData.mCurClient = null;
+            userData.mActiveInputConnectionMap.remove(displayId);
             ImeTracker.forLogging().onFailed(userData.mCurStatsToken,
                     ImeTracker.PHASE_SERVER_WAIT_IME);
             userData.mCurStatsToken = null;
@@ -4006,17 +4008,11 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
                 if (cs == null) {
                     throw new IllegalArgumentException("Unknown client " + client.asBinder());
                 }
-                // Keep track on computer control input connection that was last provided by the
-                // client on a particular display.
-                if (remoteComputerControlInputConnection != null) {
-                    userData.mActiveInputConnectionMap.put(cs.mSelfReportedDisplayId,
-                            remoteComputerControlInputConnection);
-                } else {
-                    userData.mActiveInputConnectionMap.remove(cs.mSelfReportedDisplayId);
-                }
                 if (mVdmInternal == null) {
                     mVdmInternal = LocalServices.getService(VirtualDeviceManagerInternal.class);
                 }
+                // Keep track on computer control input connection that was last provided by the
+                // client on a particular display.
                 if (remoteComputerControlInputConnection != null && mVdmInternal != null
                         && mVdmInternal.isComputerControlDisplay(cs.mSelfReportedDisplayId)) {
                     userData.mComputerControlInputConnectionMap.put(cs.mSelfReportedDisplayId,
@@ -4050,6 +4046,7 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
                         case WindowManagerInternal.ImeClientFocusResult.INVALID_DISPLAY_ID:
                             return InputBindResult.INVALID_DISPLAY_ID;
                     }
+                    userData.mActiveInputConnectionMap.remove(cs.mSelfReportedDisplayId);
 
                     if (!mConcurrentMultiUserModeEnabled) {
                         // The target user is that of the pending user switch if there is any,
@@ -4099,6 +4096,21 @@ public final class InputMethodManagerService implements IInputMethodManagerImpl.
                             editorInfo, inputConnection, remoteAccessibilityInputConnection,
                             unverifiedTargetSdkVersion, bindingController, imeBackCallbackReceiver,
                             cs, imeRequestedVisible);
+
+                    final boolean inputStarted = result.result
+                            == InputBindResult.ResultCode.SUCCESS_WITH_IME_SESSION
+                            || result.result
+                            == InputBindResult.ResultCode.SUCCESS_WAITING_IME_SESSION
+                            || result.result
+                            == InputBindResult.ResultCode.SUCCESS_WAITING_IME_BINDING
+                            || result.result
+                            == InputBindResult.ResultCode.SUCCESS_WITH_ACCESSIBILITY_SESSION;
+                    if (inputStarted && remoteComputerControlInputConnection != null) {
+                        userData.mActiveInputConnectionMap.put(cs.mSelfReportedDisplayId,
+                                remoteComputerControlInputConnection);
+                    } else {
+                        userData.mActiveInputConnectionMap.remove(cs.mSelfReportedDisplayId);
+                    }
                 } finally {
                     Binder.restoreCallingIdentity(ident);
                 }
