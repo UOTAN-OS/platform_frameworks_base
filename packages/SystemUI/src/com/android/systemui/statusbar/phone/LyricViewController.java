@@ -66,6 +66,7 @@ public abstract class LyricViewController implements
     private final LyricViewHolder mOverlayLyricViewHolder;
     private final LyricViewHolder mInlineLyricViewHolder;
     private final View mTintReferenceView;
+    private final NotificationListener mNotificationListener;
 
     private final ContrastColorUtil mNotificationColorUtil;
 
@@ -137,13 +138,34 @@ public abstract class LyricViewController implements
         hideInactiveLyricViewsImmediately();
 
         Dependency.get(DarkIconDispatcher.class).addDarkReceiver(this);
-        Dependency.get(NotificationListener.class).addNotificationHandler(this);
+        mNotificationListener = Dependency.get(NotificationListener.class);
+        mNotificationListener.addNotificationHandler(this);
+    }
+
+    public void destroy() {
+        mOverlayLyricViewHolder.mLyricContainer.removeCallbacks(mRestoreLyricRunnable);
+        Dependency.get(DarkIconDispatcher.class).removeDarkReceiver(this);
+        mNotificationListener.removeNotificationHandler(this);
     }
 
     public void setEnabled(boolean enabled) {
+        boolean wasEnabled = mEnabled;
         mEnabled = enabled;
         if (!mEnabled && mStarted) {
             stopLyric();
+        } else if (mEnabled && !wasEnabled) {
+            replayActiveNotifications();
+        }
+    }
+
+    private void replayActiveNotifications() {
+        StatusBarNotification[] activeNotifications = mNotificationListener.getActiveNotifications();
+        RankingMap rankingMap = mNotificationListener.getCurrentRanking();
+        if (activeNotifications == null) {
+            return;
+        }
+        for (StatusBarNotification notification : activeNotifications) {
+            onNotificationPosted(notification, rankingMap);
         }
     }
 

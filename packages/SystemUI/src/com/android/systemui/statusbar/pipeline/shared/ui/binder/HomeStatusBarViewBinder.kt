@@ -78,16 +78,15 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
         val notificationIconsArea = view.requireViewById<View>(R.id.notification_icon_area)
         val networkTrafficView = view.requireViewById<View>(R.id.network_traffic_holder)
 
-        val lyricController = LyricController(view)
-
         // GONE because this shouldn't take space in the layout
         systemInfoView.hideInitially()
         clockView.hideInitially()
         notificationIconsArea.hideInitially()
-        lyricController.hideInitially()
 
         view.repeatWhenAttached {
-            repeatOnLifecycle(Lifecycle.State.CREATED) {
+            val lyricController = LyricController(view).also { it.hideInitially() }
+            try {
+                repeatOnLifecycle(Lifecycle.State.CREATED) {
                 listener?.let { listener ->
                     launch {
                         viewModel.isTransitioningFromLockscreenToOccluded.collect {
@@ -152,8 +151,7 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
 
                 launch {
                     viewModel.isNotificationIconContainerVisible.collect {
-                        lyricController.setCanShowNotificationIcons(it.visibility == View.VISIBLE)
-                        notificationIconsArea.adjustVisibility(it)
+                        lyricController.updateNotificationIconsVisibility(it)
                     }
                 }
 
@@ -209,6 +207,10 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
                         }
                     }
                 }
+                }
+            } finally {
+                lyricController.releaseViews()
+                lyricController.destroy()
             }
         }
     }
@@ -330,6 +332,9 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
         }
         private var canShowNotificationIcons = false
         private var canShowLyric = false
+        private var previousLeftSideVisibility = View.VISIBLE
+        private var hidingLeftSide = false
+        private var hidingNotificationIcons = false
 
         fun hideInitially() {
             // GONE because this shouldn't take space in the layout
@@ -346,16 +351,26 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
             }
         }
 
-        fun setCanShowNotificationIcons(canShow: Boolean) {
-            canShowNotificationIcons = canShow
+        fun updateNotificationIconsVisibility(model: VisibilityModel) {
+            canShowNotificationIcons = model.visibility == View.VISIBLE
+            if (!hidingNotificationIcons) {
+                notificationIconArea.adjustVisibility(model)
+            }
         }
 
         override fun showLyricView(animate: Boolean) {
-            if (isLyricStarted && canShowLyric) {
+            if (shouldShowLyricNow() && canShowLyric) {
                 if (isClockRightMode) {
-                    notificationIconArea.hide(state = View.GONE, shouldAnimateChange = animate)
+                    if (!hidingNotificationIcons) {
+                        hidingNotificationIcons = true
+                    }
+                    notificationIconArea.visibility = View.GONE
                 } else {
-                    leftSide.hide(shouldAnimateChange = animate)
+                    if (!hidingLeftSide) {
+                        previousLeftSideVisibility = leftSide.visibility
+                        hidingLeftSide = true
+                    }
+                    leftSide.visibility = View.INVISIBLE
                 }
                 lyricView.show(animate)
             }
@@ -365,24 +380,40 @@ class HomeStatusBarViewBinderImpl @Inject constructor() : HomeStatusBarViewBinde
             val hiddenState = if (isClockRightMode) View.GONE else View.INVISIBLE
             lyricView.hide(state = hiddenState, shouldAnimateChange = animate)
             if (isClockRightMode) {
-                if (canShowNotificationIcons) {
-                    notificationIconArea.show(animate)
-                }
+                restoreNotificationIcons(animate)
             } else {
-                leftSide.show(animate)
+                restoreLeftSide(animate)
             }
         }
 
         override fun onLyricPositionChanged() {
             overlayLyricView.hide(state = View.GONE, shouldAnimateChange = false)
             inlineLyricView?.hide(state = View.GONE, shouldAnimateChange = false)
-            leftSide.show(false)
-            if (canShowNotificationIcons) {
-                notificationIconArea.show(false)
-            }
-            if (isLyricStarted && canShowLyric) {
+            restoreLeftSide(false)
+            restoreNotificationIcons(false)
+            if (shouldShowLyricNow() && canShowLyric) {
                 showLyricView(false)
             }
+        }
+
+        fun releaseViews() {
+            overlayLyricView.visibility = View.GONE
+            inlineLyricView?.visibility = View.GONE
+            restoreLeftSide(false)
+            restoreNotificationIcons(false)
+        }
+
+        private fun restoreLeftSide(animate: Boolean) {
+            if (!hidingLeftSide) return
+            hidingLeftSide = false
+            leftSide.visibility = previousLeftSideVisibility
+        }
+
+        private fun restoreNotificationIcons(animate: Boolean) {
+            if (!hidingNotificationIcons) return
+            hidingNotificationIcons = false
+            notificationIconArea.visibility =
+                if (canShowNotificationIcons) View.VISIBLE else View.GONE
         }
     }
 
