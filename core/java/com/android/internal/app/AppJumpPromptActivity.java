@@ -21,6 +21,7 @@ import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTE
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.ActivityTaskManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
@@ -53,6 +54,7 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
     private static final String EXTRA_MODE = PACKAGE_NAME + ".extra.MODE";
     private static final String EXTRA_SOURCE_PACKAGE = PACKAGE_NAME + ".extra.SOURCE_PACKAGE";
     private static final String EXTRA_TARGET_PACKAGE = PACKAGE_NAME + ".extra.TARGET_PACKAGE";
+    private static final String EXTRA_BYPASS_TOKEN = PACKAGE_NAME + ".extra.BYPASS_TOKEN";
 
     private static final int MODE_CONFIRM = 1;
     private static final int MODE_BLOCKED = 2;
@@ -61,7 +63,9 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
     private String mSourcePackage;
     private String mTargetPackage;
     private IntentSender mTarget;
+    private String mBypassToken;
     private CheckBox mRememberChoiceView;
+    private boolean mTargetSent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,10 +81,11 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
         mSourcePackage = intent.getStringExtra(EXTRA_SOURCE_PACKAGE);
         mTargetPackage = intent.getStringExtra(EXTRA_TARGET_PACKAGE);
         mTarget = intent.getParcelableExtra(Intent.EXTRA_INTENT, IntentSender.class);
+        mBypassToken = intent.getStringExtra(EXTRA_BYPASS_TOKEN);
 
         if ((mode != MODE_CONFIRM && mode != MODE_BLOCKED)
                 || mUserId < 0 || mSourcePackage == null || mTargetPackage == null
-                || (mode == MODE_CONFIRM && mTarget == null)) {
+                || (mode == MODE_CONFIRM && (mTarget == null || mBypassToken == null))) {
             Log.wtf(TAG, "Invalid app jump prompt intent: " + intent);
             finish();
             return;
@@ -203,14 +208,16 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
     public void onClick(View v) {
         final int id = v.getId();
         if (id == R.id.app_jump_allow_button) {
-            if (shouldRememberChoice()) {
+            final boolean launched = launchOriginalIntent();
+            if (launched && shouldRememberChoice()) {
                 persistPairMode(ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW);
             }
-            launchOriginalIntent();
+            finish();
             return;
         }
         if (id == R.id.app_jump_allow_once_button) {
             launchOriginalIntent();
+            finish();
             return;
         }
         if (id == R.id.app_jump_deny_button) {
@@ -223,17 +230,23 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
         finish();
     }
 
-    private void launchOriginalIntent() {
+    private boolean launchOriginalIntent() {
+        if (mTarget == null) {
+            Log.w(TAG, "No target intent sender");
+            return false;
+        }
         final Bundle activityOptions = ActivityOptions.makeBasic()
                 .setPendingIntentBackgroundActivityStartMode(
                         ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                 .toBundle();
         try {
             startIntentSenderForResult(mTarget, -1, null, 0, 0, 0, activityOptions);
-        } catch (IntentSender.SendIntentException e) {
+            mTargetSent = true;
+            return true;
+        } catch (IntentSender.SendIntentException | ActivityNotFoundException e) {
             Log.e(TAG, "Unable to continue app jump", e);
+            return false;
         }
-        finish();
     }
 
     private boolean shouldRememberChoice() {
@@ -251,8 +264,20 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        if (isFinishing() && !mTargetSent && mBypassToken != null) {
+            try {
+                ActivityTaskManager.getService().revokeAppJumpBypassToken(mBypassToken);
+            } catch (RemoteException e) {
+                Log.w(TAG, "Unable to revoke app jump authorization", e);
+            }
+        }
+        super.onDestroy();
+    }
+
     public static Intent createConfirmIntent(Context context, int userId, String sourcePackage,
-            String targetPackage, IntentSender target) {
+            String targetPackage, IntentSender target, String bypassToken) {
         return new Intent()
                 .setClass(context, AppJumpPromptActivity.class)
                 .putExtra(EXTRA_MODE, MODE_CONFIRM)
@@ -260,6 +285,7 @@ public class AppJumpPromptActivity extends Activity implements View.OnClickListe
                 .putExtra(EXTRA_SOURCE_PACKAGE, sourcePackage)
                 .putExtra(EXTRA_TARGET_PACKAGE, targetPackage)
                 .putExtra(Intent.EXTRA_INTENT, target)
+                .putExtra(EXTRA_BYPASS_TOKEN, bypassToken)
                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
     }
 

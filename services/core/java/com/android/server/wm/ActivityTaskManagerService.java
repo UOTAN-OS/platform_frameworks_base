@@ -901,6 +901,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
     }
 
     public void onSystemReady() {
+        mAppJumpBlockPolicy.preloadUser(UserHandle.USER_SYSTEM);
         synchronized (mGlobalLock) {
             final PackageManager pm = mContext.getPackageManager();
             mHasHeavyWeightFeature = pm.hasSystemFeature(FEATURE_CANT_SAVE_STATE);
@@ -1230,6 +1231,11 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         public void onStart() {
             publishBinderService(Context.ACTIVITY_TASK_SERVICE, mService);
             mService.start();
+        }
+
+        @Override
+        public void onUserStarting(@NonNull TargetUser user) {
+            mService.mAppJumpBlockPolicy.preloadUser(user.getUserIdentifier());
         }
 
         @Override
@@ -2635,12 +2641,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpEnabled()");
-        synchronized (mGlobalLock) {
-            if (mAppJumpBlockPolicy == null) {
-                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
-            }
-            mAppJumpBlockPolicy.setEnabled(userId, enabled);
-        }
+        mAppJumpBlockPolicy.setEnabled(userId, enabled);
     }
 
     @Override
@@ -2649,9 +2650,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "isAppJumpEnabled()");
-        synchronized (mGlobalLock) {
-            return mAppJumpBlockPolicy == null || mAppJumpBlockPolicy.isEnabled(userId);
-        }
+        return mAppJumpBlockPolicy.isEnabled(userId);
     }
 
     @Override
@@ -2666,12 +2665,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpSourceMode()");
-        synchronized (mGlobalLock) {
-            if (mAppJumpBlockPolicy == null) {
-                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
-            }
-            mAppJumpBlockPolicy.setSourceMode(userId, sourcePackage, mode);
-        }
+        mAppJumpBlockPolicy.setSourceMode(userId, sourcePackage, mode);
     }
 
     @Override
@@ -2683,11 +2677,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "getAppJumpSourceMode()");
-        synchronized (mGlobalLock) {
-            return mAppJumpBlockPolicy == null
-                    ? ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK
-                    : mAppJumpBlockPolicy.getSourceMode(userId, sourcePackage);
-        }
+        return mAppJumpBlockPolicy.getSourceMode(userId, sourcePackage);
     }
 
     @Override
@@ -2706,12 +2696,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpPairMode()");
-        synchronized (mGlobalLock) {
-            if (mAppJumpBlockPolicy == null) {
-                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
-            }
-            mAppJumpBlockPolicy.setPairMode(userId, sourcePackage, targetPackage, mode);
-        }
+        mAppJumpBlockPolicy.setPairMode(userId, sourcePackage, targetPackage, mode);
     }
 
     @Override
@@ -2726,11 +2711,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "getAppJumpPairMode()");
-        synchronized (mGlobalLock) {
-            return mAppJumpBlockPolicy == null
-                    ? ActivityTaskManager.APP_JUMP_PAIR_MODE_INHERIT
-                    : mAppJumpBlockPolicy.getPairMode(userId, sourcePackage, targetPackage);
-        }
+        return mAppJumpBlockPolicy.getPairMode(userId, sourcePackage, targetPackage);
     }
 
     @Override
@@ -2745,12 +2726,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "setAppJumpTargetMode()");
-        synchronized (mGlobalLock) {
-            if (mAppJumpBlockPolicy == null) {
-                mAppJumpBlockPolicy = new AppJumpBlockPolicy();
-            }
-            mAppJumpBlockPolicy.setTargetMode(userId, targetPackage, mode);
-        }
+        mAppJumpBlockPolicy.setTargetMode(userId, targetPackage, mode);
     }
 
     @Override
@@ -2762,11 +2738,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
         final int callingPid = Binder.getCallingPid();
         final int callingUid = Binder.getCallingUid();
         userId = handleIncomingUser(callingPid, callingUid, userId, "getAppJumpTargetMode()");
-        synchronized (mGlobalLock) {
-            return mAppJumpBlockPolicy == null
-                    ? ActivityTaskManager.APP_JUMP_SOURCE_MODE_ASK
-                    : mAppJumpBlockPolicy.getTargetMode(userId, targetPackage);
-        }
+        return mAppJumpBlockPolicy.getTargetMode(userId, targetPackage);
     }
 
     @Override
@@ -2793,6 +2765,14 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
     public boolean isAppJumpTargetAllowed(String targetPackage, int userId) {
         return getAppJumpTargetMode(targetPackage, userId)
                 == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW;
+    }
+
+    @Override
+    public void revokeAppJumpBypassToken(String token) {
+        enforceManageAppJumpCaller("revokeAppJumpBypassToken()");
+        if (token != null && mAppJumpBlockPolicy != null) {
+            mAppJumpBlockPolicy.revokeBypassToken(token);
+        }
     }
 
     public boolean isControllerAMonkey() {
@@ -7476,6 +7456,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
                 mCompatModePackages.handlePackageUninstalledLocked(name);
                 mPackageConfigPersister.onPackageUninstall(name, userId);
             }
+            mAppJumpBlockPolicy.removePackage(userId, name);
             mWindowStyleCache.invalidatePackage(name);
         }
 
@@ -8193,6 +8174,7 @@ public class ActivityTaskManagerService extends IActivityTaskManager.Stub {
                 mRootWindowContainer.removeUser(userId);
                 mPackageConfigPersister.removeUser(userId);
             }
+            mAppJumpBlockPolicy.removeUser(userId);
         }
 
         @Override

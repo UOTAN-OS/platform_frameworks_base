@@ -307,6 +307,7 @@ interface IActivityTaskManager {
     boolean isAppJumpBlocked(in String sourcePackage, int userId);
     void setAppJumpTargetAllowed(in String targetPackage, int userId, boolean allowed);
     boolean isAppJumpTargetAllowed(in String targetPackage, int userId);
+    void revokeAppJumpBypassToken(in String token);
     void setVoiceKeepAwake(in IVoiceInteractionSession session, boolean keepAwake);
 
     int getPackageScreenCompatMode(in String packageName);

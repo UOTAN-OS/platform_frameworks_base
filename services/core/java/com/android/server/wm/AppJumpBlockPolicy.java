@@ -18,15 +18,19 @@ package com.android.server.wm;
 
 import android.annotation.Nullable;
 import android.app.ActivityTaskManager;
+import android.content.ComponentName;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.AtomicFile;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.util.SparseIntArray;
 import android.util.Xml;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.os.BackgroundThread;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 
@@ -38,6 +42,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -59,6 +64,7 @@ final class AppJumpBlockPolicy {
     private static final String ATTR_TARGET_PACKAGE = "target-package";
     private static final String ATTR_MODE = "mode";
     private static final String ATTR_ENABLED = "enabled";
+    private static final long BYPASS_TOKEN_TIMEOUT_MILLIS = 24 * 60 * 60 * 1000L;
 
     private final Object mLock = new Object();
 
@@ -69,16 +75,25 @@ final class AppJumpBlockPolicy {
     private final SparseArray<AtomicFile> mConfigFilesByUser = new SparseArray<>();
 
     @GuardedBy("mLock")
-    private final ArraySet<String> mBypassTokens = new ArraySet<>();
+    private final SparseIntArray mWriteVersionsByUser = new SparseIntArray();
+
+    @GuardedBy("mLock")
+    private final ArrayMap<String, BypassAuthorization> mBypassAuthorizations = new ArrayMap<>();
 
     AppJumpBlockPolicy() {
+    }
+
+    void preloadUser(int userId) {
+        synchronized (mLock) {
+            getPolicyLocked(userId);
+        }
     }
 
     void setEnabled(int userId, boolean enabled) {
         synchronized (mLock) {
             final UserPolicyState policy = getPolicyLocked(userId);
             policy.enabled = enabled;
-            writeToFileLocked(userId, policy);
+            scheduleWriteLocked(userId, policy);
         }
     }
 
@@ -88,20 +103,90 @@ final class AppJumpBlockPolicy {
         }
     }
 
-    String createBypassToken() {
+    String createBypassToken(int userId, String sourcePackage, int sourceUid,
+            ComponentName targetComponent) {
         final String token = UUID.randomUUID().toString();
         synchronized (mLock) {
-            mBypassTokens.add(token);
+            pruneExpiredBypassTokensLocked();
+            mBypassAuthorizations.put(token, new BypassAuthorization(userId, sourcePackage,
+                    sourceUid, targetComponent, SystemClock.elapsedRealtime()));
         }
         return token;
     }
 
-    boolean consumeBypassToken(@Nullable String token) {
+    boolean consumeBypassToken(@Nullable String token, int userId, String sourcePackage,
+            int sourceUid, ComponentName targetComponent) {
         if (token == null) {
             return false;
         }
         synchronized (mLock) {
-            return mBypassTokens.remove(token);
+            pruneExpiredBypassTokensLocked();
+            final BypassAuthorization authorization = mBypassAuthorizations.remove(token);
+            return authorization != null
+                    && authorization.userId == userId
+                    && authorization.sourceUid == sourceUid
+                    && Objects.equals(authorization.sourcePackage, sourcePackage)
+                    && Objects.equals(authorization.targetComponent, targetComponent);
+        }
+    }
+
+    void revokeBypassToken(@Nullable String token) {
+        if (token == null) {
+            return;
+        }
+        synchronized (mLock) {
+            mBypassAuthorizations.remove(token);
+        }
+    }
+
+    void removePackage(int userId, String packageName) {
+        synchronized (mLock) {
+            final UserPolicyState policy = getPolicyLocked(userId);
+            policy.allowedSourcePackages.remove(packageName);
+            policy.blockedSourcePackages.remove(packageName);
+            policy.allowedTargetPackages.remove(packageName);
+            policy.blockedTargetPackages.remove(packageName);
+            policy.pairModesBySourcePackage.remove(packageName);
+            for (int i = policy.pairModesBySourcePackage.size() - 1; i >= 0; i--) {
+                final ArrayMap<String, Integer> pairModes =
+                        policy.pairModesBySourcePackage.valueAt(i);
+                pairModes.remove(packageName);
+                if (pairModes.isEmpty()) {
+                    policy.pairModesBySourcePackage.removeAt(i);
+                }
+            }
+            for (int i = mBypassAuthorizations.size() - 1; i >= 0; i--) {
+                final BypassAuthorization authorization = mBypassAuthorizations.valueAt(i);
+                if (authorization.userId == userId
+                        && (packageName.equals(authorization.sourcePackage)
+                        || packageName.equals(authorization.targetComponent.getPackageName()))) {
+                    mBypassAuthorizations.removeAt(i);
+                }
+            }
+            scheduleWriteLocked(userId, policy);
+        }
+    }
+
+    void removeUser(int userId) {
+        final AtomicFile configFile;
+        synchronized (mLock) {
+            mPoliciesByUser.remove(userId);
+            configFile = mConfigFilesByUser.get(userId);
+            mConfigFilesByUser.remove(userId);
+            mWriteVersionsByUser.put(userId, mWriteVersionsByUser.get(userId) + 1);
+            for (int i = mBypassAuthorizations.size() - 1; i >= 0; i--) {
+                if (mBypassAuthorizations.valueAt(i).userId == userId) {
+                    mBypassAuthorizations.removeAt(i);
+                }
+            }
+        }
+        if (configFile != null) {
+            synchronized (configFile) {
+                configFile.delete();
+            }
+        } else {
+            new AtomicFile(new File(Environment.getDataSystemDeDirectory(userId),
+                    CONFIG_FILE_NAME), "app-jump-policy").delete();
         }
     }
 
@@ -110,7 +195,7 @@ final class AppJumpBlockPolicy {
             final UserPolicyState policy = getPolicyLocked(userId);
             setPackageModeLocked(policy.allowedSourcePackages, policy.blockedSourcePackages,
                     sourcePackage, mode);
-            writeToFileLocked(userId, policy);
+            scheduleWriteLocked(userId, policy);
         }
     }
 
@@ -127,7 +212,7 @@ final class AppJumpBlockPolicy {
             final UserPolicyState policy = getPolicyLocked(userId);
             setPackageModeLocked(policy.allowedTargetPackages, policy.blockedTargetPackages,
                     targetPackage, mode);
-            writeToFileLocked(userId, policy);
+            scheduleWriteLocked(userId, policy);
         }
     }
 
@@ -168,7 +253,7 @@ final class AppJumpBlockPolicy {
                 }
                 pairModes.put(targetPackage, mode);
             }
-            writeToFileLocked(userId, policy);
+            scheduleWriteLocked(userId, policy);
         }
     }
 
@@ -274,8 +359,28 @@ final class AppJumpBlockPolicy {
     }
 
     @GuardedBy("mLock")
-    private void writeToFileLocked(int userId, UserPolicyState policy) {
-        final AtomicFile configFile = getConfigFileLocked(userId);
+    private void scheduleWriteLocked(int userId, UserPolicyState policy) {
+        final int writeVersion = mWriteVersionsByUser.get(userId) + 1;
+        mWriteVersionsByUser.put(userId, writeVersion);
+        final UserPolicyState snapshot = new UserPolicyState(policy);
+        BackgroundThread.getExecutor().execute(() -> {
+            final AtomicFile configFile;
+            synchronized (mLock) {
+                configFile = getConfigFileLocked(userId);
+            }
+            synchronized (configFile) {
+                synchronized (mLock) {
+                    if (mWriteVersionsByUser.get(userId) != writeVersion
+                            || mPoliciesByUser.get(userId) == null) {
+                        return;
+                    }
+                }
+                writeToFileLocked(userId, configFile, snapshot);
+            }
+        });
+    }
+
+    private void writeToFileLocked(int userId, AtomicFile configFile, UserPolicyState policy) {
         final File parent = configFile.getBaseFile().getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
             Slog.w(TAG, "Failed to create app jump policy directory for user " + userId);
@@ -364,6 +469,34 @@ final class AppJumpBlockPolicy {
         }
     }
 
+    @GuardedBy("mLock")
+    private void pruneExpiredBypassTokensLocked() {
+        final long oldestValidCreationTime =
+                SystemClock.elapsedRealtime() - BYPASS_TOKEN_TIMEOUT_MILLIS;
+        for (int i = mBypassAuthorizations.size() - 1; i >= 0; i--) {
+            if (mBypassAuthorizations.valueAt(i).creationTimeMillis < oldestValidCreationTime) {
+                mBypassAuthorizations.removeAt(i);
+            }
+        }
+    }
+
+    private static final class BypassAuthorization {
+        final int userId;
+        final String sourcePackage;
+        final int sourceUid;
+        final ComponentName targetComponent;
+        final long creationTimeMillis;
+
+        BypassAuthorization(int userId, String sourcePackage, int sourceUid,
+                ComponentName targetComponent, long creationTimeMillis) {
+            this.userId = userId;
+            this.sourcePackage = sourcePackage;
+            this.sourceUid = sourceUid;
+            this.targetComponent = targetComponent;
+            this.creationTimeMillis = creationTimeMillis;
+        }
+    }
+
     private static final class UserPolicyState {
         boolean enabled = true;
         final ArraySet<String> allowedSourcePackages = new ArraySet<>();
@@ -372,5 +505,20 @@ final class AppJumpBlockPolicy {
         final ArraySet<String> blockedTargetPackages = new ArraySet<>();
         final ArrayMap<String, ArrayMap<String, Integer>> pairModesBySourcePackage =
                 new ArrayMap<>();
+
+        UserPolicyState() {
+        }
+
+        UserPolicyState(UserPolicyState source) {
+            enabled = source.enabled;
+            allowedSourcePackages.addAll(source.allowedSourcePackages);
+            blockedSourcePackages.addAll(source.blockedSourcePackages);
+            allowedTargetPackages.addAll(source.allowedTargetPackages);
+            blockedTargetPackages.addAll(source.blockedTargetPackages);
+            for (int i = 0; i < source.pairModesBySourcePackage.size(); i++) {
+                pairModesBySourcePackage.put(source.pairModesBySourcePackage.keyAt(i),
+                        new ArrayMap<>(source.pairModesBySourcePackage.valueAt(i)));
+            }
+        }
     }
 }

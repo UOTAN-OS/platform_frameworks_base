@@ -90,6 +90,8 @@ import com.android.server.LocalServices;
 import com.android.server.am.ActivityManagerService;
 import com.android.server.wm.ActivityInterceptorCallback.ActivityInterceptResult;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 /**
  * A class that contains activity intercepting logic for {@link ActivityStarter#execute()}
  * It's initialized via setStates and interception occurs via the intercept method.
@@ -111,7 +113,7 @@ class ActivityStartInterceptor {
     private static final String PERMISSION_CONTROLLER_PACKAGE_NAME =
             "com.android.permissioncontroller";
     private static final String VPN_DIALOGS_PACKAGE_NAME = "com.android.vpndialogs";
-    private static final String LAUNCHER3_PACKAGE_NAME = "com.android.launcher3";
+    private static final AtomicInteger NEXT_APP_JUMP_REQUEST_CODE = new AtomicInteger();
 
     private final ActivityTaskManagerService mService;
     private final ActivityTaskSupervisor mSupervisor;
@@ -149,6 +151,8 @@ class ActivityStartInterceptor {
     ActivityOptions mActivityOptions;
     boolean mAppJumpLaunchBlocked;
     String mAppJumpBlockedMessage;
+    boolean mAppJumpBypassAuthorized;
+    String mAppJumpBypassToken;
 
     /*
      * Note that this is just a hint of what the launch display area will be as it is
@@ -195,6 +199,8 @@ class ActivityStartInterceptor {
         mSourceDisplayId = sourceDisplayId;
         mAppJumpLaunchBlocked = false;
         mAppJumpBlockedMessage = null;
+        mAppJumpBypassAuthorized = false;
+        mAppJumpBypassToken = null;
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
@@ -281,9 +287,7 @@ class ActivityStartInterceptor {
         mIsResultExpected = isResultExpected;
         mComponentSpecified = componentSpecified;
 
-        if (consumeAppJumpBypassTokenIfNeeded()) {
-            return false;
-        }
+        mAppJumpBypassToken = mIntent.getStringExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
 
         if (interceptQuietProfileIfNeeded()) {
             // If work profile is turned off, skip the work challenge since the profile can only
@@ -365,20 +369,22 @@ class ActivityStartInterceptor {
         return false;
     }
 
-    private boolean consumeAppJumpBypassTokenIfNeeded() {
-        final String bypassToken = mIntent.getStringExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
-        if (bypassToken == null) {
-            return false;
-        }
-        final AppJumpBlockPolicy policy = mService.getAppJumpBlockPolicyLocked();
-        if (policy == null || !policy.isEnabled(mUserId)) {
-            return false;
+    private void consumeAppJumpBypassTokenIfNeeded() {
+        if (mAppJumpBypassToken == null) {
+            return;
         }
         mIntent.removeExtra(EXTRA_APP_JUMP_BYPASS_TOKEN);
-        return policy.consumeBypassToken(bypassToken);
+        final AppJumpBlockPolicy policy = mService.getAppJumpBlockPolicyLocked();
+        if (policy == null || mAInfo == null) {
+            return;
+        }
+        mAppJumpBypassAuthorized = policy.consumeBypassToken(mAppJumpBypassToken, mUserId,
+                mCallingPackage, mCallingUid, mAInfo.getComponentName());
+        mAppJumpBypassToken = null;
     }
 
     private boolean interceptUserAppJumpIfNeeded() {
+        consumeAppJumpBypassTokenIfNeeded();
         if (!shouldInterceptUserAppJump()) {
             return false;
         }
@@ -397,9 +403,6 @@ class ActivityStartInterceptor {
                 : resolveAppJumpMode(
                         policy.getSourceMode(mUserId, mCallingPackage),
                         policy.getTargetMode(mUserId, targetPackage));
-        if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW) {
-            return false;
-        }
         if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_BLOCK) {
             mAppJumpLaunchBlocked = true;
             mAppJumpBlockedMessage = mServiceContext.getString(
@@ -407,10 +410,14 @@ class ActivityStartInterceptor {
                     loadAppLabel(mCallingPackage), loadAppLabel(targetPackage));
             return true;
         }
+        if (effectiveMode == ActivityTaskManager.APP_JUMP_SOURCE_MODE_ALLOW
+                || mAppJumpBypassAuthorized || mIsResultExpected) {
+            return false;
+        }
 
-        final IntentSender target = createAppJumpTargetIntentSender(policy);
+        final AppJumpTarget target = createAppJumpTargetIntentSender(policy);
         mIntent = AppJumpPromptActivity.createConfirmIntent(mServiceContext, mUserId,
-                mCallingPackage, targetPackage, target);
+                mCallingPackage, targetPackage, target.intentSender, target.bypassToken);
         mCallingPid = mRealCallingPid;
         mCallingUid = mRealCallingUid;
         mResolvedType = null;
@@ -434,14 +441,39 @@ class ActivityStartInterceptor {
         }
     }
 
-    private IntentSender createAppJumpTargetIntentSender(AppJumpBlockPolicy policy) {
+    private AppJumpTarget createAppJumpTargetIntentSender(AppJumpBlockPolicy policy) {
         final Intent forwardIntent = new Intent(mIntent);
-        forwardIntent.putExtra(EXTRA_APP_JUMP_BYPASS_TOKEN, policy.createBypassToken());
+        final ComponentName targetComponent = mAInfo.getComponentName();
+        forwardIntent.setSelector(null);
+        forwardIntent.setComponent(targetComponent);
+        final String bypassToken = policy.createBypassToken(mUserId, mCallingPackage, mCallingUid,
+                targetComponent);
+        forwardIntent.putExtra(EXTRA_APP_JUMP_BYPASS_TOKEN, bypassToken);
         final int displayId = mPresumableLaunchDisplayArea != null
                 ? mPresumableLaunchDisplayArea.getDisplayId()
                 : Display.INVALID_DISPLAY;
-        return createIntentSenderForIntent(forwardIntent, mCallingUid,
-                FLAG_CANCEL_CURRENT | FLAG_ONE_SHOT | FLAG_IMMUTABLE, displayId);
+        final ActivityOptions targetOptions = mActivityOptions != null
+                ? ActivityOptions.fromBundle(mActivityOptions.toBundle())
+                : ActivityOptions.makeBasic();
+        targetOptions.setPendingIntentCreatorBackgroundActivityStartMode(
+                MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+        targetOptions.setPendingIntentBackgroundActivityStartMode(
+                ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED);
+        final TaskFragment taskFragment = getLaunchTaskFragment();
+        if (taskFragment != null) {
+            targetOptions.setLaunchTaskFragmentToken(taskFragment.getFragmentToken());
+        }
+        if (displayId != Display.INVALID_DISPLAY) {
+            targetOptions.setLaunchDisplayId(displayId);
+        }
+        final IIntentSender target = mService.getIntentSenderLocked(
+                INTENT_SENDER_ACTIVITY, mCallingPackage, mCallingFeatureId, mCallingUid, mUserId,
+                null /* token */, null /* resultCode */,
+                NEXT_APP_JUMP_REQUEST_CODE.incrementAndGet(),
+                new Intent[] { forwardIntent }, new String[] { mResolvedType },
+                FLAG_ONE_SHOT | FLAG_IMMUTABLE, targetOptions.toBundle());
+        mActivityOptions = ActivityOptions.makeBasic();
+        return new AppJumpTarget(new IntentSender(target), bypassToken);
     }
 
     private static int resolveAppJumpMode(int sourceMode, int targetMode) {
@@ -460,26 +492,21 @@ class ActivityStartInterceptor {
         if (mCallingPackage == null || mAInfo == null || mAInfo.applicationInfo == null) {
             return false;
         }
-        // Result-returning launches must preserve the original caller identity so the target can
-        // deliver results and URI grants back to the requesting app.
-        if (mIsResultExpected) {
-            return false;
-        }
         if (mCallingPackage.equals(mAInfo.packageName)) {
             return false;
         }
-        if (!Process.isApplicationUid(mRealCallingUid)) {
+        if (!Process.isApplicationUid(mCallingUid)) {
             return false;
         }
         if (isAllowedSystemMediatorTarget(mAInfo)) {
             return false;
         }
-        if (LAUNCHER3_PACKAGE_NAME.equals(mCallingPackage)) {
-            return false;
-        }
-
         final PackageManagerInternal pmi = mService.getPackageManagerInternalLocked();
         if (pmi == null) {
+            return false;
+        }
+        final ComponentName defaultHome = pmi.getDefaultHomeActivity(mUserId);
+        if (defaultHome != null && mCallingPackage.equals(defaultHome.getPackageName())) {
             return false;
         }
         final ApplicationInfo callingAppInfo = pmi.getApplicationInfo(mCallingPackage,
@@ -516,6 +543,16 @@ class ActivityStartInterceptor {
         }
         return (appInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0
                 && (appInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+    }
+
+    private static final class AppJumpTarget {
+        final IntentSender intentSender;
+        final String bypassToken;
+
+        AppJumpTarget(IntentSender intentSender, String bypassToken) {
+            this.intentSender = intentSender;
+            this.bypassToken = bypassToken;
+        }
     }
 
     private boolean hasCrossProfileAnimation() {
