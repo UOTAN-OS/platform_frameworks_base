@@ -29,6 +29,7 @@ import com.android.systemui.qs.panels.ui.viewmodel.DetailsViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.EditModeViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.MediaInRowInLandscapeViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.TileGridViewModel
+import com.android.systemui.qs.data.repository.QsAppearanceRepository
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.ui.viewmodel.ShadeHeaderViewModel
 import dagger.assisted.Assisted
@@ -51,6 +52,7 @@ constructor(
     val mediaViewModelFactory: MediaViewModel.Factory,
     mediaInRowInLandscapeViewModelFactory: MediaInRowInLandscapeViewModel.Factory,
     @ShadeDisplayAware shadeDisplayTypeRepository: DisplayTypeRepository,
+    qsAppearanceRepository: QsAppearanceRepository,
 ) : HydratedActivatable() {
 
     val isBrightnessSliderVisible by
@@ -63,6 +65,9 @@ constructor(
             )
 
     val isEditing by editModeViewModel.isEditing.hydratedStateOf()
+
+    val isCollapsedBrightnessEnabled by
+        qsAppearanceRepository.collapsedBrightnessEnabled.hydratedStateOf()
 
     val brightnessSliderViewModel =
         brightnessSliderViewModelFactory.create(supportsBrightnessMirroring)

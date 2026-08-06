@@ -31,6 +31,7 @@ import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
 import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.qs.FooterActionsController
+import com.android.systemui.qs.data.repository.QsAppearanceRepository
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsViewModel
 import com.android.systemui.qs.panels.domain.interactor.TileSquishinessInteractor
 import com.android.systemui.qs.panels.ui.viewmodel.MediaInRowInLandscapeViewModel
@@ -51,6 +52,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -80,6 +82,7 @@ constructor(
     windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
     mediaInRowInLandscapeViewModelFactory: MediaInRowInLandscapeViewModel.Factory,
     shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor,
+    qsAppearanceRepository: QsAppearanceRepository,
 ) : HydratedActivatable() {
 
     /**
@@ -88,11 +91,18 @@ constructor(
      */
     val isTransparencyEnabled: Boolean by
         if (Flags.notificationShadeBlur()) {
-                windowRootViewBlurInteractor.isBlurCurrentlySupported
+                combine(
+                    windowRootViewBlurInteractor.isBlurCurrentlySupported,
+                    qsAppearanceRepository.isPlatformTransparencyAllowed,
+                ) { supported, allowed -> supported && allowed }
             } else {
                 MutableStateFlow(false)
             }
-            .hydratedStateOf()
+            .hydratedStateOf(
+                initialValue =
+                    Flags.notificationShadeBlur() &&
+                        windowRootViewBlurInteractor.isBlurCurrentlySupported.value
+            )
 
     val shadeMode: ShadeMode by shadeModeInteractor.shadeMode.hydratedStateOf()
 

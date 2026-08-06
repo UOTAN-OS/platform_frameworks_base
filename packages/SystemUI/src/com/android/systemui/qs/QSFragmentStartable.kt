@@ -20,6 +20,7 @@ import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.fragments.FragmentService
 import com.android.systemui.qs.composefragment.QSFragmentCompose
+import com.android.systemui.qs.data.repository.QsVisualStyleMigrationStartable
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
@@ -48,4 +49,11 @@ interface QSFragmentStartableModule {
     @IntoMap
     @ClassKey(QSFragmentStartable::class)
     fun bindsQSFragmentStartable(startable: QSFragmentStartable): CoreStartable
+
+    @Binds
+    @IntoMap
+    @ClassKey(QsVisualStyleMigrationStartable::class)
+    fun bindsQsVisualStyleMigrationStartable(
+        startable: QsVisualStyleMigrationStartable
+    ): CoreStartable
 }

@@ -25,6 +25,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
 import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.qs.FooterActionsController
+import com.android.systemui.qs.data.repository.QsAppearanceRepository
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsViewModel
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
@@ -40,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.withContext
 
 /**
@@ -60,6 +62,7 @@ constructor(
     @Main private val mainDispatcher: CoroutineDispatcher,
     windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
     private val blurConfig: BlurConfig,
+    qsAppearanceRepository: QsAppearanceRepository,
 ) : HydratedActivatable() {
     val qsContainerViewModel =
         qsContainerViewModelFactory.create(supportsBrightnessMirroring = true)
@@ -70,11 +73,18 @@ constructor(
      */
     val isTransparencyEnabled: Boolean by
         if (Flags.notificationShadeBlur()) {
-                windowRootViewBlurInteractor.isBlurCurrentlySupported
+                combine(
+                    windowRootViewBlurInteractor.isBlurCurrentlySupported,
+                    qsAppearanceRepository.isPlatformTransparencyAllowed,
+                ) { supported, allowed -> supported && allowed }
             } else {
                 MutableStateFlow(false)
             }
-            .hydratedStateOf()
+            .hydratedStateOf(
+                initialValue =
+                    Flags.notificationShadeBlur() &&
+                        windowRootViewBlurInteractor.isBlurCurrentlySupported.value
+            )
 
     private val footerActionsControllerInitialized = AtomicBoolean(false)
 

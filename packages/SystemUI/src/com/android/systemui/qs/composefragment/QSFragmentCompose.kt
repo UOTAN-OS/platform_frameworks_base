@@ -131,6 +131,7 @@ import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.plugins.qs.QSContainerController
+import com.android.systemui.qs.data.repository.QsAppearanceRepository
 import com.android.systemui.qs.composefragment.SceneKeys.QuickQuickSettings
 import com.android.systemui.qs.composefragment.SceneKeys.QuickSettings
 import com.android.systemui.qs.composefragment.SceneKeys.debugName
@@ -149,6 +150,7 @@ import com.android.systemui.qs.shared.ui.QuickSettings.Elements
 import com.android.systemui.qs.ui.composable.QuickSettingsShade
 import com.android.systemui.qs.ui.composable.QuickSettingsShade.systemGestureExclusionInShade
 import com.android.systemui.qs.ui.composable.QuickSettingsTheme
+import com.android.systemui.qs.ui.composable.ProvideQsVisualStyle
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.policy.ConfigurationController
@@ -181,6 +183,7 @@ constructor(
     private val dumpManager: DumpManager,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     @ShadeDisplayAware private val configurationController: ConfigurationController,
+    private val qsAppearanceRepository: QsAppearanceRepository,
 ) : LifecycleFragment(), QS, Dumpable {
 
     private val scrollListener = MutableStateFlow<QS.ScrollListener?>(null)
@@ -272,7 +275,8 @@ constructor(
 
     @Composable
     private fun Content(modifier: Modifier = Modifier) {
-        PlatformTheme(isDarkTheme = if (notificationShadeBlur()) isSystemInDarkTheme() else true) {
+        ProvideQsVisualStyle(qsAppearanceRepository.visualStyle) {
+            PlatformTheme(isDarkTheme = if (notificationShadeBlur()) isSystemInDarkTheme() else true) {
             ProvideShortcutHelperIndication(interactionsConfig = interactionsConfig()) {
                 Box(
                     modifier =
@@ -304,6 +308,7 @@ constructor(
                     CollapsableQuickSettingsSTL()
                 }
             }
+        }
         }
     }
 
@@ -732,6 +737,26 @@ constructor(
                             listening = isListening,
                         )
                     }
+                val Brightness =
+                    @Composable {
+                        if (
+                            viewModel.containerViewModel.isBrightnessSliderVisible &&
+                                viewModel.containerViewModel.isCollapsedBrightnessEnabled
+                        ) {
+                            AlwaysDarkMode {
+                                BrightnessSliderContainer(
+                                    viewModel =
+                                        viewModel.containerViewModel.brightnessSliderViewModel,
+                                    containerColors =
+                                        ContainerColors(
+                                            Color.Transparent,
+                                            ContainerColors.defaultContainerColor,
+                                        ),
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                    }
                 val Media =
                     @Composable {
                         if (viewModel.qqsMediaVisible) {
@@ -769,6 +794,7 @@ constructor(
                                 .padding(horizontal = qsHorizontalMargin())
                     ) {
                         QuickQuickSettingsLayout(
+                            brightness = Brightness,
                             tiles = Tiles,
                             media = Media,
                             mediaInRow = viewModel.qqsMediaInRow,
@@ -1420,6 +1446,7 @@ private fun ContentScope.MediaObject(
 @Composable
 @VisibleForTesting
 fun QuickQuickSettingsLayout(
+    brightness: @Composable () -> Unit = {},
     tiles: @Composable () -> Unit,
     media: @Composable () -> Unit,
     mediaInRow: Boolean,
@@ -1434,6 +1461,7 @@ fun QuickQuickSettingsLayout(
         }
     } else {
         Column(verticalArrangement = spacedBy(dimensionResource(R.dimen.qs_tile_margin_vertical))) {
+            brightness()
             tiles()
             media()
         }

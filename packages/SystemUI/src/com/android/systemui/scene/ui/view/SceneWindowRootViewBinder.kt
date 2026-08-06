@@ -55,6 +55,7 @@ import com.android.systemui.lifecycle.WindowLifecycleState
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.lifecycle.setSnapshotBinding
 import com.android.systemui.lifecycle.viewModel
+import com.android.systemui.qs.ui.composable.ProvideQsVisualStyle
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.SceneContainerConfig
@@ -241,6 +242,7 @@ object SceneWindowRootViewBinder {
             }
             setContent {
                 SceneContainerContainer(
+                    viewModel = viewModel,
                     windowInsets = windowInsets,
                     tintedIconManagerFactory = tintedIconManagerFactory,
                     modifier =
@@ -302,6 +304,7 @@ object SceneWindowRootViewBinder {
         return ComposeView(context).apply {
             setContent {
                 SceneContainerContainer(
+                    viewModel = viewModel,
                     windowInsets = windowInsets,
                     tintedIconManagerFactory = tintedIconManagerFactory,
                 ) { modifier ->
@@ -347,30 +350,33 @@ object SceneWindowRootViewBinder {
      */
     @Composable
     private fun SceneContainerContainer(
+        viewModel: SceneContainerViewModel,
         windowInsets: State<WindowInsets?>,
         tintedIconManagerFactory: TintedIconManager.Factory,
         modifier: Modifier = Modifier,
         content: @Composable (modifier: Modifier) -> Unit,
     ) {
-        PlatformTheme {
-            CompositionLocalProvider(
-                LocalScreenCornerRadius provides rememberScreenCornerRadius(),
-                LocalDisplayCutout provides rememberDisplayCutout { windowInsets.value },
-                LocalStatusIconContext provides rememberStatusIconContext(tintedIconManagerFactory),
-                LocalIndication provides
-                    rememberShortcutHelperIndication(
-                        InteractionsConfig(
-                            hoverOverlayColor = MaterialTheme.colorScheme.onSurface,
-                            hoverOverlayAlpha = 0.11f,
-                            pressedOverlayColor = MaterialTheme.colorScheme.onSurface,
-                            pressedOverlayAlpha = 0.15f,
-                            // we are OK using this as our content is clipped and all
-                            // corner radius are larger than this
-                            surfaceCornerRadius = 16.dp,
-                        )
-                    ),
-            ) {
-                ObserveReadsRoot { content(modifier.sysUiResTagContainer()) }
+        ProvideQsVisualStyle(viewModel.qsVisualStyle) {
+            PlatformTheme {
+                CompositionLocalProvider(
+                    LocalScreenCornerRadius provides rememberScreenCornerRadius(),
+                    LocalDisplayCutout provides rememberDisplayCutout { windowInsets.value },
+                    LocalStatusIconContext provides rememberStatusIconContext(tintedIconManagerFactory),
+                    LocalIndication provides
+                        rememberShortcutHelperIndication(
+                            InteractionsConfig(
+                                hoverOverlayColor = MaterialTheme.colorScheme.onSurface,
+                                hoverOverlayAlpha = 0.11f,
+                                pressedOverlayColor = MaterialTheme.colorScheme.onSurface,
+                                pressedOverlayAlpha = 0.15f,
+                                // we are OK using this as our content is clipped and all
+                                // corner radius are larger than this
+                                surfaceCornerRadius = 16.dp,
+                            )
+                        ),
+                ) {
+                    ObserveReadsRoot { content(modifier.sysUiResTagContainer()) }
+                }
             }
         }
     }

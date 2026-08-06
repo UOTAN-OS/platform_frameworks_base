@@ -45,7 +45,9 @@ import com.android.systemui.keyguard.ui.viewmodel.BurnInMovementState
 import com.android.systemui.keyguard.ui.viewmodel.LightRevealScrimViewModel
 import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.power.domain.interactor.PowerInteractor
+import com.android.systemui.qs.data.repository.QsAppearanceRepository
 import com.android.systemui.qs.panels.ui.viewmodel.AnimateQsTilesViewModel
+import com.android.systemui.qs.shared.model.QsVisualStyle
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.OnBootTransitionInteractor
 import com.android.systemui.scene.domain.interactor.SceneInteractor
@@ -101,11 +103,14 @@ constructor(
     private val toastDisplayer: Lazy<SceneContainerToastDisplayer>,
     @Assisted private val motionEventHandlerReceiver: (MotionEventHandler?) -> Unit,
     private val accessibilityInteractor: AccessibilityInteractor,
+    qsAppearanceRepository: QsAppearanceRepository,
 ) : HydratedActivatable() {
 
     /** The scene that should be rendered. */
     val currentScene: SceneKey
         get() = sceneInteractor.currentSceneAsState
+
+    val qsVisualStyle: StateFlow<QsVisualStyle> = qsAppearanceRepository.visualStyle
 
     val blurViewModel: SceneTransitionBlurViewModel = sceneTransitionBlurViewModelFactory.create()
     val toBouncerTransitionViewModel = toBouncerTransitionViewModelFactory.create()

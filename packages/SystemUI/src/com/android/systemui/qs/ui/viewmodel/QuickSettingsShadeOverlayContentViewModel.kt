@@ -29,6 +29,7 @@ import com.android.systemui.desktop.domain.interactor.DesktopInteractor
 import com.android.systemui.development.ui.viewmodel.BuildNumberViewModel
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
 import com.android.systemui.lifecycle.HydratedActivatable
+import com.android.systemui.qs.data.repository.QsAppearanceRepository
 import com.android.systemui.qs.panels.domain.interactor.QSPanelAppearanceInteractor
 import com.android.systemui.qs.panels.ui.viewmodel.toolbar.ToolbarViewModel
 import com.android.systemui.qs.tiles.dialog.AudioDetailsViewModel
@@ -55,6 +56,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOf
@@ -88,6 +90,7 @@ constructor(
     private val blurConfig: BlurConfig,
     private val windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
     private val qsPanelAppearanceInteractor: QSPanelAppearanceInteractor,
+    qsAppearanceRepository: QsAppearanceRepository,
 ) : HydratedActivatable() {
 
     /**
@@ -112,7 +115,10 @@ constructor(
      */
     val isTransparencyEnabled: Boolean by
         if (Flags.notificationShadeBlur()) {
-                windowRootViewBlurInteractor.isBlurCurrentlySupported
+                combine(
+                    windowRootViewBlurInteractor.isBlurCurrentlySupported,
+                    qsAppearanceRepository.isPlatformTransparencyAllowed,
+                ) { supported, allowed -> supported && allowed }
             } else {
                 flowOf(false)
             }

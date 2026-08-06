@@ -130,6 +130,7 @@ fun LargeTileContent(
     textScale: () -> Float = { 1f },
     toggleClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    isUwuQs: Boolean = false,
 ) {
     val isDualTarget = toggleClick != null
     Row(
@@ -137,27 +138,50 @@ fun LargeTileContent(
         horizontalArrangement = tileHorizontalArrangement(),
         modifier = modifier,
     ) {
-        // Icon
-        val longPressLabel = longPressLabelSettings().takeIf { onLongClick != null }
-        val animatedBackgroundColor by
-            animateColorAsState(colors.iconBackground, label = "QSTileDualTargetBackgroundColor")
-        val focusBorderColor = MaterialTheme.colorScheme.secondary
-        Box(
-            modifier =
-                Modifier.size(CommonTileDefaults.ToggleTargetSize).thenIf(isDualTarget) {
-                    Modifier.borderOnFocus(color = focusBorderColor, iconShape.topEnd)
-                        .clip(iconShape)
-                        .drawBehind { drawRect(animatedBackgroundColor) }
-                        // apply the squish effect after the bg is drawn
-                        .verticalSquish(squishiness)
-                        .combinedClickable(
-                            onClick = toggleClick!!,
-                            onLongClick = onLongClick,
-                            onLongClickLabel = longPressLabel,
-                            hapticFeedbackEnabled = false, // Haptics handled separately
-                        )
-                        .thenIf(accessibilityUiState != null) {
-                            Modifier.semantics {
+        if (isUwuQs) {
+            SmallTileContent(
+                iconProvider = iconProvider,
+                color = colors.icon,
+                size = { CommonTileDefaults.UwuLargeTileIconSize },
+                modifier = Modifier.align(Alignment.CenterVertically),
+            )
+            LargeTileLabels(
+                label = label,
+                secondaryLabel = secondaryLabel,
+                colors = colors,
+                accessibilityUiState = accessibilityUiState,
+                isVisible = isVisible,
+                modifier = Modifier.weight(1f).bounceScale(TransformOrigin(0f, .5f), textScale),
+            )
+            if (sideDrawable != null) {
+                Image(
+                    painter = rememberDrawablePainter(sideDrawable),
+                    contentDescription = null,
+                    modifier = Modifier.width(SideIconWidth).height(SideIconHeight),
+                )
+            }
+        } else {
+            // Icon
+            val longPressLabel = longPressLabelSettings().takeIf { onLongClick != null }
+            val animatedBackgroundColor by
+                animateColorAsState(colors.iconBackground, label = "QSTileDualTargetBackgroundColor")
+            val focusBorderColor = MaterialTheme.colorScheme.secondary
+            Box(
+                modifier =
+                    Modifier.size(CommonTileDefaults.ToggleTargetSize).thenIf(isDualTarget) {
+                        Modifier.borderOnFocus(color = focusBorderColor, iconShape.topEnd)
+                            .clip(iconShape)
+                            .drawBehind { drawRect(animatedBackgroundColor) }
+                            // apply the squish effect after the bg is drawn
+                            .verticalSquish(squishiness)
+                            .combinedClickable(
+                                onClick = toggleClick!!,
+                                onLongClick = onLongClick,
+                                onLongClickLabel = longPressLabel,
+                                hapticFeedbackEnabled = false, // Haptics handled separately
+                            )
+                            .thenIf(accessibilityUiState != null) {
+                                Modifier.semantics {
                                     accessibilityUiState as AccessibilityUiState
                                     contentDescription = accessibilityUiState.contentDescription
                                     stateDescription = accessibilityUiState.stateDescription
@@ -167,33 +191,34 @@ fun LargeTileContent(
                                     role = Role.Switch
                                 }
                                 .sysuiResTag(TEST_TAG_TOGGLE)
-                        }
-                }
-        ) {
-            SmallTileContent(
-                iconProvider = iconProvider,
-                color = colors.icon,
-                size = { CommonTileDefaults.LargeTileIconSize },
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
+                            }
+                    }
+            ) {
+                SmallTileContent(
+                    iconProvider = iconProvider,
+                    color = colors.icon,
+                    size = { CommonTileDefaults.LargeTileIconSize },
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            }
 
-        // Labels
-        LargeTileLabels(
-            label = label,
-            secondaryLabel = secondaryLabel,
-            colors = colors,
-            accessibilityUiState = accessibilityUiState,
-            isVisible = isVisible,
-            modifier = Modifier.weight(1f).bounceScale(TransformOrigin(0f, .5f), textScale),
-        )
-
-        if (sideDrawable != null) {
-            Image(
-                painter = rememberDrawablePainter(sideDrawable),
-                contentDescription = null,
-                modifier = Modifier.width(SideIconWidth).height(SideIconHeight),
+            // Labels
+            LargeTileLabels(
+                label = label,
+                secondaryLabel = secondaryLabel,
+                colors = colors,
+                accessibilityUiState = accessibilityUiState,
+                isVisible = isVisible,
+                modifier = Modifier.weight(1f).bounceScale(TransformOrigin(0f, .5f), textScale),
             )
+
+            if (sideDrawable != null) {
+                Image(
+                    painter = rememberDrawablePainter(sideDrawable),
+                    contentDescription = null,
+                    modifier = Modifier.width(SideIconWidth).height(SideIconHeight),
+                )
+            }
         }
     }
 }
@@ -374,10 +399,16 @@ fun Modifier.tileTestTag(iconOnly: Boolean): Modifier {
  * or if it has a side drawable.
  */
 @Composable
-fun Modifier.largeTilePadding(isDualTarget: Boolean = false): Modifier {
+fun Modifier.largeTilePadding(
+    isDualTarget: Boolean = false,
+    isUwuQs: Boolean = false,
+): Modifier {
     return padding(
-        start = CommonTileDefaults.StartPadding,
-        end = if (isDualTarget) CommonTileDefaults.DualTargetEndPadding else TileEndPadding,
+        start = if (isUwuQs) CommonTileDefaults.UwuTileHorizontalPadding else CommonTileDefaults.StartPadding,
+        end =
+            if (isUwuQs) CommonTileDefaults.UwuTileHorizontalPadding
+            else if (isDualTarget) CommonTileDefaults.DualTargetEndPadding
+            else TileEndPadding,
     )
 }
 
@@ -490,6 +521,9 @@ object CommonTileDefaults {
     val TileEndPadding = 12.dp
     val TileArrangementPadding = 6.dp
     val TileLabelBlurWidth = 32.dp
+    val UwuIconSize = 24.dp
+    val UwuLargeTileIconSize = 21.dp
+    val UwuTileHorizontalPadding = 16.dp
     const val TILE_MARQUEE_ITERATIONS = 1
     const val TILE_INITIAL_DELAY_MILLIS = 2000
 
