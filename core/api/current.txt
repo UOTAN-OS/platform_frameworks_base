@@ -6785,8 +6785,8 @@ package android.app {
     field public static final int FLAG_NO_CLEAR = 32; // 0x20
     field public static final int FLAG_ONGOING_EVENT = 2; // 0x2
     field public static final int FLAG_ONLY_ALERT_ONCE = 8; // 0x8
-    field public static final int FLAG_PROMOTED_ONGOING = 262144; // 0x40000
     field public static final int FLAG_ONLY_UPDATE_TICKER = 33554432; // 0x2000000
+    field public static final int FLAG_PROMOTED_ONGOING = 262144; // 0x40000
     field @Deprecated public static final int FLAG_SHOW_LIGHTS = 1; // 0x1
     field public static final int FOREGROUND_SERVICE_DEFAULT = 0; // 0x0
     field public static final int FOREGROUND_SERVICE_DEFERRED = 2; // 0x2
@@ -40234,10 +40234,18 @@ package android.provider {
     field @Deprecated public static final String LOCK_PATTERN_TACTILE_FEEDBACK_ENABLED = "lock_pattern_tactile_feedback_enabled";
     field @Deprecated public static final String LOCK_PATTERN_VISIBLE = "lock_pattern_visible_pattern";
     field @Deprecated public static final String LOGGING_ID = "logging_id";
+    field public static final String MOMENT_NOTIFICATION_CLICK_ENABLED = "moment_notification_click_enabled";
+    field public static final String MOMENT_NOTIFICATION_CLICK_LANDSCAPE_ENABLED = "moment_notification_click_landscape_enabled";
+    field public static final String MOMENT_NOTIFICATION_CLICK_PORTRAIT_ENABLED = "moment_notification_click_portrait_enabled";
     field @Deprecated public static final String NETWORK_PREFERENCE = "network_preference";
     field public static final String PARENTAL_CONTROL_ENABLED = "parental_control_enabled";
     field public static final String PARENTAL_CONTROL_LAST_UPDATE = "parental_control_last_update";
     field public static final String PARENTAL_CONTROL_REDIRECT_URL = "parental_control_redirect_url";
+    field public static final String QS_SHOW_COLLAPSED_BRIGHTNESS = "qs_show_collapsed_brightness";
+    field public static final String QS_UI_STYLE = "qs_ui_style";
+    field public static final int QS_UI_STYLE_DEFAULT = 1; // 0x1
+    field public static final int QS_UI_STYLE_UWU = 0; // 0x0
+    field public static final String QS_VISUAL_STYLE_MIGRATION_VERSION = "qs_visual_style_migration_version";
     field public static final String RTT_CALLING_MODE = "rtt_calling_mode";
     field @Deprecated public static final String SECURE_FRP_MODE = "secure_frp_mode";
     field public static final String SELECTED_INPUT_METHOD_SUBTYPE = "selected_input_method_subtype";
@@ -40254,6 +40262,8 @@ package android.provider {
     field @Deprecated public static final String TTS_USE_DEFAULTS = "tts_use_defaults";
     field @Deprecated public static final String USB_MASS_STORAGE_ENABLED = "usb_mass_storage_enabled";
     field @Deprecated public static final String USE_GOOGLE_MAIL = "use_google_mail";
+    field public static final String UWU_APP_BACKGROUND_IGNORE_TASK_REMOVAL = "uwu_app_background_ignore_task_removal";
+    field public static final String UWU_QS_TRANSPARENCY_ENABLED = "uwu_qs_transparency_enabled";
     field @Deprecated public static final String WIFI_MAX_DHCP_RETRY_COUNT = "wifi_max_dhcp_retry_count";
     field @Deprecated public static final String WIFI_MOBILE_DATA_TRANSITION_WAKELOCK_TIMEOUT_MS = "wifi_mobile_data_transition_wakelock_timeout_ms";
     field @Deprecated public static final String WIFI_NETWORKS_AVAILABLE_NOTIFICATION_ON = "wifi_networks_available_notification_on";
@@ -64979,3 +64989,4 @@ package org.apache.http.params {
   }
 
 }
+
