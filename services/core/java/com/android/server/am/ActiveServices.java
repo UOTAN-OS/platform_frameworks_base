@@ -300,6 +300,11 @@ public final class ActiveServices {
 
     private static final boolean LOG_SERVICE_START_STOP = DEBUG_SERVICE;
 
+    private static final String CHROMIUM_NATIVE_SANDBOX_SERVICE =
+            "org.chromium.content.app.NativeOnlySandboxedProcessService";
+    private static final String CHROMIUM_SANDBOX_SERVICE =
+            "org.chromium.content.app.SandboxedProcessService";
+
     private static final long EXTERNAL_SERVICE_FLAGS = Context.BIND_EXTERNAL_SERVICE_LONG
             | Integer.toUnsignedLong(Context.BIND_EXTERNAL_SERVICE);
 
@@ -5054,6 +5059,49 @@ public final class ActiveServices {
                 && (serviceInfo.flags & ServiceInfo.FLAG_EXTERNAL_SERVICE) == 0;
     }
 
+    private ServiceInfo redirectNativeChromiumService(ServiceInfo nativeService, long flags,
+            int userId, int callingUid, int callingPid) {
+        if ((nativeService.flags & ServiceInfo.FLAG_NATIVE_SERVICE) == 0
+                || !nativeService.name.startsWith(CHROMIUM_NATIVE_SANDBOX_SERVICE)) {
+            return nativeService;
+        }
+
+        final String serviceIndex =
+                nativeService.name.substring(CHROMIUM_NATIVE_SANDBOX_SERVICE.length());
+        if (serviceIndex.isEmpty()) {
+            return nativeService;
+        }
+        for (int i = 0; i < serviceIndex.length(); i++) {
+            if (!Character.isDigit(serviceIndex.charAt(i))) {
+                return nativeService;
+            }
+        }
+
+        final ComponentName managedComponent = new ComponentName(
+                nativeService.applicationInfo.packageName,
+                CHROMIUM_SANDBOX_SERVICE + serviceIndex);
+        final ResolveInfo managedResolveInfo = mAm.getPackageManagerInternal().resolveService(
+                new Intent().setComponent(managedComponent), null, flags, userId, callingUid,
+                callingPid);
+        final ServiceInfo managedService = managedResolveInfo != null
+                ? managedResolveInfo.serviceInfo : null;
+        if (managedService == null
+                || (managedService.flags & ServiceInfo.FLAG_NATIVE_SERVICE) != 0
+                || (managedService.flags & ServiceInfo.FLAG_ISOLATED_PROCESS) == 0
+                || getServiceUid(managedService) != getServiceUid(nativeService)
+                || !TextUtils.equals(managedService.processName, nativeService.processName)
+                || !TextUtils.equals(managedService.permission, nativeService.permission)
+                || managedService.exported != nativeService.exported) {
+            Slog.w(TAG_SERVICE, "Unable to redirect native Chromium service "
+                    + nativeService.getComponentName() + " to " + managedComponent);
+            return nativeService;
+        }
+
+        Slog.i(TAG_SERVICE, "Redirecting native Chromium service "
+                + nativeService.getComponentName() + " to " + managedComponent);
+        return managedService;
+    }
+
     // TODO(b/265746493): Special case for HotwordDetectionService,
     // VisualQueryDetectionService, WearableSensingService and OnDeviceSandboxedInferenceService
     // Need a cleaner way to append this seInfo.
@@ -5240,6 +5288,8 @@ public final class ActiveServices {
                           ": not found");
                     return null;
                 }
+                sInfo = redirectNativeChromiumService(sInfo, flags, userId, callingUid,
+                        callingPid);
                 if (instanceName != null
                         && (sInfo.flags & ServiceInfo.FLAG_ISOLATED_PROCESS) == 0
                         && !isSdkSandboxService) {
